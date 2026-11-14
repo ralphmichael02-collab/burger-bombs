@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
+import { pool } from './db.js'; // Import pool for the socket route
 import syncRouter from './routes/sync.js';
 import menuRouter from './routes/menu.js';
 import adminRouter from './routes/admin.js';
@@ -12,41 +13,16 @@ import adminRouter from './routes/admin.js';
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use('/api', adminRouter);
 
-// 1. Create the HTTP server from Express
 const httpServer = createServer(app);
-
-// 2. Attach Socket.IO
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// 3. Connect Redis for Pub/Sub
+// Connect Redis
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const pubClient = createClient({ url: redisUrl });
 const subClient = pubClient.duplicate();
-
-// Socket.IO Real-time GPS Relay
-  socket.on('rider_location', async (data) => {
-    // Broadcast the GPS coordinates to the customer tracking the order
-    socket.broadcast.emit('rider_location_update', data);
-
-    // If this is the first ping, update the order status to ON_THE_WAY
-    try {
-      const { pool } = await import('./db.js'); // Dynamic import to use DB here
-      const result = await pool.query(
-        `UPDATE orders SET status = 'ON_THE_WAY' WHERE id = $1 AND status != 'ON_THE_WAY' RETURNING id`,
-        [data.orderId]
-      );
-      // If the row was updated, notify the customer
-      if (result.rowCount > 0) {
-        io.emit('order_status_update', { orderId: data.orderId, status: 'ON_THE_WAY' });
-      }
-    } catch (err) {
-      console.error('[socket] Failed to update order status to ON_THE_WAY', err);
-    }
-  });
 
 Promise.all([pubClient.connect(), subClient.connect()])
   .then(() => {
@@ -55,14 +31,44 @@ Promise.all([pubClient.connect(), subClient.connect()])
   })
   .catch(err => console.error('[redis] connection error', err));
 
-// 4. Make `io` accessible to our routes
+// Make io accessible to our routes (sync.js uses req.app.get('io'))
 app.set('io', io);
 
-// 5. Routes
+// Routes
 app.use('/api', syncRouter);
 app.use('/api', menuRouter);
+app.use('/api', adminRouter);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// 6. Start the server
+// 👇 SOCKET.IO CONNECTION HANDLER 👇
+io.on('connection', (socket) => {
+  console.log('[socket] client connected:', socket.id);
+
+  // Rider sends location -> Backend broadcasts to everyone tracking
+  socket.on('rider_location', async (data) => {
+    socket.broadcast.emit('rider_location_update', data);
+
+    // Update order status to ON_THE_WAY if it isn't already
+    try {
+      const result = await pool.query(
+        `UPDATE orders SET status = 'ON_THE_WAY' WHERE id = $1 AND status != 'ON_THE_WAY' RETURNING id`,
+        [data.orderId]
+      );
+      
+      if (result.rowCount > 0) {
+        // Notify customer that rider is on the way
+        io.emit('order_status_update', { orderId: data.orderId, status: 'ON_THE_WAY' });
+      }
+    } catch (err) {
+      console.error('[socket] Failed to update order status to ON_THE_WAY', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('[socket] client disconnected:', socket.id);
+  });
+});
+// 👆 END SOCKET.IO CONNECTION HANDLER 👆
+
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => console.log(`[backend] http://localhost:${PORT}`));
