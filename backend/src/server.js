@@ -9,6 +9,9 @@ import { pool } from './db.js'; // Import pool for the socket route
 import syncRouter from './routes/sync.js';
 import menuRouter from './routes/menu.js';
 import adminRouter from './routes/admin.js';
+import { startCloudSyncWorker } from './services/cloudSync.js';
+// ... later in the file
+startCloudSyncWorker();
 
 const app = express();
 app.use(cors());
