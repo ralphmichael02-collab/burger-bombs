@@ -27,6 +27,21 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const pubClient = createClient({ url: redisUrl });
 const subClient = pubClient.duplicate();
 
+// Socket.IO Real-time GPS Relay
+io.on('connection', (socket) => {
+  console.log('[socket] client connected:', socket.id);
+
+  // Rider sends location -> Backend broadcasts to everyone tracking
+  socket.on('rider_location', (data) => {
+    // data: { orderId: 17, lat: 14.599, lng: 120.984 }
+    socket.broadcast.emit('rider_location_update', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('[socket] client disconnected:', socket.id);
+  });
+});
+
 Promise.all([pubClient.connect(), subClient.connect()])
   .then(() => {
     io.adapter(createAdapter(pubClient, subClient));
