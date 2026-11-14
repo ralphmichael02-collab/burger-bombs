@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:4000');
+// This tells the app to use the Vercel URL in production, or localhost in development
+const SOCKET_URL = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
+const socket = io(SOCKET_URL);
 
 export default function KitchenDisplay() {
   const [tickets, setTickets] = useState([]);
 
   useEffect(() => {
-    // Play a sound when an order arrives
     const playDing = () => {
       const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
       audio.play().catch(() => console.log('Click page to enable audio'));
