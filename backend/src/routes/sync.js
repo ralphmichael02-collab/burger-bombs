@@ -4,7 +4,7 @@ import { pool } from '../db.js';
 
 const router = Router();
 
-// 1. Sync / Create Order Route
+// 1. Create Order (POS & Online Store)
 router.post('/sync', async (req, res) => {
   const { mutationId, type, payload } = req.body;
 
@@ -32,6 +32,7 @@ router.post('/sync', async (req, res) => {
     let newOrderId = null;
 
     if (type === 'CREATE_ORDER') {
+      // Deduct Inventory
       for (const item of payload.items) {
         const recipeRes = await client.query(
           `SELECT ingredient_id, quantity FROM recipes WHERE menu_item_id = $1`,
@@ -40,6 +41,7 @@ router.post('/sync', async (req, res) => {
 
         for (const recipe of recipeRes.rows) {
           const amountToDeduct = recipe.quantity * item.qty;
+          
           const updateStock = await client.query(
             `UPDATE ingredients 
              SET stock = stock - $1 
@@ -54,6 +56,7 @@ router.post('/sync', async (req, res) => {
         }
       }
 
+      // Insert Order
       const result = await client.query(
         `INSERT INTO orders (sync_id, status, total, items, created_at, order_type)
          VALUES ($1, 'PENDING', $2, $3, $4, $5)
@@ -63,6 +66,7 @@ router.post('/sync', async (req, res) => {
 
       newOrderId = result.rows[0].id;
 
+      // Broadcast to Kitchen
       const io = req.app.get('io');
       if (io) {
         io.emit('new_order', {
@@ -81,6 +85,7 @@ router.post('/sync', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[sync] error', err.message);
+    
     if (err.message.startsWith('OUT_OF_STOCK')) {
       res.status(409).json({ error: err.message });
     } else {
@@ -91,29 +96,34 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-// 2. Get Order Status (For the Customer Tracker)
-router.get('/orders/:id', async (req, res) => {
+// 2. Mark Order as Completed (Kitchen)
+router.post('/orders/:id/complete', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT status FROM orders WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-    res.json(rows[0]);
+    const { id } = req.params;
+    await pool.query(
+      `UPDATE orders SET status = 'COMPLETED' WHERE id = $1`,
+      [id]
+    );
+    res.json({ ok: true });
   } catch (err) {
+    console.error('[complete-order] error', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 3. Complete Order Route (For the Kitchen Display)
-router.post('/orders/:id/complete', async (req, res) => {
+// 3. Get Orders Ready for Delivery (Rider Dashboard)
+router.get('/orders/ready-for-delivery', async (_req, res) => {
   try {
-    const { id } = req.params;
-    await pool.query(`UPDATE orders SET status = 'READY' WHERE id = $1`, [id]);
-    
-    // Notify the customer that their food is ready!
-    const io = req.app.get('io');
-    if (io) io.emit('order_status_update', { orderId: id, status: 'READY' });
-
-    res.json({ ok: true });
+    // We removed `order_type` from the query to avoid 500 errors if the column doesn't exist in your Neon DB yet
+    const { rows } = await pool.query(
+      `SELECT id, total::float, items, created_at 
+       FROM orders 
+       WHERE status = 'COMPLETED' 
+       ORDER BY created_at ASC`
+    );
+    res.json(rows);
   } catch (err) {
+    console.error('[ready-for-delivery] error', err);
     res.status(500).json({ error: err.message });
   }
 });
