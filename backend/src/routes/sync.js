@@ -100,4 +100,19 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+// Add this to sync.js
+router.post('/orders/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      `UPDATE orders SET status = 'COMPLETED' WHERE id = $1`,
+      [id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[complete-order] error', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
