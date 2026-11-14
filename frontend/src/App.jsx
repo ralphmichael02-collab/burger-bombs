@@ -7,6 +7,7 @@ import CustomerStore from './components/CustomerStore';
 import AdminDashboard from './components/AdminDashboard';
 import RiderSimulator from './components/RiderSimulator';
 import CustomerTracker from './components/CustomerTracker';
+import Kiosk from './components/Kiosk'; // <-- Add import
 import { refreshMenuFromBackend } from './db';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/rider" element={<RiderSimulator />} />
+        <Route path="/kiosk" element={<Kiosk />} />
         {/* The :orderId parameter allows us to track specific orders */}
         <Route path="/track/:orderId" element={<CustomerTracker />} />
       </Routes>
