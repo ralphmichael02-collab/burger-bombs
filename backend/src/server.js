@@ -7,10 +7,12 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import syncRouter from './routes/sync.js';
 import menuRouter from './routes/menu.js';
+import adminRouter from './routes/admin.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/api', adminRouter);
 
 // 1. Create the HTTP server from Express
 const httpServer = createServer(app);
