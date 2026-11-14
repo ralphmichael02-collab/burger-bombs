@@ -1,0 +1,1 @@
+{"mutationId":"11111111-1111-1111-1111-111111111111","type":"CREATE_ORDER","payload":{"total":240,"items":[{"id":1,"name":"Classic Burger","price":120,"qty":2}],"createdAt":"2026-01-01T00:00:00Z"}}
