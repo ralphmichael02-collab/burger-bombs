@@ -128,4 +128,40 @@ router.get('/orders/ready-for-delivery', async (_req, res) => {
   }
 });
 
+// 4. Mark Order as Delivered (Rider clicks Complete)
+router.post('/orders/:id/deliver', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      `UPDATE orders SET status = 'DELIVERED' WHERE id = $1`,
+      [id]
+    );
+    
+    // Tell the customer's tracking page that the food has arrived!
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('delivery_completed', { orderId: id });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[deliver-order] error', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Confirm Receipt (Customer clicks Accept)
+router.post('/orders/:id/confirm-receipt', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      `UPDATE orders SET status = 'RECEIVED' WHERE id = $1`,
+      [id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[confirm-receipt] error', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
