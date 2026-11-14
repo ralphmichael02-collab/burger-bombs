@@ -9,7 +9,6 @@ export default function CustomerStore() {
   const [checkoutStatus, setCheckoutStatus] = useState('idle'); // idle, loading, error
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Fetch directly from the cloud backend
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
       .then(res => res.json())
@@ -54,12 +53,15 @@ export default function CustomerStore() {
 
       const data = await res.json();
       
-      // Auto-redirect to the tracking page for this specific order
-      if (data.orderId) {
-        navigate(`/track/${data.orderId}`);
-      } else {
-        throw new Error('Order placed, but no ID was returned.');
-      }
+      // Wait 3 seconds so the user can see the nice loading animation, then redirect
+      setTimeout(() => {
+        if (data.orderId) {
+          navigate(`/track/${data.orderId}`);
+        } else {
+          setErrorMsg('Order placed, but no ID was returned.');
+          setCheckoutStatus('error');
+        }
+      }, 3000);
 
     } catch (err) {
       setErrorMsg(err.message);
@@ -69,15 +71,36 @@ export default function CustomerStore() {
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
 
+  // --- 1. FULL SCREEN LOADING OVERLAY ---
+  if (checkoutStatus === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-6 text-white text-center">
+        {/* Animated Scooter */}
+        <div className="relative w-40 h-40 flex items-center justify-center mb-8">
+          {/* Spinning Ring */}
+          <div className="absolute inset-0 border-[6px] border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+          {/* Bouncing Scooter */}
+          <div className="text-6xl animate-bounce mt-2">🛵</div>
+        </div>
+        
+        <h2 className="text-3xl font-black mb-3 text-yellow-500 animate-pulse">
+          Processing your order...
+        </h2>
+        <p className="text-gray-400 text-lg">
+          Sending your food to the kitchen.
+        </p>
+      </div>
+    );
+  }
+
+  // --- 2. NORMAL STORE UI ---
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Header */}
       <header className="bg-black text-white p-6 text-center shadow-md">
         <h1 className="text-3xl font-black tracking-widest uppercase">Burger Bombs</h1>
         <p className="text-sm text-gray-400 mt-1">Blowing diets since day one</p>
       </header>
 
-      {/* Menu List */}
       <div className="max-w-md mx-auto p-4 mt-2">
         <h2 className="text-xl font-bold mb-4 text-gray-800">Our Menu</h2>
         <div className="space-y-3">
@@ -99,9 +122,8 @@ export default function CustomerStore() {
         </div>
       </div>
 
-      {/* Cart / Checkout Bar */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 w-full bg-white border-t p-4 shadow-2xl">
+        <div className="fixed bottom-0 w-full bg-white border-t p-4 shadow-2xl z-40">
           <div className="max-w-md mx-auto flex justify-between items-center">
             <div>
               <div className="font-bold text-xl text-gray-900">₱{total}</div>
@@ -109,10 +131,9 @@ export default function CustomerStore() {
             </div>
             <button 
               onClick={checkout}
-              disabled={checkoutStatus === 'loading'}
               className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition"
             >
-              {checkoutStatus === 'loading' ? 'Processing...' : 'Checkout'}
+              Checkout
             </button>
           </div>
           {checkoutStatus === 'error' && (
