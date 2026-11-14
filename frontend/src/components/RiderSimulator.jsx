@@ -1,3 +1,4 @@
+// frontend/src/components/RiderSimulator.jsx
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 
@@ -5,86 +6,120 @@ const SOCKET_URL = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 const socket = io(SOCKET_URL);
 
 export default function RiderSimulator() {
-  const [isTracking, setIsTracking] = useState(false);
-  const [location, setLocation] = useState({ lat: 0, lng: 0 });
-  const [accuracy, setAccuracy] = useState(null);
+  const [readyOrders, setReadyOrders] = useState([]);
+  const [activeDelivery, setActiveDelivery] = useState(null); // Tracks the order being delivered
+  const [location, setLocation] = useState({ lat: 14.5995, lng: 120.9842 });
   const [error, setError] = useState(null);
 
+  // Fetch orders that are marked COMPLETED by the kitchen
+  const fetchReadyOrders = () => {
+    fetch(`${import.meta.env.VITE_API_BASE}/api/orders/ready-for-delivery`)
+      .then(res => res.json())
+      .then(data => setReadyOrders(data))
+      .catch(err => console.error(err));
+  };
+
   useEffect(() => {
-    if (!isTracking) return;
+    fetchReadyOrders();
+    // Refresh list every 10 seconds just in case
+    const interval = setInterval(fetchReadyOrders, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle GPS Tracking once an order is accepted
+  useEffect(() => {
+    if (!activeDelivery) return;
 
     let watchId;
-
-    // Check if geolocation is supported
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
       return;
     }
 
-    // Start watching the device's position
     watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        const newLoc = { lat: latitude, lng: longitude };
-        
-        setLocation(newLoc);
-        setAccuracy(accuracy);
+        const { latitude, longitude } = position.coords;
+        setLocation({ lat: latitude, lng: longitude });
         setError(null);
 
-        // Send the real GPS coordinates to the backend via WebSockets
+        // Broadcast to the customer
         socket.emit('rider_location', {
-          orderId: 99,
+          orderId: activeDelivery.id, 
           lat: latitude,
           lng: longitude
         });
       },
-      (err) => {
-        setError(err.message || 'Failed to get location. Please enable GPS.');
-        console.error('Geolocation error:', err);
-      },
-      {
-        enableHighAccuracy: true, // Force GPS usage
-        timeout: 10000,           // Wait up to 10 seconds for a fix
-        maximumAge: 0             // Do not use cached positions
-      }
+      (err) => setError(err.message || 'Enable GPS to deliver'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
-    // Cleanup: stop watching when tracking is turned off or component unmounts
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isTracking]);
+  }, [activeDelivery]);
 
+  // If the rider is currently delivering
+  if (activeDelivery) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-white">
+        <div className="bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-gray-700">
+          <h1 className="text-3xl font-black mb-2 text-green-400">Delivering Order #{activeDelivery.id}</h1>
+          <p className="text-gray-400 mb-6">Total: ₱{activeDelivery.total}</p>
+
+          {error ? (
+             <div className="bg-red-900/50 p-3 rounded-xl mb-4 text-red-200 text-sm border border-red-700">⚠️ {error}</div>
+          ) : (
+            <div className="bg-black p-4 rounded-xl mb-6 font-mono text-sm border border-gray-700 text-green-400">
+              <p>Live GPS Active 🟢</p>
+              <p>Lat: {location.lat.toFixed(5)}</p>
+              <p>Lng: {location.lng.toFixed(5)}</p>
+            </div>
+          )}
+
+          <button
+            onClick={() => setActiveDelivery(null)}
+            className="w-full py-4 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-700 transition"
+          >
+            Complete Delivery ✅
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Rider Dashboard (List of ready orders)
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-white">
-      <div className="bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-gray-700">
-        <h1 className="text-3xl font-black mb-2 text-yellow-500">Rider Mode</h1>
-        <p className="text-gray-400 mb-6">Order #99 Real GPS Delivery</p>
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-md mx-auto">
+        <header className="mb-6 flex justify-between items-center">
+          <h1 className="text-2xl font-black text-gray-900">Rider Dashboard</h1>
+          <button onClick={fetchReadyOrders} className="text-sm bg-gray-200 px-3 py-1 rounded font-bold">Refresh</button>
+        </header>
 
-        {/* Display Real-Time Data */}
-        {accuracy && (
-          <div className="bg-black p-4 rounded-xl mb-4 font-mono text-sm border border-gray-700 text-green-400">
-            <p>Lat: {location.lat.toFixed(5)}</p>
-            <p>Lng: {location.lng.toFixed(5)}</p>
-            <p className="text-yellow-400">Accuracy: ±{accuracy.toFixed(1)} meters</p>
+        <h2 className="text-lg font-bold text-gray-700 mb-4">Ready for Pickup</h2>
+        
+        {readyOrders.length === 0 ? (
+          <div className="text-center text-gray-500 bg-white p-8 rounded-xl shadow-sm border">
+            No orders ready yet. Waiting for kitchen...
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {readyOrders.map(order => (
+              <div key={order.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
+                <div>
+                  <div className="font-black text-xl text-gray-800">Order #{order.id}</div>
+                  <div className="text-sm text-gray-500">{order.items.length} items • ₱{order.total}</div>
+                </div>
+                <button
+                  onClick={() => setActiveDelivery(order)}
+                  className="bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition"
+                >
+                  Start Delivery 🛵
+                </button>
+              </div>
+            ))}
           </div>
         )}
-
-        {/* Error Handling */}
-        {error && (
-          <div className="bg-red-900/50 p-3 rounded-xl mb-4 text-red-200 text-sm border border-red-700">
-            ⚠️ {error}
-          </div>
-        )}
-
-        <button
-          onClick={() => setIsTracking(!isTracking)}
-          className={`w-full py-4 rounded-xl font-bold text-lg transition shadow-lg ${
-            isTracking ? 'bg-red-600 hover:bg-red-700' : 'bg-green-500 hover:bg-green-600'
-          }`}
-        >
-          {isTracking ? '🛑 Stop Real GPS' : '📍 Start Real GPS'}
-        </button>
       </div>
     </div>
   );

@@ -99,4 +99,19 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+// Add this to sync.js
+router.get('/orders/ready-for-delivery', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, total::float, order_type, items, created_at 
+       FROM orders 
+       WHERE status = 'COMPLETED' 
+       ORDER BY created_at ASC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
