@@ -4,6 +4,7 @@ import { pool } from '../db.js';
 
 const router = Router();
 
+// 1. Sync / Create Order Route
 router.post('/sync', async (req, res) => {
   const { mutationId, type, payload } = req.body;
 
@@ -15,7 +16,6 @@ router.post('/sync', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Idempotency Guard
     const claim = await client.query(
       `INSERT INTO processed_mutations (mutation_id, type)
        VALUES ($1, $2)
@@ -29,10 +29,9 @@ router.post('/sync', async (req, res) => {
       return res.json({ ok: true, duplicate: true });
     }
 
-    let newOrderId = null; // 👈 Declare here so it's available at the bottom
+    let newOrderId = null;
 
     if (type === 'CREATE_ORDER') {
-      // 2. Deduct Inventory
       for (const item of payload.items) {
         const recipeRes = await client.query(
           `SELECT ingredient_id, quantity FROM recipes WHERE menu_item_id = $1`,
@@ -41,7 +40,6 @@ router.post('/sync', async (req, res) => {
 
         for (const recipe of recipeRes.rows) {
           const amountToDeduct = recipe.quantity * item.qty;
-          
           const updateStock = await client.query(
             `UPDATE ingredients 
              SET stock = stock - $1 
@@ -56,7 +54,6 @@ router.post('/sync', async (req, res) => {
         }
       }
 
-      // 3. Insert the Order
       const result = await client.query(
         `INSERT INTO orders (sync_id, status, total, items, created_at, order_type)
          VALUES ($1, 'PENDING', $2, $3, $4, $5)
@@ -64,10 +61,8 @@ router.post('/sync', async (req, res) => {
         [mutationId, payload.total, JSON.stringify(payload.items), payload.createdAt, payload.orderType || 'POS']
       );
 
-      // 👇 Assign the ID here
       newOrderId = result.rows[0].id;
 
-      // 4. Broadcast to Kitchen Display
       const io = req.app.get('io');
       if (io) {
         io.emit('new_order', {
@@ -81,14 +76,11 @@ router.post('/sync', async (req, res) => {
     }
 
     await client.query('COMMIT');
-    
-    // 👇 Use the variable here
     res.json({ ok: true, orderId: newOrderId }); 
 
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[sync] error', err.message);
-    
     if (err.message.startsWith('OUT_OF_STOCK')) {
       res.status(409).json({ error: err.message });
     } else {
@@ -99,16 +91,28 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-// Add this to sync.js
-router.get('/orders/ready-for-delivery', async (_req, res) => {
+// 2. Get Order Status (For the Customer Tracker)
+router.get('/orders/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, total::float, order_type, items, created_at 
-       FROM orders 
-       WHERE status = 'COMPLETED' 
-       ORDER BY created_at ASC`
-    );
-    res.json(rows);
+    const { rows } = await pool.query('SELECT status FROM orders WHERE id = $1', [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Complete Order Route (For the Kitchen Display)
+router.post('/orders/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE orders SET status = 'READY' WHERE id = $1`, [id]);
+    
+    // Notify the customer that their food is ready!
+    const io = req.app.get('io');
+    if (io) io.emit('order_status_update', { orderId: id, status: 'READY' });
+
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

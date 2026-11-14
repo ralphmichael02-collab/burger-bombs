@@ -28,19 +28,25 @@ const pubClient = createClient({ url: redisUrl });
 const subClient = pubClient.duplicate();
 
 // Socket.IO Real-time GPS Relay
-io.on('connection', (socket) => {
-  console.log('[socket] client connected:', socket.id);
-
-  // Rider sends location -> Backend broadcasts to everyone tracking
-  socket.on('rider_location', (data) => {
-    // data: { orderId: 17, lat: 14.599, lng: 120.984 }
+  socket.on('rider_location', async (data) => {
+    // Broadcast the GPS coordinates to the customer tracking the order
     socket.broadcast.emit('rider_location_update', data);
-  });
 
-  socket.on('disconnect', () => {
-    console.log('[socket] client disconnected:', socket.id);
+    // If this is the first ping, update the order status to ON_THE_WAY
+    try {
+      const { pool } = await import('./db.js'); // Dynamic import to use DB here
+      const result = await pool.query(
+        `UPDATE orders SET status = 'ON_THE_WAY' WHERE id = $1 AND status != 'ON_THE_WAY' RETURNING id`,
+        [data.orderId]
+      );
+      // If the row was updated, notify the customer
+      if (result.rowCount > 0) {
+        io.emit('order_status_update', { orderId: data.orderId, status: 'ON_THE_WAY' });
+      }
+    } catch (err) {
+      console.error('[socket] Failed to update order status to ON_THE_WAY', err);
+    }
   });
-});
 
 Promise.all([pubClient.connect(), subClient.connect()])
   .then(() => {

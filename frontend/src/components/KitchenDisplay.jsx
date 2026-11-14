@@ -25,13 +25,11 @@ export default function KitchenDisplay() {
   }, []);
 
   // Replace the existing completeOrder function with this:
-  const completeOrder = async (orderId) => {
+    const completeOrder = async (orderId) => {
     try {
-      // Tell the database the order is done
       await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${orderId}/complete`, {
         method: 'POST'
       });
-      // Remove it from the screen
       setTickets((prev) => prev.filter((t) => t.id !== orderId));
     } catch (err) {
       console.error("Failed to complete order", err);
