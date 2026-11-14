@@ -83,7 +83,7 @@ router.post('/sync', async (req, res) => {
 
     // 3. Commit everything if no errors occurred
     await client.query('COMMIT');
-    res.json({ ok: true });
+     res.json({ ok: true, orderId: result ? result.rows[0].id : null }); 
     
     } catch (err) {
     await client.query('ROLLBACK');

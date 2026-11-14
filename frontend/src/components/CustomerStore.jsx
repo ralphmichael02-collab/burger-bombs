@@ -1,14 +1,15 @@
 // frontend/src/components/CustomerStore.jsx
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function CustomerStore() {
+  const navigate = useNavigate();
   const [menu, setMenu] = useState([]);
   const [cart, setCart] = useState([]);
-  const [checkoutStatus, setCheckoutStatus] = useState('idle'); // idle, loading, success, error
+  const [checkoutStatus, setCheckoutStatus] = useState('idle'); // idle, loading, error
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Fetch directly from the cloud backend (simulating a customer's phone)
+  // Fetch directly from the cloud backend
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
       .then(res => res.json())
@@ -41,7 +42,7 @@ export default function CustomerStore() {
             items: cart,
             total,
             createdAt: new Date().toISOString(),
-            orderType: 'ONLINE' // Mark this as an online order!
+            orderType: 'ONLINE'
           }
         })
       });
@@ -51,8 +52,15 @@ export default function CustomerStore() {
         throw new Error(data.error || 'Checkout failed');
       }
 
-      setCheckoutStatus('success');
-      setCart([]);
+      const data = await res.json();
+      
+      // Auto-redirect to the tracking page for this specific order
+      if (data.orderId) {
+        navigate(`/track/${data.orderId}`);
+      } else {
+        throw new Error('Order placed, but no ID was returned.');
+      }
+
     } catch (err) {
       setErrorMsg(err.message);
       setCheckoutStatus('error');
@@ -60,19 +68,6 @@ export default function CustomerStore() {
   };
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
-
-  // Success Screen
-  if (checkoutStatus === 'success') {
-    return (
-      <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-4xl font-black text-green-600 mb-2">Order Confirmed! 🎉</h1>
-        <p className="text-gray-700 mb-8 text-lg">Your food is being prepared. Please wait for delivery.</p>
-        <Link to="/store" onClick={() => setCheckoutStatus('idle')} className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-bold transition">
-          Order Again
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
