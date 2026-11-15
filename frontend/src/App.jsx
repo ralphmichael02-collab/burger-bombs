@@ -10,6 +10,7 @@ import RiderSimulator from './components/RiderSimulator';
 import CustomerTracker from './components/CustomerTracker';
 import Kiosk from './components/Kiosk';
 import { refreshMenuFromBackend } from './db';
+import AdminLogin from './components/AdminLogin';
 
 export default function App() {
   useEffect(() => { 
@@ -27,6 +28,12 @@ export default function App() {
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/rider" element={<RiderSimulator />} />
         <Route path="/track/:orderId" element={<CustomerTracker />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin" element={
+          localStorage.getItem('burger_admin_auth') === 'true' 
+            ? <AdminDashboard /> 
+            : <AdminLogin />
+        } />
       </Routes>
     </BrowserRouter>
   );

@@ -12,22 +12,20 @@ export default function CustomerStore() {
   const [pastOrders, setPastOrders] = useState([]);
   const [viewingIngredients, setViewingIngredients] = useState(null); 
   const [filterCategory, setFilterCategory] = useState('All'); 
-  const [categories, setCategories] = useState([]); // 👈 Dynamic Categories State
+  const [categories, setCategories] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('GCash'); // 👈 Payment State
 
   useEffect(() => {
-    // Fetch Menu
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
       .then(res => res.json())
       .then(data => setMenu(data))
       .catch(err => console.error('Failed to load menu', err));
 
-    // Fetch Categories
     fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
       .then(res => res.json())
       .then(data => setCategories(Array.isArray(data) ? data : []))
       .catch(err => console.error('Failed to load categories', err));
 
-    // Load past orders
     const saved = JSON.parse(localStorage.getItem('burger_bombs_orders') || '[]');
     setPastOrders(saved);
   }, []);
@@ -53,7 +51,13 @@ export default function CustomerStore() {
         body: JSON.stringify({
           mutationId,
           type: 'CREATE_ORDER',
-          payload: { items: cart, total, createdAt: new Date().toISOString(), orderType: 'ONLINE' }
+          payload: { 
+            items: cart, 
+            total, 
+            createdAt: new Date().toISOString(), 
+            orderType: 'ONLINE',
+            paymentMethod: paymentMethod // 👈 Pass to backend (optional for now)
+          }
         })
       });
 
@@ -83,8 +87,6 @@ export default function CustomerStore() {
   };
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
-  
-  // Filter the menu dynamically
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (checkoutStatus === 'loading') {
@@ -100,7 +102,7 @@ export default function CustomerStore() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen bg-gray-50 pb-48">
       <header className="bg-black text-white p-6 shadow-md flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black tracking-widest uppercase">Burger Bombs</h1>
@@ -111,7 +113,6 @@ export default function CustomerStore() {
 
       <div className="max-w-md mx-auto p-4 mt-2">
         
-        {/* Past Orders */}
         {pastOrders.length > 0 && (
           <div className="mb-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
             <h2 className="text-lg font-bold text-gray-800 mb-3">Your Recent Orders</h2>
@@ -131,7 +132,6 @@ export default function CustomerStore() {
 
         <h2 className="text-xl font-bold mb-4 text-gray-800">Our Menu</h2>
         
-        {/* Dynamic Category Filter */}
         <div className="flex gap-2 overflow-x-auto pb-4 mb-2">
           {['All', ...categories].map(cat => (
             <button key={cat} onClick={() => setFilterCategory(cat)} 
@@ -141,7 +141,6 @@ export default function CustomerStore() {
           ))}
         </div>
 
-        {/* Menu List */}
         <div className="space-y-4">
           {filteredMenu.map(item => (
             <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -176,21 +175,43 @@ export default function CustomerStore() {
         </div>
       </div>
 
-      {/* Checkout Bar */}
+      {/* Checkout Bar with Payment Methods */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 w-full bg-white border-t p-4 shadow-2xl z-40">
-          <div className="max-w-md mx-auto flex justify-between items-center">
-            <div>
-              <div className="font-bold text-xl text-gray-900">₱{total}</div>
-              <div className="text-sm text-gray-500 font-medium">{cart.reduce((s,c) => s + c.qty, 0)} items</div>
+        <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 p-4 shadow-2xl z-40 rounded-t-3xl">
+          <div className="max-w-md mx-auto">
+            
+            <div className="mb-4">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Payment Method</p>
+              <div className="grid grid-cols-3 gap-2">
+                {['GCash', 'Maya', 'Cash'].map(method => (
+                  <button
+                    key={method}
+                    onClick={() => setPaymentMethod(method)}
+                    className={`py-2 rounded-lg font-bold text-sm border transition ${
+                      paymentMethod === method ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
             </div>
-            <button onClick={checkout} className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition">Checkout</button>
+
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="font-bold text-xl text-gray-900">₱{total}</div>
+                <div className="text-sm text-gray-500 font-medium">{cart.reduce((s,c) => s + c.qty, 0)} items</div>
+              </div>
+              <button onClick={checkout} className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition shadow-lg">
+                Pay with {paymentMethod}
+              </button>
+            </div>
+            
+            {checkoutStatus === 'error' && <div className="text-red-500 text-sm text-center mt-2 font-bold">{errorMsg}</div>}
           </div>
-          {checkoutStatus === 'error' && <div className="text-red-500 text-sm text-center mt-2 font-bold">{errorMsg}</div>}
         </div>
       )}
 
-      {/* Ingredients Modal */}
       {viewingIngredients && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
