@@ -43,7 +43,26 @@ async function refundStock(client, menuItemId, quantityRefunded) {
   }
 }
 
-// ─── LOOKUP BY SYNC_ID (QR scan) ─────────────────────────────
+// ─── LOOKUP BY INTEGER ID (Used for Customer Tracking) ───────
+router.get('/orders/by-id/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, sync_id, status, total::float, items, created_at, payment_method, payment_reference
+       FROM orders WHERE id = $1`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('[orders] by-id lookup failed', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── LOOKUP BY SYNC_ID (Used for QR scan) ────────────────────
 router.get('/orders/by-sync-id/:syncId', async (req, res) => {
   const { syncId } = req.params;
   try {
@@ -62,7 +81,7 @@ router.get('/orders/by-sync-id/:syncId', async (req, res) => {
   }
 });
 
-// ─── LOOKUP BY REFERENCE (manual entry fallback) ──────────────
+// ─── LOOKUP BY REFERENCE (manual entry fallback) ─────────────
 router.get('/orders/by-ref/:ref', async (req, res) => {
   const { ref } = req.params;
   const cleanRef = ref.trim().toUpperCase().replace(/-/g, '');

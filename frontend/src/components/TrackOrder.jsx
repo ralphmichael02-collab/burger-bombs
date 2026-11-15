@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { ArrowLeft, Truck } from 'lucide-react';
 import { API_BASE, SOCKET_URL } from '../config/api';
 
+// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -14,7 +15,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+const socket = io(SOCKET_URL, { transports: ['polling', 'websocket'] });
 
 export default function TrackOrder() {
   const { orderId } = useParams();
@@ -24,7 +25,8 @@ export default function TrackOrder() {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/orders/by-sync-id/${orderId}`)
+    // Fetch using the new Integer ID endpoint
+    fetch(`${API_BASE}/api/orders/by-id/${orderId}`)
       .then(r => r.json())
       .then(setOrder)
       .catch(console.error);
@@ -65,7 +67,7 @@ export default function TrackOrder() {
         <div className="absolute bottom-4 left-4 right-4 bg-surface p-4 rounded-xl shadow-lg border border-border z-[400]">
           <div className="flex justify-between items-center">
             <div>
-              <p className="font-black text-lg text-text">Order #{orderId.slice(0, 8).toUpperCase()}</p>
+              <p className="font-black text-lg text-text">Order #{orderId}</p>
               <p className="text-sm text-text-muted">{order?.status || 'Processing'}</p>
             </div>
             <div className="text-right">
