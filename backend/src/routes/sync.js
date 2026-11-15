@@ -5,7 +5,6 @@ import { queueCloudSync } from '../services/cloudSync.js';
 
 const router = Router();
 
-// Recursively deduct stock (handles combos)
 async function deductStock(client, menuItemId, quantityOrdered) {
   const recipeRes = await client.query(
     `SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`,
@@ -28,7 +27,6 @@ async function deductStock(client, menuItemId, quantityOrdered) {
   }
 }
 
-// Recursively refund stock (for voids)
 async function refundStock(client, menuItemId, quantityRefunded) {
   const recipeRes = await client.query(
     `SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`,
@@ -45,7 +43,7 @@ async function refundStock(client, menuItemId, quantityRefunded) {
   }
 }
 
-// CREATE ORDER
+// CREATE ORDER (POS, Kiosk, Online Store)
 router.post('/sync', async (req, res) => {
   const { mutationId, type, payload } = req.body;
   if (!mutationId || !type || !payload) {
@@ -117,7 +115,7 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-// VOID ORDER (Refund stock)
+// VOID ORDER (Cashier refund)
 router.post('/orders/:id/void', async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
@@ -141,7 +139,7 @@ router.post('/orders/:id/void', async (req, res) => {
   }
 });
 
-// VERIFY PAYMENT
+// VERIFY PAYMENT (Admin)
 router.post('/orders/:id/verify-payment', async (req, res) => {
   const { id } = req.params;
   try {
@@ -150,6 +148,7 @@ router.post('/orders/:id/verify-payment', async (req, res) => {
       [id]
     );
     if (result.rowCount === 0) throw new Error("Order not found or already verified");
+
     const io = req.app.get('io');
     if (io) {
       io.emit('new_order', {

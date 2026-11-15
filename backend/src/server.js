@@ -43,20 +43,24 @@ Promise.all([pubClient.connect(), subClient.connect()])
 
 app.set('io', io);
 
+// Socket.IO GPS relay (riders broadcast, customers receive)
 io.on('connection', (socket) => {
   socket.on('rider_location', (data) => {
     socket.broadcast.emit('rider_location_update', data);
   });
 });
 
+// ============ ROUTES ============
 app.use('/api', syncRouter);
 app.use('/api', menuRouter);
 app.use('/api', adminRouter);
 app.use('/api', settingsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api', crmRouter);
+
 app.get('/health', (_req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
 
+// ============ BACKGROUND WORKERS ============
 startCloudSyncWorker();
 startImageSyncWorker();
 

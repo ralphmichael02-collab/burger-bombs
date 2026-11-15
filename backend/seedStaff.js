@@ -3,9 +3,7 @@ import bcrypt from 'bcryptjs';
 import { pool } from './src/db.js';
 
 console.log('🔄 Running schema migrations...');
-
 try {
-  // Ensure columns exist
   await pool.query(`
     ALTER TABLE customers 
       ADD COLUMN IF NOT EXISTS password_hash TEXT,
@@ -25,7 +23,6 @@ try {
 
   const password = await bcrypt.hash('password123', 10);
 
-  console.log('🔄 Seeding staff accounts...');
   for (const s of staff) {
     try {
       await pool.query(
@@ -35,15 +32,13 @@ try {
          SET role = EXCLUDED.role, password_hash = EXCLUDED.password_hash, is_verified = TRUE`,
         [s.email, password, s.name, s.role]
       );
-      console.log(`✅ Created ${s.role}: ${s.email}`);
+      console.log(`✅ ${s.role}: ${s.email}`);
     } catch (err) {
-      console.error(`❌ Error creating ${s.email}:`, err.message);
+      console.error(`❌ ${s.email}:`, err.message);
     }
   }
 
-  console.log('\n🎉 Done! Login credentials:');
-  console.log('   Email: admin@burgerbombs.com');
-  console.log('   Password: password123\n');
+  console.log('\n🎉 Login with admin@burgerbombs.com / password123\n');
 } catch (err) {
   console.error('❌ Migration failed:', err.message);
 } finally {

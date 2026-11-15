@@ -11,6 +11,7 @@ import {
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import { isLocalEnvironment } from '../utils/isLocal';
+import { canAccessTab, ROLE_LABELS } from '../utils/roles';
 
 const DEFAULT_CATEGORIES = [
   { id: 1, name: 'Burgers' }, { id: 2, name: 'Combos' }, { id: 3, name: 'Sides' }, { id: 4, name: 'Drinks' }, { id: 5, name: 'Desserts' }
@@ -33,11 +34,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [staffUser, setStaffUser] = useState(null);
   
+  // Dropdown States
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
 
+  // Data States
   const [data, setData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
@@ -59,6 +62,7 @@ export default function AdminDashboard() {
   const [isUploading, setIsUploading] = useState(false);
 
   const isLocal = isLocalEnvironment();
+  const staffUserRole = staffUser?.role;
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -95,6 +99,12 @@ export default function AdminDashboard() {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (staffUser && staffUser.role === 'inventory' && activeTab === 'overview') {
+      setActiveTab('inventory');
+    }
+  }, [staffUser]);
 
   useEffect(() => {
     if (activeTab === 'reports') fetchReports();
@@ -232,17 +242,17 @@ export default function AdminDashboard() {
   if (loading) return <div className="h-screen flex items-center justify-center bg-[#FDFBF7] text-[#EA580C] font-bold text-xl">Loading...</div>;
 
   const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
-    { id: 'customers', label: 'CRM', icon: Users },
-    { id: 'menu', label: 'Menu', icon: Utensils },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'recipes', label: 'Recipes', icon: ChefHat },
-    { id: 'categories', label: 'Categories', icon: Folder },
-    { id: 'content', label: 'Website Content', icon: Globe },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
+    { id: 'overview',   label: 'Overview',        icon: LayoutDashboard },
+    { id: 'reports',    label: 'Reports',         icon: FileText },
+    { id: 'payments',   label: 'Payments',        icon: CreditCard, badge: pendingPayments.length },
+    { id: 'customers',  label: 'CRM',             icon: Users },
+    { id: 'menu',       label: 'Menu',            icon: Utensils },
+    { id: 'inventory',  label: 'Inventory',       icon: Package },
+    { id: 'recipes',    label: 'Recipes',         icon: ChefHat },
+    { id: 'categories', label: 'Categories',      icon: Folder },
+    { id: 'content',    label: 'Website Content', icon: Globe },
+    { id: 'settings',   label: 'Settings',        icon: Settings },
+  ].filter(item => canAccessTab(staffUserRole, item.id));
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FDFBF7] font-['Source_Sans_Pro',sans-serif]">
@@ -333,7 +343,7 @@ export default function AdminDashboard() {
                   <div className="w-9 h-9 bg-[#EA580C] text-white rounded-full flex items-center justify-center font-bold text-sm">{staffUser?.name?.charAt(0) || 'A'}</div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-bold text-[#1A1C23] leading-tight">{staffUser?.name || 'Admin'}</p>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{staffUser?.role || 'Administrator'}</p>
+                    <p className="text-xs font-semibold text-[#EA580C] uppercase tracking-wider">{ROLE_LABELS[staffUserRole] || 'Administrator'}</p>
                   </div>
                 </button>
                 {showProfileMenu && (

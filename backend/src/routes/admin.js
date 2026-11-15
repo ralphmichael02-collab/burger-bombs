@@ -10,9 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '../../public/uploads');
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
@@ -21,16 +19,14 @@ const storage = multer.diskStorage({
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 const router = Router();
 
 // STATS
 router.get('/admin/stats', async (_req, res) => {
   try {
     const totalsRes = await pool.query(`
-      SELECT 
-        COALESCE(SUM(total), 0)::float as total_sales,
-        COUNT(id)::int as total_orders
+      SELECT COALESCE(SUM(total), 0)::float as total_sales, COUNT(id)::int as total_orders
       FROM orders WHERE status != 'VOIDED'
     `);
     const cogsRes = await pool.query(`
@@ -45,8 +41,7 @@ router.get('/admin/stats', async (_req, res) => {
       FROM orders ORDER BY created_at DESC LIMIT 10
     `);
     const lowStockRes = await pool.query(`
-      SELECT name, stock::float, unit, low_stock::float 
-      FROM ingredients WHERE stock <= low_stock
+      SELECT name, stock::float, unit, low_stock::float FROM ingredients WHERE stock <= low_stock
     `);
     res.json({
       metrics: {
@@ -57,9 +52,7 @@ router.get('/admin/stats', async (_req, res) => {
       recentOrders: recentOrdersRes.rows,
       lowStock: lowStockRes.rows
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // CHART DATA
@@ -72,9 +65,7 @@ router.get('/admin/chart-data', async (_req, res) => {
       ORDER BY DATE_TRUNC('day', created_at) ASC
     `);
     res.json(rows);
-  } catch (err) {
-    res.json([]);
-  }
+  } catch (err) { res.json([]); }
 });
 
 // MENU MANAGEMENT
@@ -82,9 +73,7 @@ router.get('/admin/menu', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM menu_items ORDER BY category, name`);
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/admin/menu', async (req, res) => {
@@ -101,9 +90,7 @@ router.post('/admin/menu', async (req, res) => {
       );
     }
     res.json({ ok: true, item: rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/admin/menu/:id', async (req, res) => {
@@ -121,9 +108,7 @@ router.put('/admin/menu/:id', async (req, res) => {
       );
     }
     res.json({ ok: true, item: rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/admin/menu/:id', async (req, res) => {
@@ -132,17 +117,14 @@ router.delete('/admin/menu/:id', async (req, res) => {
     await pool.query(`DELETE FROM menu_items WHERE id = $1`, [id]);
     if (cloudPool) await cloudPool.query(`DELETE FROM menu_items WHERE id = $1`, [id]);
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// LOCAL IMAGE UPLOAD FALLBACK
+// LOCAL IMAGE UPLOAD
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
-  const localUrl = `${protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  res.json({ url: localUrl });
+  res.json({ url: `${protocol}://${req.get('host')}/uploads/${req.file.filename}` });
 });
 
 // INVENTORY MANAGEMENT
@@ -150,9 +132,7 @@ router.get('/ingredients', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM ingredients ORDER BY name ASC`);
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/ingredients/:id/restock', async (req, res) => {
@@ -162,12 +142,10 @@ router.post('/ingredients/:id/restock', async (req, res) => {
     const { rows } = await pool.query(`UPDATE ingredients SET stock = stock + $1 WHERE id = $2 RETURNING *`, [amount, id]);
     if (cloudPool) await cloudPool.query(`UPDATE ingredients SET stock = $1 WHERE id = $2`, [rows[0].stock, id]);
     res.json({ ok: true, ingredient: rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// RECIPES (BOM)
+// RECIPE / BOM MANAGEMENT
 router.get('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
   try {
@@ -175,9 +153,7 @@ router.get('/admin/menu/:id/recipe', async (req, res) => {
       `SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`, [id]
     );
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/admin/menu/:id/recipe', async (req, res) => {
@@ -200,19 +176,15 @@ router.post('/admin/menu/:id/recipe', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
 });
 
-// CATEGORIES
+// CATEGORY MANAGEMENT
 router.get('/admin/categories', async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories ORDER BY name ASC');
     res.json(rows);
-  } catch (err) {
-    res.json([]);
-  }
+  } catch (err) { res.json([]); }
 });
 
 router.post('/admin/categories', async (req, res) => {
@@ -233,13 +205,11 @@ router.delete('/admin/categories/:id', async (req, res) => {
     const catRes = await pool.query('SELECT name FROM categories WHERE id = $1', [id]);
     if (catRes.rowCount === 0) return res.status(404).json({ error: 'Category not found' });
     const itemsRes = await pool.query('SELECT id FROM menu_items WHERE category = $1', [catRes.rows[0].name]);
-    if (itemsRes.rowCount > 0) return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
+    if (itemsRes.rowCount > 0) return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using it.` });
     await pool.query('DELETE FROM categories WHERE id = $1', [id]);
     if (cloudPool) await cloudPool.query('DELETE FROM categories WHERE id = $1', [id]);
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // PENDING PAYMENTS
@@ -250,9 +220,7 @@ router.get('/admin/pending-payments', async (_req, res) => {
       FROM orders WHERE status = 'PENDING_PAYMENT' ORDER BY created_at ASC
     `);
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // CUSTOMERS (CRM)
@@ -263,14 +231,11 @@ router.get('/admin/customers', async (_req, res) => {
              COUNT(o.id)::int as total_orders, 
              COALESCE(SUM(o.total), 0)::float as total_spent, 
              MAX(o.created_at) as last_order
-      FROM customers c 
-      LEFT JOIN orders o ON c.id = o.customer_id
+      FROM customers c LEFT JOIN orders o ON c.id = o.customer_id
       GROUP BY c.id ORDER BY c.created_at DESC
     `);
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // REVIEWS
@@ -278,15 +243,11 @@ router.get('/admin/reviews', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT r.*, c.name as customer_name, o.total::float as order_total
-      FROM reviews r 
-      LEFT JOIN customers c ON r.customer_id = c.id 
-      LEFT JOIN orders o ON r.order_id = o.id
+      FROM reviews r LEFT JOIN customers c ON r.customer_id = c.id LEFT JOIN orders o ON r.order_id = o.id
       ORDER BY r.created_at DESC
     `);
     res.json(rows);
-  } catch (err) {
-    res.json([]);
-  }
+  } catch (err) { res.json([]); }
 });
 
 // REPORTS: SALES
@@ -295,14 +256,11 @@ router.get('/admin/reports/sales', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, total::float, order_type, payment_method, status, created_at 
-       FROM orders WHERE created_at >= $1 AND created_at <= $2 
-       ORDER BY created_at DESC`,
+       FROM orders WHERE created_at >= $1 AND created_at <= $2 ORDER BY created_at DESC`,
       [startDate || '2000-01-01', endDate || new Date()]
     );
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // REPORTS: INVENTORY AUDIT
@@ -320,9 +278,7 @@ router.get('/admin/reports/inventory', async (_req, res) => {
       FROM ingredients i ORDER BY i.name ASC
     `);
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;
