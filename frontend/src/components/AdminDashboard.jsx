@@ -12,6 +12,7 @@ import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import { isLocalEnvironment } from '../utils/isLocal';
 import { canAccessTab, ROLE_LABELS } from '../utils/roles';
+import { API_BASE } from '../config/api';
 
 const DEFAULT_CATEGORIES = [
   { id: 1, name: 'Burgers' }, { id: 2, name: 'Combos' }, { id: 3, name: 'Sides' }, { id: 4, name: 'Drinks' }, { id: 5, name: 'Desserts' }
@@ -77,23 +78,22 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
   }, []);
 
   const fetchData = () => {
-    // 👇 RELATIVE PATHS
-    fetch('/api/admin/stats').then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(console.error);
-    fetch('/api/admin/chart-data').then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/admin/menu').then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/ingredients').then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/admin/pending-payments').then(r => r.json()).then(d => setPendingPayments(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/settings').then(r => r.json()).then(d => setSettings(d)).catch(console.error);
-    fetch('/api/admin/customers').then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/admin/reviews').then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/auth/live-feed').then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch('/api/admin/categories').then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
+    fetch(`${API_BASE}/api/admin/stats`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(console.error);
+    fetch(`${API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/admin/pending-payments`).then(r => r.json()).then(d => setPendingPayments(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)).catch(console.error);
+    fetch(`${API_BASE}/api/admin/customers`).then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/admin/reviews`).then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/auth/live-feed`).then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/admin/categories`).then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
   };
 
   const fetchReports = () => {
     const { start, end } = reportDateRange;
-    fetch(`/api/admin/reports/sales?startDate=${start}&endDate=${end}`).then(r => r.json()).then(setSalesReport).catch(console.error);
-    fetch('/api/admin/reports/inventory').then(r => r.json()).then(setInventoryReport).catch(console.error);
+    fetch(`${API_BASE}/api/admin/reports/sales?startDate=${start}&endDate=${end}`).then(r => r.json()).then(setSalesReport).catch(console.error);
+    fetch(`${API_BASE}/api/admin/reports/inventory`).then(r => r.json()).then(setInventoryReport).catch(console.error);
   };
 
   useEffect(() => {
@@ -115,6 +115,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
   }, [activeTab, reportDateRange]);
 
   const handleUploadImage = async (e, field, target = 'settings') => {
+    if (!isLocal) return addToast("Image uploads are only available in Local Mode.", 'error');
     const file = e.target.files[0]; if (!file) return;
     setIsUploading(true);
     try {
@@ -130,7 +131,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
       } else throw new Error();
     } catch (err) {
       const localFormData = new FormData(); localFormData.append('image', file);
-      const localRes = await fetch('/api/admin/upload-local', { method: 'POST', body: localFormData });
+      const localRes = await fetch(`${API_BASE}/api/admin/upload-local`, { method: 'POST', body: localFormData });
       const data = await localRes.json(); 
       if (data.url) { 
         if (target === 'settings') setSettings(prev => ({ ...prev, [field]: data.url }));
@@ -142,7 +143,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
 
   const saveSettings = async () => {
     if (!isLocal) return addToast("Only the local store can edit settings.", 'error');
-    await fetch('/api/settings', {
+    await fetch(`${API_BASE}/api/settings`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings)
     });
     addToast("Settings saved! Refresh to see changes.", 'success');
@@ -150,7 +151,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
 
   const loadRecipe = async (item) => {
     setSelectedRecipeItem(item);
-    const res = await fetch(`/api/admin/menu/${item.id}/recipe`);
+    const res = await fetch(`${API_BASE}/api/admin/menu/${item.id}/recipe`);
     const recipe = await res.json();
     const map = {};
     recipe.forEach(r => { 
@@ -168,7 +169,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
       const [type, id] = key.split('_');
       return { ingredient_id: type === 'ing' ? parseInt(id) : null, component_menu_item_id: type === 'comp' ? parseInt(id) : null, quantity: recipeIngredients[key] };
     }).filter(p => p.quantity > 0);
-    await fetch(`/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
+    await fetch(`${API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: payload })
     });
     addToast("Recipe saved!", 'success'); setSelectedRecipeItem(null);
@@ -176,16 +177,17 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
   
   const clearRecipe = async () => {
     if (!isLocal || !window.confirm("Delete this recipe?")) return;
-    await fetch(`/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
+    await fetch(`${API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: [] })
     });
     addToast("Recipe cleared.", 'success'); setRecipeIngredients({}); setSelectedRecipeItem(null);
   };
 
   const handleRestock = async (id) => {
+    if (!isLocal) return addToast("Restock is only available in Local Mode.", 'error');
     const amount = prompt("How many units?");
     if (!amount || isNaN(amount)) return;
-    await fetch(`/api/ingredients/${id}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) }) });
+    await fetch(`${API_BASE}/api/ingredients/${id}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) }) });
     addToast(`Restocked ${amount}.`, 'success'); fetchData();
   };
 
@@ -198,32 +200,34 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
   const handleSaveItem = async (e) => {
     e.preventDefault();
     if (!isLocal) return addToast("Only the local store can modify items.", 'error');
-    const url = modalMode === 'edit' ? `/api/admin/menu/${selectedItem.id}` : `/api/admin/menu`;
+    const url = modalMode === 'edit' ? `${API_BASE}/api/admin/menu/${selectedItem.id}` : `${API_BASE}/api/admin/menu`;
     await fetch(url, { method: modalMode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...selectedItem, price: parseFloat(selectedItem.price), cost: parseFloat(selectedItem.cost) }) });
     setIsModalOpen(false); addToast("Saved!", 'success'); fetchData();
   };
   
   const handleDeleteItem = async () => {
     if (!isLocal) return;
-    await fetch(`/api/admin/menu/${selectedItem.id}`, { method: 'DELETE' });
+    await fetch(`${API_BASE}/api/admin/menu/${selectedItem.id}`, { method: 'DELETE' });
     setIsModalOpen(false); addToast("Deleted.", 'success'); fetchData();
   };
 
   const handleAddCategory = async (e) => {
+    if (!isLocal) return;
     e.preventDefault(); const name = e.target.categoryName.value.trim(); if (!name) return;
-    const res = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    const res = await fetch(`${API_BASE}/api/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
     if (res.ok) { e.target.reset(); addToast("Added!", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
   };
   
   const handleDeleteCategory = async (id, name) => {
+    if (!isLocal) return;
     if (!window.confirm(`Delete "${name}"?`)) return;
-    const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/api/admin/categories/${id}`, { method: 'DELETE' });
     if (res.ok) { addToast("Deleted.", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
   };
 
   const handleVerifyPayment = async (id) => {
     if (!window.confirm("Confirm payment received? This sends the order to the kitchen.")) return;
-    await fetch(`/api/orders/${id}/verify-payment`, { method: 'POST' });
+    await fetch(`${API_BASE}/api/orders/${id}/verify-payment`, { method: 'POST' });
     addToast("Payment verified!", 'success'); fetchData();
   };
 
@@ -305,6 +309,15 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
               <a href="/kiosk" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-text-muted hover:bg-background hover:text-primary transition">
                 <Store size={20} /> Kiosk
               </a>
+            </div>
+          )}
+
+          {!isLocal && (
+            <div className="pt-4 mt-4 border-t border-border">
+              <div className="px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                <p className="text-xs font-bold text-orange-500">☁️ Cloud Read-Only</p>
+                <p className="text-xs text-orange-500/80 mt-1 leading-tight">You can track sales and orders, but editing is disabled on the cloud.</p>
+              </div>
             </div>
           )}
         </nav>
@@ -594,7 +607,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
             <div className="space-y-4 md:space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-lg md:text-xl font-bold text-text">Menu Catalog</h2>
-                <button onClick={() => openModal('add')} className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-primary-hover transition flex items-center gap-2 w-full sm:w-auto justify-center">
+                <button onClick={() => openModal('add')} disabled={!isLocal} className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-primary-hover transition flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-50">
                   <Plus size={18} /> Add Menu Item
                 </button>
               </div>
@@ -612,8 +625,8 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                       </div>
                       <p className="text-xs text-text-muted line-clamp-2 mb-3">{item.description || 'No description'}</p>
                       <div className="flex gap-2 mt-auto pt-4">
-                        <button onClick={() => openModal('edit', item)} className="flex-1 bg-background hover:bg-gray-200 text-text-muted font-bold py-2 rounded-lg text-xs md:text-sm transition border border-border flex items-center justify-center gap-1 md:gap-2"><Pencil size={14} /> Edit</button>
-                        <button onClick={() => openModal('delete', item)} className="flex-1 bg-red-50 hover:bg-red-100 text-danger font-bold py-2 rounded-lg text-xs md:text-sm transition flex items-center justify-center gap-1 md:gap-2"><Trash2 size={14} /> Delete</button>
+                        <button onClick={() => openModal('edit', item)} disabled={!isLocal} className="flex-1 bg-background hover:bg-gray-200 text-text-muted font-bold py-2 rounded-lg text-xs md:text-sm transition border border-border flex items-center justify-center gap-1 md:gap-2 disabled:opacity-50"><Pencil size={14} /> Edit</button>
+                        <button onClick={() => openModal('delete', item)} disabled={!isLocal} className="flex-1 bg-red-50 hover:bg-red-100 text-danger font-bold py-2 rounded-lg text-xs md:text-sm transition flex items-center justify-center gap-1 md:gap-2 disabled:opacity-50"><Trash2 size={14} /> Delete</button>
                       </div>
                     </div>
                   </div>
@@ -664,8 +677,8 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 pb-4 border-b border-border gap-4">
                       <h2 className="font-black text-xl md:text-3xl text-text">Recipe: {selectedRecipeItem.name}</h2>
                       <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
-                        <button onClick={clearRecipe} disabled={!isLocal} className="flex-1 sm:flex-none bg-red-50 text-danger px-4 md:px-6 py-2 md:py-3 rounded-lg font-bold hover:bg-red-100 transition shadow-sm flex items-center justify-center gap-2 text-sm md:text-base"><Trash2 size={16} /> Clear</button>
-                        <button onClick={saveRecipe} disabled={!isLocal} className="flex-1 sm:flex-none bg-success text-white px-4 md:px-8 py-2 md:py-3 rounded-lg font-bold hover:bg-success/90 transition shadow-md flex items-center justify-center gap-2 text-sm md:text-base"><CheckCircle size={16} /> Save</button>
+                        <button onClick={clearRecipe} disabled={!isLocal} className="flex-1 sm:flex-none bg-red-50 text-danger px-4 md:px-6 py-2 md:py-3 rounded-lg font-bold hover:bg-red-100 transition shadow-sm flex items-center justify-center gap-2 text-sm md:text-base disabled:opacity-50"><Trash2 size={16} /> Clear</button>
+                        <button onClick={saveRecipe} disabled={!isLocal} className="flex-1 sm:flex-none bg-success text-white px-4 md:px-8 py-2 md:py-3 rounded-lg font-bold hover:bg-success/90 transition shadow-md flex items-center justify-center gap-2 text-sm md:text-base disabled:opacity-50"><CheckCircle size={16} /> Save</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">

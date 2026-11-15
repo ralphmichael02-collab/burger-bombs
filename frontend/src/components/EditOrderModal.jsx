@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Minus, CheckCircle, AlertTriangle } from 'lucide-react';
 import { db } from '../db';
+import { API_BASE } from '../config/api';
 
 export default function EditOrderModal({ order, onSave, onClose }) {
   const [items, setItems] = useState(order.items.map(i => ({ ...i })));
@@ -17,7 +18,10 @@ export default function EditOrderModal({ order, onSave, onClose }) {
   const total = items.reduce((s, c) => s + c.price * c.qty, 0);
 
   const updateQty = (id, delta) => {
-    setItems(prev => prev.map(x => x.id === id ? { ...x, qty: x.qty + delta } : x).filter(x => x.qty > 0));
+    setItems(prev => prev
+      .map(x => x.id === id ? { ...x, qty: x.qty + delta } : x)
+      .filter(x => x.qty > 0)
+    );
   };
 
   const addItem = (menuItem) => {
@@ -36,8 +40,7 @@ export default function EditOrderModal({ order, onSave, onClose }) {
     setSaving(true);
     setError(null);
     try {
-      // 👇 Relative path (Vite proxy handles this)
-      const res = await fetch(`/api/orders/${order.id}/items`, {
+      const res = await fetch(`${API_BASE}/api/orders/${order.id}/items`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, total })

@@ -1,5 +1,6 @@
 // frontend/src/services/syncService.js
 import { db, refreshMenuFromBackend } from '../db';
+import { API_BASE } from '../config/api';
 
 const TICK_MS = 5000;
 const MAX_RETRIES = 5;
@@ -11,13 +12,10 @@ export function startSyncWorker() {
   if (timer) return;
   timer = setInterval(tick, TICK_MS);
   window.addEventListener('online', tick);
-  console.log('[sync] worker started');
 }
 
 async function tick() {
-  if (running) return;
-  if (!navigator.onLine) return;
-
+  if (running || !navigator.onLine) return;
   running = true;
   try {
     const pending = await db.syncOutbox.where('status').equals('pending').toArray();
@@ -32,7 +30,7 @@ async function tick() {
 
 async function pushOne(item) {
   try {
-    const res = await fetch('/api/sync', {
+    const res = await fetch(`${API_BASE}/api/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

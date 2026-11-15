@@ -9,6 +9,7 @@ import { io } from 'socket.io-client';
 import { db } from '../db';
 import { createOrder } from '../services/orderService';
 import { startSyncWorker } from '../services/syncService';
+import { API_BASE, SOCKET_URL } from '../config/api';
 import MenuList from './MenuList';
 import Cart from './Cart';
 import QRScanner from './QRScanner';
@@ -16,13 +17,7 @@ import ManualEntryModal from './ManualEntryModal';
 import EditOrderModal from './EditOrderModal';
 import ScannerPairingPanel from './ScannerPairingPanel';
 
-// 👇 Stable Socket.IO Config
-const socket = io(window.location.origin, { 
-  transports: ['polling', 'websocket'],
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-});
+const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const generatePairCode = () => {
@@ -49,7 +44,6 @@ export default function POS() {
   const [showPendingPanel, setShowPendingPanel] = useState(false);
   const pendingPanelRef = useRef(null);
 
-  // Scanner pairing state managed at the POS level
   const [pairCode] = useState(generatePairCode);
   const [mobileConnected, setMobileConnected] = useState(false);
   const [lastMobileScan, setLastMobileScan] = useState(null);
@@ -59,7 +53,7 @@ export default function POS() {
     socket.emit('join:cashier');
     socket.emit('scanner:create-session', { pairCode });
 
-    fetch('/api/orders/pending-kiosk')
+    fetch(`${API_BASE}/api/orders/pending-kiosk`)
       .then(r => r.json())
       .then(d => setPendingOrders(Array.isArray(d) ? d : []))
       .catch(console.error);
@@ -123,7 +117,7 @@ export default function POS() {
   const handleScan = async (syncId) => {
     setShowScanner(false); setScanError(null);
     try {
-      const res = await fetch(`/api/orders/by-sync-id/${encodeURIComponent(syncId)}`);
+      const res = await fetch(`${API_BASE}/api/orders/by-sync-id/${encodeURIComponent(syncId)}`);
       if (!res.ok) throw new Error((await res.json()).error || 'Order not found');
       setScannedOrder(await res.json());
     } catch (err) {
@@ -134,7 +128,7 @@ export default function POS() {
   const handleManualEntry = async (ref) => {
     setManualEntryLoading(true); setScanError(null);
     try {
-      const res = await fetch(`/api/orders/by-ref/${encodeURIComponent(ref)}`);
+      const res = await fetch(`${API_BASE}/api/orders/by-ref/${encodeURIComponent(ref)}`);
       if (!res.ok) throw new Error((await res.json()).error || 'Order not found');
       setScannedOrder(await res.json()); setShowManualEntry(false);
     } catch (err) { setScanError(err.message); } finally { setManualEntryLoading(false); }
@@ -142,7 +136,7 @@ export default function POS() {
 
   const confirmScannedPayment = async () => {
     try {
-      const res = await fetch(`/api/orders/${scannedOrder.id}/mark-paid`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/orders/${scannedOrder.id}/mark-paid`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to update');
       setPendingOrders(p => p.filter(o => o.id !== scannedOrder.id)); setScannedOrder(null);
     } catch (err) { setScanError(err.message); setTimeout(() => setScanError(null), 5000); }
@@ -151,7 +145,7 @@ export default function POS() {
   const voidScannedOrder = async () => {
     if (!window.confirm(`Void order #${scannedOrder.id}?`)) return;
     try {
-      const res = await fetch(`/api/orders/${scannedOrder.id}/void`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/orders/${scannedOrder.id}/void`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to void');
       setPendingOrders(p => p.filter(o => o.id !== scannedOrder.id)); setScannedOrder(null);
     } catch (err) { setScanError(err.message); setTimeout(() => setScanError(null), 5000); }

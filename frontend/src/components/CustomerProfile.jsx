@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from './ui/Modal';
 import { ShoppingBag, Star, LogOut, ArrowLeft } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 export default function CustomerProfile() {
   const navigate = useNavigate();
@@ -19,8 +20,7 @@ export default function CustomerProfile() {
     const parsedUser = JSON.parse(savedUser);
     setUser(parsedUser);
     
-    // 👇 Relative path
-    fetch(`/api/auth/orders/${parsedUser.id}`)
+    fetch(`${API_BASE}/api/auth/orders/${parsedUser.id}`)
       .then(res => res.json())
       .then(data => setOrders(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
@@ -33,8 +33,7 @@ export default function CustomerProfile() {
   };
 
   const submitReview = async () => {
-    // 👇 Relative path
-    await fetch('/api/reviews', {
+    await fetch(`${API_BASE}/api/reviews`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId: selectedOrder.id, customerId: user.id, rating, comment })
     });

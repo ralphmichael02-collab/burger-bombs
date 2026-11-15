@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { Truck, MapPin, CheckCircle, Navigation, LogOut } from 'lucide-react';
+import { API_BASE, SOCKET_URL } from '../config/api';
 
-const socket = io(window.location.origin, { transports: ['polling', 'websocket'], reconnection: true });
+const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
 export default function RiderPortal() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function RiderPortal() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/orders/ready-for-delivery');
+      const res = await fetch(`${API_BASE}/api/orders/ready-for-delivery`);
       const data = await res.json();
       setOrders(Array.isArray(data) ? data : []);
     } catch (err) { console.error(err); }
@@ -50,7 +51,7 @@ export default function RiderPortal() {
 
   const markDelivered = async () => {
     try {
-      await fetch(`/api/orders/${activeOrder.id}/deliver`, { method: 'POST' });
+      await fetch(`${API_BASE}/api/orders/${activeOrder.id}/deliver`, { method: 'POST' });
       setActiveOrder(null);
       setTracking(false);
       fetchOrders();

@@ -5,15 +5,9 @@ import { io } from 'socket.io-client';
 import { Html5Qrcode } from 'html5-qrcode';
 import jsQR from 'jsqr';
 import { Camera, CheckCircle, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
+import { SOCKET_URL } from '../config/api';
 
-// 👇 Stable Socket.IO Config
-const socket = io(window.location.origin, { 
-  transports: ['polling', 'websocket'],
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-});
-
+const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 const SCAN_COOLDOWN_MS = 2000;
 
 export default function MobileScanner() {

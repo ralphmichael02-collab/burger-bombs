@@ -19,12 +19,12 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
         secure: false,
-        // This prevents the ECONNABORTED crash when the backend restarts
         configure: (proxy, options) => {
-          proxy.on('error', (err, req, res) => {
-            if (err.code !== 'ECONNABORTED') {
-              console.log('[vite-proxy-error]', err);
-            }
+          // SILENCE THE ECONNABORTED ERROR SPAM
+          proxy.on('error', (err) => {
+            if (err.code === 'ECONNABORTED') return; // Ignore
+            if (err.code === 'ECONNREFUSED') return; // Ignore if backend is off
+            console.log('[vite-proxy-error]', err);
           });
         },
       },

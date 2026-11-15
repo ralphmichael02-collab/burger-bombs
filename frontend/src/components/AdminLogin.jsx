@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from './ui/Toast';
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Utensils } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -17,8 +18,7 @@ export default function AdminLogin() {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      // 👇 Relative path
-      const res = await fetch('/api/auth/staff-login', {
+      const res = await fetch(`${API_BASE}/api/auth/staff-login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
@@ -43,8 +43,6 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex bg-surface font-['Source_Sans_Pro',sans-serif]">
-      
-      {/* LEFT SIDE - FORM */}
       <div className="w-full md:w-1/2 flex flex-col justify-center p-8 md:p-16 lg:p-24 relative overflow-y-auto">
         <div className="max-w-md w-full mx-auto">
           <div className="flex items-center gap-2 mb-12">
@@ -94,7 +92,6 @@ export default function AdminLogin() {
         <img src="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?q=80&w=2070&auto=format&fit=crop" alt="Restaurant Kitchen" className="absolute inset-0 w-full h-full object-cover opacity-90" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
       </div>
-
     </div>
   );
 }

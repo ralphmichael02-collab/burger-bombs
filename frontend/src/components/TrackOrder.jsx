@@ -5,8 +5,8 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { io } from 'socket.io-client';
 import L from 'leaflet';
 import { ArrowLeft, Truck } from 'lucide-react';
+import { API_BASE, SOCKET_URL } from '../config/api';
 
-// Fix Leaflet marker icon paths
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -14,7 +14,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const socket = io(window.location.origin, { transports: ['polling', 'websocket'] });
+const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
 export default function TrackOrder() {
   const { orderId } = useParams();
@@ -24,13 +24,11 @@ export default function TrackOrder() {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    // Fetch basic order details
-    fetch(`/api/orders/by-sync-id/${orderId}`)
+    fetch(`${API_BASE}/api/orders/by-sync-id/${orderId}`)
       .then(r => r.json())
       .then(setOrder)
       .catch(console.error);
 
-    // Join the specific order room to listen for rider GPS updates
     socket.emit('join:order', orderId);
 
     socket.on('rider:location', ({ lat, lng }) => {
@@ -45,7 +43,6 @@ export default function TrackOrder() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-['Source_Sans_Pro',sans-serif]">
-      {/* HEADER */}
       <header className="bg-surface p-4 shadow-sm flex items-center gap-4 border-b border-border z-10 relative">
         <button onClick={() => navigate('/store')} className="p-2 bg-background rounded-lg hover:bg-gray-100">
           <ArrowLeft size={20} />
@@ -55,7 +52,6 @@ export default function TrackOrder() {
         </h1>
       </header>
 
-      {/* MAP */}
       <div className="flex-1 relative bg-gray-200">
         <MapContainer center={[14.5995, 120.9842]} zoom={14} style={{ height: '100%', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -66,7 +62,6 @@ export default function TrackOrder() {
           )}
         </MapContainer>
 
-        {/* INFO OVERLAY */}
         <div className="absolute bottom-4 left-4 right-4 bg-surface p-4 rounded-xl shadow-lg border border-border z-[400]">
           <div className="flex justify-between items-center">
             <div>

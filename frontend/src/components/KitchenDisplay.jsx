@@ -2,14 +2,9 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { ChefHat, CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { API_BASE, SOCKET_URL } from '../config/api';
 
-// 👇 Stable Socket.IO Config
-const socket = io(window.location.origin, { 
-  transports: ['polling', 'websocket'],
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-});
+const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
 export default function KitchenDisplay() {
   const [orders, setOrders] = useState([]);
@@ -23,7 +18,7 @@ export default function KitchenDisplay() {
 
   const fetchActive = async () => {
     try {
-      const res = await fetch('/api/orders/active');
+      const res = await fetch(`${API_BASE}/api/orders/active`);
       const data = await res.json();
       setOrders((Array.isArray(data) ? data : []).map(o => ({
         id: o.id, items: o.items, total: o.total,
@@ -52,7 +47,7 @@ export default function KitchenDisplay() {
 
   const markDone = async (id) => {
     try {
-      await fetch(`/api/orders/${id}/complete`, { method: 'POST' });
+      await fetch(`${API_BASE}/api/orders/${id}/complete`, { method: 'POST' });
       setOrders(p => p.filter(o => o.id !== id));
     } catch (err) { console.error(err); }
   };

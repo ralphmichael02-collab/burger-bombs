@@ -1,6 +1,7 @@
 // frontend/src/components/ScannerPairingPanel.jsx
 import QRCode from 'react-qr-code';
 import { X, Smartphone, Wifi, WifiOff, AlertTriangle, CheckCircle } from 'lucide-react';
+import { SOCKET_URL } from '../config/api';
 
 export default function ScannerPairingPanel({ pairCode, mobileConnected, lastScan, onClose }) {
   const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');

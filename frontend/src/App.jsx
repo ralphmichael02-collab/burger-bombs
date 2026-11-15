@@ -38,7 +38,6 @@ export default function App() {
   useEffect(() => {
     refreshMenuFromBackend();
     
-    // Fetch SaaS Settings for Theme, Title, and Favicon
     fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
@@ -54,7 +53,6 @@ export default function App() {
           link.href = data.favicon_url;
         }
 
-        // Apply database theme (If in Cloud/Production)
         if (!isLocal && data.theme_primary_color) {
           setCurrentColors({
             primary: data.theme_primary_color,
@@ -81,8 +79,9 @@ export default function App() {
     });
   }, [currentColors]);
 
-  // Block local-only pages if we are on Vercel (Cloud)
-  const isLocalOnlyRoute = ['/pos', '/kitchen', '/kiosk', '/admin'].some(p => location.pathname.startsWith(p));
+  // 🛑 Block ONLY local-only routes if we are on Vercel (Cloud)
+  // Admin is now allowed on Cloud (but edit buttons will be disabled)
+  const isLocalOnlyRoute = ['/pos', '/kitchen', '/kiosk'].some(p => location.pathname.startsWith(p));
   if (!isLocal && isLocalOnlyRoute) {
     return <Navigate to="/" replace />; 
   }
@@ -105,11 +104,11 @@ export default function App() {
           <Link to="/store" className={`capitalize font-bold ${location.pathname === '/store' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
             Online Store
           </Link>
-          {isLocal && (
-            <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
-              Admin Dashboard
-            </Link>
-          )}
+          
+          {/* Admin Dashboard is now available on Cloud as well */}
+          <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
+            Staff Login
+          </Link>
         </nav>
       )}
 
@@ -121,13 +120,15 @@ export default function App() {
         <Route path="/rider" element={<RiderPortal />} />
         <Route path="/track/:orderId" element={<TrackOrder />} />
         
+        {/* Admin routes are now accessible on both Local and Cloud */}
+        <Route path="/admin" element={<AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+
         {isLocal && (
           <>
             <Route path="/pos" element={<POS />} />
             <Route path="/kitchen" element={<KitchenDisplay />} />
             <Route path="/kiosk" element={<Kiosk />} />
-            <Route path="/admin" element={<AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
           </>
         )}
 

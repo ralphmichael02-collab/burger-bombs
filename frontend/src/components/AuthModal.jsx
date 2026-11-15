@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useToast } from './ui/Toast';
 import { X, Eye, EyeOff, Mail, Lock, User, Utensils } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 export default function AuthModal({ onClose, onLogin }) {
   const [isLogin, setIsLogin] = useState(false);
@@ -15,10 +16,9 @@ export default function AuthModal({ onClose, onLogin }) {
     e.preventDefault(); setError('');
     if (!isLogin && formData.password !== formData.confirmPassword) return setError('Passwords do not match');
     setLoading(true);
-    const url = isLogin ? '/api/auth/login' : '/api/auth/register'; // 👈 Relative path
-    
+    const url = isLogin ? '/api/auth/login' : '/api/auth/register';
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`${API_BASE}${url}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData)
       });
       const data = await res.json();

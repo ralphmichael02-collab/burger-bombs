@@ -7,6 +7,7 @@ import {
   Truck, Eye, X, CheckCircle, CreditCard, Smartphone, Banknote, 
   ShoppingBag, Utensils, ChevronRight, Plus, Minus, Search, Filter, Star
 } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 const DEFAULT_CATS = ['Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'];
 
@@ -31,13 +32,12 @@ export default function CustomerStore() {
     const savedUser = localStorage.getItem('burger_user');
     if (savedUser) setUser(JSON.parse(savedUser));
     
-    // 👇 RELATIVE PATHS
-    fetch('/api/menu')
+    fetch(`${API_BASE}/api/menu`)
       .then(r => r.json())
       .then(setMenu)
       .catch(err => console.error('Menu fetch failed', err));
       
-    fetch('/api/categories')
+    fetch(`${API_BASE}/api/categories`)
       .then(r => r.json())
       .then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); })
       .catch(err => console.error('Categories fetch failed', err));
@@ -86,8 +86,7 @@ export default function CustomerStore() {
     setCheckoutStatus('processing');
     const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
     try {
-      // 👇 RELATIVE PATH
-      const res = await fetch('/api/sync', {
+      const res = await fetch(`${API_BASE}/api/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
