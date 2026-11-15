@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Utensils, ArrowRight, ShieldCheck, MapPin, Zap, Clock, 
-  Truck, Star, Heart, Facebook, Instagram, Twitter, Phone, Mail, Music 
+  Truck, Star, Heart, Phone, Mail, Globe, Camera, MessageCircle, Music 
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -41,6 +41,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background font-['Source_Sans_Pro',sans-serif]">
+      
+      {/* ─── NAVBAR ─── */}
       <nav className="bg-surface p-4 border-b border-border sticky top-0 z-50">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -69,6 +71,7 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* ─── HERO SECTION ─── */}
       <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
         {settings?.hero_image_url ? (
           <img src={settings.hero_image_url} alt="Hero" className="absolute inset-0 w-full h-full object-cover" />
@@ -95,12 +98,14 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ─── PROMO BANNER ─── */}
       {settings?.promo_banner_text && (
         <div className="bg-primary text-white py-3 text-center font-bold text-sm md:text-base tracking-wide shadow-inner">
           {settings.promo_banner_text}
         </div>
       )}
 
+      {/* ─── FEATURES SECTION ─── */}
       {settings?.show_features && (
         <section className="py-20 px-4 max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -121,6 +126,7 @@ export default function Home() {
         </section>
       )}
 
+      {/* ─── ABOUT SECTION ─── */}
       {settings?.show_about && (
         <section className="py-20 px-4 bg-surface border-y border-border">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12">
@@ -151,6 +157,7 @@ export default function Home() {
         </section>
       )}
 
+      {/* ─── FOOTER ─── */}
       <footer className="bg-surface py-12 px-4 border-t border-border">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-center md:text-left">
@@ -170,15 +177,16 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col items-center md:items-end gap-3">
+            {/* Social Links (Using generic icons since brand icons were removed from Lucide) */}
             <div className="flex gap-4">
               {settings?.social_facebook && (
                 <a href={settings.social_facebook} target="_blank" rel="noreferrer" className="p-2 bg-background border border-border rounded-full text-text-muted hover:text-primary transition">
-                  <Facebook size={18} />
+                  <Globe size={18} />
                 </a>
               )}
               {settings?.social_instagram && (
                 <a href={settings.social_instagram} target="_blank" rel="noreferrer" className="p-2 bg-background border border-border rounded-full text-text-muted hover:text-primary transition">
-                  <Instagram size={18} />
+                  <Camera size={18} />
                 </a>
               )}
               {settings?.social_tiktok && (
@@ -188,11 +196,12 @@ export default function Home() {
               )}
               {settings?.social_twitter && (
                 <a href={settings.social_twitter} target="_blank" rel="noreferrer" className="p-2 bg-background border border-border rounded-full text-text-muted hover:text-primary transition">
-                  <Twitter size={18} />
+                  <MessageCircle size={18} />
                 </a>
               )}
             </div>
             
+            {/* Contact Info */}
             <div className="flex flex-col md:flex-row gap-4 text-sm font-bold text-text-muted mt-2">
               {settings?.contact_phone && (
                 <span className="flex items-center gap-2"><Phone size={14} /> {settings.contact_phone}</span>
