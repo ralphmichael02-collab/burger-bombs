@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [settings, setSettings] = useState(null); // 👈 Added Settings State
   const [loading, setLoading] = useState(true);
 
   // Menu Form State
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : []));
+    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)); // 👈 Fetch Settings
   };
 
   useEffect(() => {
@@ -41,21 +43,28 @@ export default function AdminDashboard() {
     const recipe = await res.json();
     
     const recipeMap = {};
-    recipe.forEach(r => { recipeMap[r.ingredient_id] = r.quantity; });
+    recipe.forEach(r => { 
+      if (r.ingredient_id) recipeMap[`ing_${r.ingredient_id}`] = r.quantity;
+      if (r.component_menu_item_id) recipeMap[`comp_${r.component_menu_item_id}`] = r.quantity;
+    });
     setRecipeIngredients(recipeMap);
   };
 
-  const handleRecipeChange = (ingId, qty) => {
-    setRecipeIngredients(prev => ({ ...prev, [ingId]: parseFloat(qty) || 0 }));
+  const handleRecipeChange = (key, qty) => {
+    setRecipeIngredients(prev => ({ ...prev, [key]: parseFloat(qty) || 0 }));
   };
 
   const saveRecipe = async () => {
     if (!isLocal) return alert("Only the local store can edit recipes.");
     
-    const payload = Object.keys(recipeIngredients).map(ingId => ({
-      ingredient_id: parseInt(ingId),
-      quantity: recipeIngredients[ingId]
-    }));
+    const payload = Object.keys(recipeIngredients).map(key => {
+      const [type, id] = key.split('_');
+      return {
+        ingredient_id: type === 'ing' ? parseInt(id) : null,
+        component_menu_item_id: type === 'comp' ? parseInt(id) : null,
+        quantity: recipeIngredients[key]
+      };
+    }).filter(p => p.quantity > 0);
 
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST',
@@ -84,14 +93,12 @@ export default function AdminDashboard() {
     setIsUploading(true);
     
     try {
-      // 1. Try Cloudinary first
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
       
       const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, {
-        method: 'POST',
-        body: formData
+        method: 'POST', body: formData
       });
       
       if (cloudRes.ok) {
@@ -101,25 +108,13 @@ export default function AdminDashboard() {
         throw new Error("Cloudinary failed");
       }
     } catch (err) {
-      // 2. Fallback to Local Backend if offline or Cloudinary fails
-      console.warn("Cloudinary failed or offline. Saving locally...");
-      
-      try {
-        const localFormData = new FormData();
-        localFormData.append('image', file);
-        
-        const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, {
-          method: 'POST',
-          body: localFormData
-        });
-        
-        const data = await localRes.json();
-        if (data.url) {
-          setNewItem({ ...newItem, image_url: data.url });
-        }
-      } catch (localErr) {
-        alert("Failed to upload image entirely (both cloud and local).");
-      }
+      const localFormData = new FormData();
+      localFormData.append('image', file);
+      const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, {
+        method: 'POST', body: localFormData
+      });
+      const data = await localRes.json();
+      if (data.url) setNewItem({ ...newItem, image_url: data.url });
     } finally {
       setIsUploading(false);
     }
@@ -133,10 +128,8 @@ export default function AdminDashboard() {
       ? `${import.meta.env.VITE_API_BASE}/api/admin/menu/${editingId}`
       : `${import.meta.env.VITE_API_BASE}/api/admin/menu`;
       
-    const method = editingId ? 'PUT' : 'POST';
-
     await fetch(url, {
-      method,
+      method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), cost: parseFloat(newItem.cost) })
     });
@@ -144,25 +137,19 @@ export default function AdminDashboard() {
     setNewItem({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
     setEditingId(null);
     fetchData();
-    alert(editingId ? "Item updated!" : "Item added!");
   };
 
   const handleEditClick = (item) => {
     setNewItem({ 
-      name: item.name, 
-      price: item.price.toString(), 
-      cost: item.cost ? item.cost.toString() : '0', 
-      category: item.category || 'Burgers', 
-      image_url: item.image_url || '' 
+      name: item.name, price: item.price.toString(), cost: item.cost ? item.cost.toString() : '0', 
+      category: item.category || 'Burgers', image_url: item.image_url || '' 
     });
     setEditingId(item.id);
     window.scrollTo(0, 0);
   };
 
   const handleDeleteMenu = async (id) => {
-    if (!isLocal) return alert("Only the local store can delete menu items.");
-    if (!window.confirm("Delete this item?")) return;
-    
+    if (!isLocal || !window.confirm("Delete this item?")) return;
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${id}`, { method: 'DELETE' });
     fetchData();
   };
@@ -178,8 +165,10 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-black text-gray-900">Admin Management</h1>
             <p className="text-gray-500">{isLocal ? 'Local Store (Master Control)' : 'Cloud Store (Read Only)'}</p>
           </div>
+          
+          {/* 👇 THIS IS WHERE WE ADD THE SETTINGS TAB */}
           <div className="flex bg-white rounded-lg shadow-sm p-1">
-            {['overview', 'inventory', 'menu', 'recipes'].map(tab => (
+            {['overview', 'inventory', 'menu', 'recipes', 'settings'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`px-6 py-2 rounded-md font-bold capitalize transition ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {tab}
@@ -210,7 +199,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* SALES CHART */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-8">
               <h2 className="font-bold text-xl mb-6">Sales (Last 7 Days)</h2>
               <div className="h-72 w-full">
@@ -218,10 +206,7 @@ export default function AdminDashboard() {
                   <BarChart data={chartData}>
                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} tickFormatter={(value) => `₱${value}`} />
-                    <Tooltip 
-                      cursor={{fill: '#f3f4f6'}} 
-                      contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                    />
+                    <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                     <Bar dataKey="daily_sales" fill="#eab308" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -230,48 +215,17 @@ export default function AdminDashboard() {
 
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b"><h2 className="font-bold text-xl">Recent Orders</h2></div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-sm text-gray-500">
-                    <tr><th className="p-4">ID</th><th className="p-4">Type</th><th className="p-4">Status</th><th className="p-4 text-right">Total</th></tr>
-                  </thead>
-                  <tbody>
-                    {data.recentOrders.map(o => (
-                      <tr key={o.id} className="border-b">
-                        <td className="p-4">#{o.id}</td>
-                        <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
-                        <td className="p-4">{o.status}</td>
-                        <td className="p-4 text-right font-bold">₱{o.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* INVENTORY TAB */}
-        {activeTab === 'inventory' && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b"><h2 className="font-bold text-xl">Inventory Management</h2></div>
-            <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-sm text-gray-500">
-                  <tr><th className="p-4">Ingredient</th><th className="p-4">Stock</th><th className="p-4 text-right">Actions</th></tr>
+                  <tr><th className="p-4">ID</th><th className="p-4">Type</th><th className="p-4">Status</th><th className="p-4 text-right">Total</th></tr>
                 </thead>
                 <tbody>
-                  {ingredients.map(ing => (
-                    <tr key={ing.id} className="border-b">
-                      <td className="p-4 font-bold">{ing.name}</td>
-                      <td className="p-4">{ing.stock} {ing.unit}</td>
-                      <td className="p-4 text-right">
-                        {isLocal ? (
-                          <button onClick={() => handleRestock(ing.id)} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Restock</button>
-                        ) : (
-                          <span className="text-gray-400 text-sm italic">Cloud View Only</span>
-                        )}
-                      </td>
+                  {data.recentOrders.map(o => (
+                    <tr key={o.id} className="border-b">
+                      <td className="p-4">#{o.id}</td>
+                      <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
+                      <td className="p-4">{o.status}</td>
+                      <td className="p-4 text-right font-bold">₱{o.total}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -280,10 +234,36 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* INVENTORY TAB */}
+        {activeTab === 'inventory' && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b"><h2 className="font-bold text-xl">Inventory Management</h2></div>
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-sm text-gray-500">
+                <tr><th className="p-4">Ingredient</th><th className="p-4">Stock</th><th className="p-4 text-right">Actions</th></tr>
+              </thead>
+              <tbody>
+                {ingredients.map(ing => (
+                  <tr key={ing.id} className="border-b">
+                    <td className="p-4 font-bold">{ing.name}</td>
+                    <td className="p-4">{ing.stock} {ing.unit}</td>
+                    <td className="p-4 text-right">
+                      {isLocal ? (
+                        <button onClick={() => handleRestock(ing.id)} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Restock</button>
+                      ) : (
+                        <span className="text-gray-400 text-sm italic">Cloud View Only</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* MENU TAB */}
         {activeTab === 'menu' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit sticky top-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-xl">{editingId ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
@@ -291,9 +271,7 @@ export default function AdminDashboard() {
                   <button onClick={() => { setEditingId(null); setNewItem({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' }); }} className="text-sm text-red-500 font-bold hover:underline">Cancel Edit</button>
                 )}
               </div>
-              
               {!isLocal && <p className="text-red-500 text-sm mb-4 font-bold">Only local store can modify items.</p>}
-              
               <form onSubmit={handleSubmitMenu} className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-gray-500">Name</label>
@@ -355,13 +333,10 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit">
               <h2 className="font-bold text-xl mb-4">Select a Menu Item</h2>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {menuItems.map(item => (
-                  <button 
-                    key={item.id} 
-                    onClick={() => loadRecipe(item)}
-                    className={`w-full text-left p-3 rounded-lg border font-bold transition ${selectedRecipeItem?.id === item.id ? 'bg-yellow-50 border-yellow-500' : 'hover:bg-gray-50'}`}
-                  >
+                  <button key={item.id} onClick={() => loadRecipe(item)}
+                    className={`w-full text-left p-3 rounded-lg border font-bold transition ${selectedRecipeItem?.id === item.id ? 'bg-yellow-50 border-yellow-500' : 'hover:bg-gray-50'}`}>
                     {item.name}
                   </button>
                 ))}
@@ -370,39 +345,106 @@ export default function AdminDashboard() {
 
             <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               {!selectedRecipeItem ? (
-                <div className="text-center text-gray-500 py-20">Select a menu item to edit its ingredients.</div>
+                <div className="text-center text-gray-500 py-20">Select a menu item to edit its recipe.</div>
               ) : (
                 <>
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="font-bold text-2xl">Recipe: {selectedRecipeItem.name}</h2>
                     <button onClick={saveRecipe} disabled={!isLocal} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700">Save Recipe</button>
                   </div>
-                  
-                  <div className="space-y-4">
+                  <h3 className="font-bold text-lg mb-3 text-gray-700">Raw Ingredients</h3>
+                  <div className="space-y-3 mb-6">
                     {ingredients.map(ing => (
-                      <div key={ing.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                        <div>
-                          <span className="font-bold text-gray-800">{ing.name}</span>
-                          <span className="text-xs text-gray-500 ml-2">({ing.unit})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            disabled={!isLocal}
-                            value={recipeIngredients[ing.id] || ''} 
-                            onChange={(e) => handleRecipeChange(ing.id, e.target.value)}
-                            placeholder="0"
-                            className="w-24 border p-2 rounded text-right"
-                          />
-                          <span className="text-sm font-bold text-gray-500 w-8">{ing.unit}</span>
-                        </div>
+                      <div key={`ing_${ing.id}`} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                        <div><span className="font-bold text-gray-800">{ing.name}</span><span className="text-xs text-gray-500 ml-2">({ing.unit})</span></div>
+                        <input type="number" step="0.01" disabled={!isLocal} value={recipeIngredients[`ing_${ing.id}`] || ''} onChange={(e) => handleRecipeChange(`ing_${ing.id}`, e.target.value)} placeholder="0" className="w-24 border p-2 rounded text-right" />
+                      </div>
+                    ))}
+                  </div>
+                  <h3 className="font-bold text-lg mb-3 text-gray-700">Combo Components (Menu Items)</h3>
+                  <div className="space-y-3">
+                    {menuItems.filter(m => m.id !== selectedRecipeItem.id).map(comp => (
+                      <div key={`comp_${comp.id}`} className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
+                        <div><span className="font-bold text-gray-800">{comp.name}</span><span className="text-xs text-blue-500 ml-2">(Menu Item)</span></div>
+                        <input type="number" step="1" disabled={!isLocal} value={recipeIngredients[`comp_${comp.id}`] || ''} onChange={(e) => handleRecipeChange(`comp_${comp.id}`, e.target.value)} placeholder="0" className="w-24 border p-2 rounded text-right" />
                       </div>
                     ))}
                   </div>
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === 'settings' && settings && (
+          <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm max-w-3xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="font-bold text-2xl">Store Customization</h2>
+                <p className="text-gray-500 text-sm">White-label the app for your restaurant brand.</p>
+              </div>
+              {!isLocal && <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-xs font-bold">Cloud View Only</span>}
+            </div>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!isLocal) return alert("Only local store can edit settings.");
+              await fetch(`${import.meta.env.VITE_API_BASE}/api/settings`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings)
+              });
+              alert("Settings saved! Refresh the homepage to see the changes.");
+            }} className="space-y-6">
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Restaurant Name</label>
+                  <input required disabled={!isLocal} value={settings.restaurant_name} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Tagline</label>
+                  <input required disabled={!isLocal} value={settings.tagline} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Hero Title (Big Text)</label>
+                  <input required disabled={!isLocal} value={settings.hero_title} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Hero Subtitle</label>
+                  <input required disabled={!isLocal} value={settings.hero_subtitle} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-500">Logo URL (Cloudinary)</label>
+                <input disabled={!isLocal} value={settings.logo_url || ''} onChange={e => setSettings({...settings, logo_url: e.target.value})} className="w-full border p-3 rounded-lg mt-1" placeholder="https://res.cloudinary.com/..." />
+                {settings.logo_url && <img src={settings.logo_url} alt="Logo Preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-500">Hero Background Image URL (Cloudinary)</label>
+                <input disabled={!isLocal} value={settings.hero_image_url || ''} onChange={e => setSettings({...settings, hero_image_url: e.target.value})} className="w-full border p-3 rounded-lg mt-1" placeholder="https://res.cloudinary.com/..." />
+                {settings.hero_image_url && <img src={settings.hero_image_url} alt="Hero Preview" className="w-full h-32 object-cover rounded-lg mt-2" />}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Currency Symbol</label>
+                  <input required disabled={!isLocal} value={settings.currency_symbol} onChange={e => setSettings({...settings, currency_symbol: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Tax Rate (e.g., 0.12 for 12%)</label>
+                  <input required type="number" step="0.01" disabled={!isLocal} value={settings.tax_rate} onChange={e => setSettings({...settings, tax_rate: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
+                </div>
+              </div>
+
+              <button type="submit" disabled={!isLocal} className="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 disabled:opacity-50">
+                Save Settings
+              </button>
+            </form>
           </div>
         )}
 
