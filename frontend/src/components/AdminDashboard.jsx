@@ -1,6 +1,6 @@
 // frontend/src/components/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // 👈 Added for Logout
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
@@ -246,6 +246,18 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* LOW STOCK ALERTS */}
+            {data.lowStock && data.lowStock.length > 0 && (
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-8 rounded shadow-sm">
+                <h3 className="text-red-700 font-bold mb-2 flex items-center gap-2">⚠️ Low Stock Alerts</h3>
+                <ul className="text-red-600 text-sm space-y-1">
+                  {data.lowStock.map((item, idx) => (
+                    <li key={idx}>• <b>{item.name}</b> is running low! Only {item.stock} {item.unit} left.</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-8">
               <h2 className="font-bold text-xl mb-6">Sales (Last 7 Days)</h2>
               <div className="h-72 w-full">
@@ -264,14 +276,28 @@ export default function AdminDashboard() {
               <div className="p-6 border-b"><h2 className="font-bold text-xl">Recent Orders</h2></div>
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-sm text-gray-500">
-                  <tr><th className="p-4">ID</th><th className="p-4">Type</th><th className="p-4">Status</th><th className="p-4 text-right">Total</th></tr>
+                  <tr>
+                    <th className="p-4">ID</th>
+                    <th className="p-4">Type</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">IP Address</th>
+                    <th className="p-4 text-right">Total</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {data.recentOrders.map(o => (
                     <tr key={o.id} className="border-b">
                       <td className="p-4">#{o.id}</td>
                       <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
-                      <td className="p-4">{o.status}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                          o.status === 'VOIDED' ? 'bg-red-100 text-red-700' : 
+                          o.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-xs font-mono text-gray-500">{o.ip_address || 'Local'}</td>
                       <td className="p-4 text-right font-bold">₱{o.total}</td>
                     </tr>
                   ))}

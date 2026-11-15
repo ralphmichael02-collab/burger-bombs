@@ -10,12 +10,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '../../public/uploads');
 
-// Ensure the local upload directory exists
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer setup for local file storage fallback
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -38,7 +36,7 @@ router.get('/admin/stats', async (_req, res) => {
         COUNT(id)::int as total_orders,
         COUNT(CASE WHEN order_type = 'ONLINE' THEN 1 END)::int as online_orders,
         COUNT(CASE WHEN order_type = 'POS' THEN 1 END)::int as pos_orders
-      FROM orders
+      FROM orders WHERE status != 'VOIDED'
     `);
 
     const cogsRes = await pool.query(`
@@ -50,7 +48,7 @@ router.get('/admin/stats', async (_req, res) => {
     `);
 
     const recentOrdersRes = await pool.query(`
-      SELECT id, total::float, order_type, status, created_at 
+      SELECT id, total::float, order_type, status, ip_address, created_at 
       FROM orders ORDER BY created_at DESC LIMIT 10
     `);
 
@@ -75,7 +73,7 @@ router.get('/admin/stats', async (_req, res) => {
 });
 
 // ==========================================
-// 2. CHART DATA (Overview Tab - Recharts)
+// 2. CHART DATA
 // ==========================================
 router.get('/admin/chart-data', async (_req, res) => {
   try {
@@ -84,7 +82,7 @@ router.get('/admin/chart-data', async (_req, res) => {
         TO_CHAR(created_at, 'Mon DD') as date,
         SUM(total)::float as daily_sales
       FROM orders
-      WHERE created_at >= NOW() - INTERVAL '7 days'
+      WHERE created_at >= NOW() - INTERVAL '7 days' AND status != 'VOIDED'
       GROUP BY TO_CHAR(created_at, 'Mon DD'), DATE_TRUNC('day', created_at)
       ORDER BY DATE_TRUNC('day', created_at) ASC
     `);
@@ -95,7 +93,7 @@ router.get('/admin/chart-data', async (_req, res) => {
 });
 
 // ==========================================
-// 3. MENU MANAGEMENT (Menu Tab)
+// 3. MENU MANAGEMENT
 // ==========================================
 router.get('/admin/menu', async (_req, res) => {
   try {
@@ -166,12 +164,11 @@ router.delete('/admin/menu/:id', async (req, res) => {
 });
 
 // ==========================================
-// 4. LOCAL IMAGE UPLOAD FALLBACK (HTTPS PATCH)
+// 4. LOCAL IMAGE UPLOAD FALLBACK
 // ==========================================
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   
-  // 👇 PATCH: Force HTTPS if using EnvKit (.test domains) to prevent Mixed Content errors
   const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
   const localUrl = `${protocol}://${req.get('host')}/uploads/${req.file.filename}`;
   
@@ -179,7 +176,7 @@ router.post('/admin/upload-local', upload.single('image'), (req, res) => {
 });
 
 // ==========================================
-// 5. INVENTORY MANAGEMENT (Inventory Tab)
+// 5. INVENTORY MANAGEMENT
 // ==========================================
 router.get('/ingredients', async (_req, res) => {
   try {
@@ -213,16 +210,13 @@ router.post('/ingredients/:id/restock', async (req, res) => {
 });
 
 // ==========================================
-// 6. RECIPE / BOM MANAGEMENT (Recipes Tab)
+// 6. RECIPE / BOM MANAGEMENT
 // ==========================================
 router.get('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT r.ingredient_id, i.name, i.unit, r.quantity 
-       FROM recipes r 
-       JOIN ingredients i ON r.ingredient_id = i.id 
-       WHERE r.menu_item_id = $1`,
+      `SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`,
       [id]
     );
     res.json(rows);
@@ -238,16 +232,13 @@ router.post('/admin/menu/:id/recipe', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
-    // Clear existing recipe for this menu item
     await client.query(`DELETE FROM recipes WHERE menu_item_id = $1`, [id]);
 
-    // Insert the new recipe lines
     for (const ing of ingredients) {
       if (ing.quantity > 0) {
         await client.query(
-          `INSERT INTO recipes (menu_item_id, ingredient_id, quantity) VALUES ($1, $2, $3)`,
-          [id, ing.ingredient_id, ing.quantity]
+          `INSERT INTO recipes (menu_item_id, ingredient_id, component_menu_item_id, quantity) VALUES ($1, $2, $3, $4)`,
+          [id, ing.ingredient_id, ing.component_menu_item_id, ing.quantity]
         );
       }
     }
@@ -294,7 +285,6 @@ router.post('/admin/categories', async (req, res) => {
 router.delete('/admin/categories/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    // Check if any menu items are using this category
     const catRes = await pool.query('SELECT name FROM categories WHERE id = $1', [id]);
     if (catRes.rowCount === 0) return res.status(404).json({ error: 'Category not found' });
     

@@ -12,10 +12,12 @@ export default function POS() {
   const [cart, setCart] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   
-  // Receipt & Scanner States
   const [showScanner, setShowScanner] = useState(false);
   const [scanInput, setScanInput] = useState('');
-  const [completedOrder, setCompletedOrder] = useState(null); // Holds receipt data
+  const [completedOrder, setCompletedOrder] = useState(null);
+  
+  // Void Order State
+  const [showRecentOrders, setShowRecentOrders] = useState(false);
 
   useEffect(() => {
     startSyncWorker();
@@ -24,7 +26,7 @@ export default function POS() {
   }, []);
 
   const pendingSync = useLiveQuery(() => db.syncOutbox.where('status').equals('pending').count(), []);
-  const totalOrders = useLiveQuery(() => db.orders.count(), []);
+  const recentOrders = useLiveQuery(() => db.orders.reverse().limit(10).toArray(), []);
 
   const rejectedOrders = useLiveQuery(() => db.orders.where('_syncStatus').equals('rejected').toArray(), []);
   useEffect(() => {
@@ -41,12 +43,8 @@ export default function POS() {
         setCart(parsed.items);
         setShowScanner(false);
         setScanInput('');
-      } else {
-        alert("Invalid QR Format.");
-      }
-    } catch (e) {
-      alert("Could not read QR code. Make sure you pasted the exact JSON text.");
-    }
+      } else { alert("Invalid QR Format."); }
+    } catch (e) { alert("Could not read QR code."); }
   };
 
   const addToCart = (item) => {
@@ -60,18 +58,29 @@ export default function POS() {
   const placeOrder = async () => {
     setSubmitting(true);
     const orderTotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
-    
     try {
-      const localId = await createOrder({
-        items: cart,
-        total: orderTotal,
-      });
-      
-      // Save the order details for the receipt modal
+      const localId = await createOrder({ items: cart, total: orderTotal });
       setCompletedOrder({ id: localId, items: cart, total: orderTotal });
       setCart([]);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleVoidOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to VOID this order? Ingredients will be refunded to inventory.")) return;
+    
+    try {
+      // 1. Send to backend
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${orderId}/void`, { method: 'POST' });
+      if (!res.ok) throw new Error("Failed to void on backend");
+      
+      // 2. Update local Dexie status
+      await db.orders.update(orderId, { status: 'VOIDED' });
+      alert("Order voided and ingredients refunded.");
+      setShowRecentOrders(false);
+    } catch (err) {
+      alert("Error: " + err.message);
     }
   };
 
@@ -81,13 +90,15 @@ export default function POS() {
         <h1 className="text-xl font-bold">🍔 Burger Bombs POS</h1>
         
         <div className="flex items-center gap-4">
+          <button onClick={() => setShowRecentOrders(true)} className="bg-gray-800 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-900 transition shadow-sm">
+            📋 Recent Orders
+          </button>
           <button onClick={() => setShowScanner(true)} className="bg-black text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-sm">
-            📷 Scan Kiosk QR
+            📷 Scan QR
           </button>
           
           <div className="text-sm flex gap-4 bg-yellow-600 px-4 py-1.5 rounded-full font-medium">
             <span>Pending sync: <b>{pendingSync ?? '–'}</b></span>
-            <span className="border-l border-yellow-400 pl-4">Local orders: <b>{totalOrders ?? '–'}</b></span>
           </div>
         </div>
       </header>
@@ -101,18 +112,40 @@ export default function POS() {
         </div>
       </div>
 
+      {/* RECENT ORDERS MODAL */}
+      {showRecentOrders && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4">Recent Local Orders</h2>
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {recentOrders.map(o => (
+                <div key={o.id} className="flex justify-between items-center p-3 border rounded-lg bg-gray-50">
+                  <div>
+                    <div className="font-bold">Order #{o.id}</div>
+                    <div className="text-xs text-gray-500">{new Date(o.createdAt).toLocaleTimeString()} • ₱{o.total}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${o.status === 'VOIDED' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {o.status || 'PENDING'}
+                    </span>
+                    {o.status !== 'VOIDED' && (
+                      <button onClick={() => handleVoidOrder(o.id)} className="text-red-500 font-bold text-sm hover:underline">Void</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowRecentOrders(false)} className="mt-4 w-full py-3 bg-gray-200 font-bold rounded-lg hover:bg-gray-300">Close</button>
+          </div>
+        </div>
+      )}
+
       {/* KIOSK SCANNER MODAL */}
       {showScanner && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <h2 className="text-2xl font-bold mb-2">Scan Kiosk QR</h2>
-            <p className="text-sm text-gray-500 mb-4">Scan the customer's receipt or paste the JSON data below.</p>
-            <textarea
-              value={scanInput}
-              onChange={(e) => setScanInput(e.target.value)}
-              placeholder='{"items":[{"id":1...'
-              className="w-full h-32 p-3 border border-gray-300 rounded-lg mb-4 font-mono text-sm"
-            />
+            <textarea value={scanInput} onChange={(e) => setScanInput(e.target.value)} placeholder='{"items":[{"id":1...' className="w-full h-32 p-3 border border-gray-300 rounded-lg mb-4 font-mono text-sm" />
             <div className="flex gap-2">
               <button onClick={() => setShowScanner(false)} className="flex-1 py-3 bg-gray-200 font-bold rounded-lg hover:bg-gray-300">Cancel</button>
               <button onClick={handleScan} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Load Order</button>
@@ -121,7 +154,7 @@ export default function POS() {
         </div>
       )}
 
-      {/* RECEIPT MODAL (Shows after checkout) */}
+      {/* RECEIPT MODAL */}
       {completedOrder && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
@@ -143,7 +176,6 @@ export default function POS() {
               </div>
             </div>
 
-            {/* QR Code that links to the live tracking page */}
             <div className="flex flex-col items-center mb-6">
               <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Scan to Track Order</p>
               <div className="bg-white p-2 border-2 border-gray-200 rounded-xl">
@@ -151,12 +183,7 @@ export default function POS() {
               </div>
             </div>
 
-            <button 
-              onClick={() => setCompletedOrder(null)} 
-              className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800"
-            >
-              Done
-            </button>
+            <button onClick={() => setCompletedOrder(null)} className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800">Done</button>
           </div>
         </div>
       )}
