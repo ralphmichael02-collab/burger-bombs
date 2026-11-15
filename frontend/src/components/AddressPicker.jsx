@@ -1,4 +1,3 @@
-// frontend/src/components/AddressPicker.jsx
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { MapPin, X, Navigation, CheckCircle } from 'lucide-react';
@@ -12,11 +11,7 @@ L.Icon.Default.mergeOptions({
 });
 
 function LocationMarker({ position, setPosition }) {
-  useMapEvents({
-    click(e) {
-      setPosition(e.latlng);
-    },
-  });
+  useMapEvents({ click(e) { setPosition(e.latlng); } });
   return position === null ? null : <Marker position={position} />;
 }
 
@@ -34,19 +29,16 @@ export default function AddressPicker({ onConfirm, onClose }) {
       onConfirm(finalAddress, position.lat, position.lng);
     } catch (err) {
       onConfirm(addressText || 'Pinned Location', position.lat, position.lng);
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col h-[80vh]">
-        <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+        <div className="p-4 bg-[#1A1C23] text-white flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2"><MapPin size={20} /> Pin Your Delivery Address</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20} /></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
         </div>
-        
         <div className="flex-1 relative">
           <MapContainer center={position} zoom={16} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -56,20 +48,9 @@ export default function AddressPicker({ onConfirm, onClose }) {
             <Navigation size={14} /> Tap map to drop pin
           </div>
         </div>
-
         <div className="p-4 bg-white space-y-4">
-          <input 
-            type="text" 
-            placeholder="House / Unit / Landmark (e.g., Blue Gate, 2nd Floor)" 
-            value={addressText}
-            onChange={(e) => setAddressText(e.target.value)}
-            className="w-full border p-3 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 outline-none"
-          />
-          <button 
-            onClick={handleConfirm} 
-            disabled={isLoading}
-            className="w-full bg-orange-500 text-black font-bold py-3 rounded-xl hover:bg-orange-400 transition flex items-center justify-center gap-2"
-          >
+          <input type="text" placeholder="House / Unit / Landmark" value={addressText} onChange={(e) => setAddressText(e.target.value)} className="w-full border border-gray-200 p-3 rounded-lg bg-gray-50 focus:ring-2 focus:ring-[#EA580C] outline-none" />
+          <button onClick={handleConfirm} disabled={isLoading} className="w-full bg-[#EA580C] text-white font-bold py-3 rounded-xl hover:bg-[#C2410C] transition flex items-center justify-center gap-2">
             {isLoading ? 'Getting Address...' : <><CheckCircle size={18} /> Confirm Address</>}
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'react-qr-code';
-import { Utensils, ShoppingBag, X, QrCode, CheckCircle } from 'lucide-react';
+import { Utensils, ShoppingBag, X, CheckCircle } from 'lucide-react';
 
 export default function Kiosk() {
   const [menu, setMenu] = useState([]);
@@ -21,60 +21,50 @@ export default function Kiosk() {
   }, []);
 
   const resetIdleTimer = () => {
-    setIdle(false);
-    clearTimeout(idleTimer.current);
+    setIdle(false); clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(() => { setIdle(true); setCart([]); setShowReceipt(false); }, 60000);
   };
 
-  const addToCart = (item) => {
-    resetIdleTimer();
-    setCart(prev => {
-      const existing = prev.find(x => x.id === item.id);
-      if (existing) return prev.map(x => x.id === item.id ? { ...x, qty: x.qty + 1 } : x);
-      return [...prev, { ...item, qty: 1 }];
-    });
-  };
-
+  const addToCart = (item) => { resetIdleTimer(); setCart(prev => { const e = prev.find(x => x.id === item.id); if (e) return prev.map(x => x.id === item.id ? { ...x, qty: x.qty + 1 } : x); return [...prev, { ...item, qty: 1 }]; }); };
   const removeFromCart = (itemId) => { resetIdleTimer(); setCart(prev => prev.filter(x => x.id !== itemId)); };
-
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
   const qrData = JSON.stringify({ items: cart, total });
   const displayCategories = categories.length > 0 ? categories : ['Burgers', 'Combos', 'Sides', 'Drinks'];
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (idle) return (
-    <div onClick={resetIdleTimer} className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center cursor-pointer">
-      <div className="text-8xl mb-8 animate-bounce text-orange-500"><Utensils size={120} /></div>
+    <div onClick={resetIdleTimer} className="min-h-screen bg-[#1A1C23] flex flex-col items-center justify-center p-6 text-white text-center cursor-pointer">
+      <div className="text-8xl mb-8 animate-bounce text-[#EA580C]"><Utensils size={120} /></div>
       <h1 className="text-5xl font-black mb-4">Welcome to {settings.restaurant_name}</h1>
-      <p className="text-xl text-slate-400 mb-8">Tap anywhere to start your order</p>
-      <div className="bg-orange-500 text-black px-8 py-4 rounded-2xl font-black text-2xl shadow-lg animate-pulse">Start Order</div>
+      <p className="text-xl text-gray-400 mb-8">Tap anywhere to start your order</p>
+      <div className="bg-[#EA580C] text-black px-8 py-4 rounded-2xl font-black text-2xl shadow-lg animate-pulse">Start Order</div>
     </div>
   );
 
   if (showReceipt) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#1A1C23] flex flex-col items-center justify-center p-6">
       <div className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center max-w-md w-full">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={32} /></div>
-        <h1 className="text-3xl font-black mb-2 text-center text-slate-900">Scan at Counter</h1>
-        <p className="text-slate-500 mb-8 text-center">Please present this QR code to the cashier to pay.</p>
-        <div className="bg-white p-4 border-4 border-slate-900 rounded-xl mb-8"><QRCode value={qrData} size={250} /></div>
-        <div className="w-full bg-slate-100 p-4 rounded-xl mb-6 flex justify-between items-center">
-          <span className="font-bold text-slate-500">Total to pay:</span>
-          <span className="font-black text-2xl text-slate-900">₱{total}</span>
+        <div className="w-16 h-16 bg-[#45C65A]/10 text-[#45C65A] rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={32} /></div>
+        <h1 className="text-3xl font-black mb-2 text-center text-[#1A1C23]">Scan at Counter</h1>
+        <p className="text-gray-500 mb-8 text-center">Please present this QR code to the cashier.</p>
+        <div className="bg-white p-4 border-4 border-[#1A1C23] rounded-xl mb-8"><QRCode value={qrData} size={250} /></div>
+        <div className="w-full bg-gray-50 p-4 rounded-xl mb-6 flex justify-between items-center">
+          <span className="font-bold text-gray-500">Total:</span>
+          <span className="font-black text-2xl text-[#1A1C23]">₱{total}</span>
         </div>
-        <button onClick={() => { setCart([]); setShowReceipt(false); resetIdleTimer(); }} className="w-full bg-orange-500 text-black font-bold py-4 rounded-xl text-lg hover:bg-orange-400 transition">Start New Order</button>
+        <button onClick={() => { setCart([]); setShowReceipt(false); resetIdleTimer(); }} className="w-full bg-[#EA580C] text-white font-bold py-4 rounded-xl text-lg hover:bg-[#C2410C] transition">Start New Order</button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
-      <header className="bg-slate-900 text-white p-6 shadow-md flex justify-between items-center border-b border-slate-800">
+    <div className="min-h-screen bg-[#1A1C23] flex flex-col font-sans">
+      <header className="bg-[#2C2C2E] text-white p-6 shadow-md flex justify-between items-center border-b border-gray-800">
         <div className="flex items-center gap-4">
           {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-sm" />}
-          <div><h1 className="text-4xl font-black tracking-widest uppercase">{settings.restaurant_name}</h1><p className="text-sm font-bold text-orange-400">{settings.tagline}</p></div>
+          <div><h1 className="text-4xl font-black tracking-widest uppercase">{settings.restaurant_name}</h1><p className="text-sm font-bold text-[#EA580C]">{settings.tagline}</p></div>
         </div>
-        <span className="text-lg font-bold bg-slate-800 px-4 py-1 rounded-full text-slate-300">Self-Service</span>
+        <span className="text-lg font-bold bg-gray-800 px-4 py-1 rounded-full text-gray-300">Self-Service</span>
       </header>
       <div className="flex-1 flex flex-col lg:flex-row p-6 gap-6 max-w-[1600px] mx-auto w-full">
         <div className="flex-1 flex flex-col">
@@ -82,56 +72,45 @@ export default function Kiosk() {
             {['All', ...displayCategories].map(cat => (
               <button key={cat} onClick={() => { setFilterCategory(cat); resetIdleTimer(); }} 
                 className={`px-8 py-4 text-lg font-bold rounded-2xl whitespace-nowrap shadow-sm transition-all min-w-[64px] min-h-[64px]
-                  ${filterCategory === cat ? 'bg-orange-500 text-black shadow-orange-500/30 shadow-lg' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
-                {cat}
-              </button>
+                  ${filterCategory === cat ? 'bg-[#EA580C] text-black shadow-[#EA580C]/30 shadow-lg' : 'bg-[#2C2C2E] text-gray-300 hover:bg-gray-700'}`}>{cat}</button>
             ))}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredMenu.map(item => (
               <button key={item.id} disabled={!item.available} onClick={() => addToCart(item)}
                 className={`relative rounded-3xl shadow-xl flex flex-col overflow-hidden transition-all duration-300 transform active:scale-95 text-left h-72
-                  ${item.available ? 'bg-slate-800 hover:bg-slate-700 cursor-pointer' : 'bg-slate-800/50 opacity-60 cursor-not-allowed'}`}>
+                  ${item.available ? 'bg-[#2C2C2E] hover:bg-gray-700 cursor-pointer' : 'bg-[#2C2C2E]/50 opacity-60 cursor-not-allowed'}`}>
                 <div className="h-40 w-full relative">
-                  {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-700 flex items-center justify-center text-slate-500"><Utensils size={48} opacity={0.2} /></div>}
+                  {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-700 flex items-center justify-center"><Utensils size={48} className="text-gray-500" /></div>}
                   <div className="absolute top-3 left-3 bg-black/70 backdrop-blur px-3 py-1 rounded-lg text-xs font-black text-white uppercase tracking-wider">{item.category}</div>
                 </div>
                 <div className="p-5 flex flex-col flex-1 justify-between">
                   <h3 className="text-xl font-bold text-white leading-tight line-clamp-2">{item.name}</h3>
-                  <p className="text-2xl font-black text-orange-500">₱{item.price}</p>
+                  <p className="text-2xl font-black text-[#EA580C]">₱{item.price}</p>
                 </div>
-                {!item.available && (
-                  <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center">
-                    <span className="bg-red-600 text-white font-black text-xl px-8 py-3 rounded-xl transform -rotate-12 shadow-2xl border-4 border-white">SOLD OUT</span>
-                  </div>
-                )}
+                {!item.available && (<div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center"><span className="bg-[#EA001E] text-white font-black text-xl px-8 py-3 rounded-xl transform -rotate-12 shadow-2xl border-4 border-white">SOLD OUT</span></div>)}
               </button>
             ))}
           </div>
         </div>
-        <div className="w-full lg:w-[400px] bg-slate-900 rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-800">
-          <div className="bg-slate-950 text-white p-6 border-b border-slate-800 flex justify-between items-center">
+        <div className="w-full lg:w-[400px] bg-[#2C2C2E] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-800">
+          <div className="bg-black text-white p-6 border-b border-gray-800 flex justify-between items-center">
             <h2 className="text-2xl font-black">Your Order</h2>
-            <span className="bg-slate-800 text-slate-300 font-bold px-3 py-1 rounded-full text-sm">{cart.reduce((s,c) => s + c.qty, 0)} items</span>
+            <span className="bg-gray-800 text-gray-300 font-bold px-3 py-1 rounded-full text-sm">{cart.reduce((s,c) => s + c.qty, 0)} items</span>
           </div>
           <div className="flex-1 p-6 overflow-y-auto space-y-4">
             {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-500"><ShoppingBag size={64} className="mb-4 opacity-50" /><p className="font-bold text-xl">Tap items to add</p></div>
-            ) : (
-              cart.map(c => (
-                <div key={c.id} className="flex justify-between items-center border-b border-slate-800 pb-4">
-                  <div><div className="font-bold text-white text-lg">{c.name}</div><div className="text-sm text-slate-400">₱{c.price} × {c.qty}</div></div>
-                  <button onClick={() => removeFromCart(c.id)} className="text-red-500 p-2 font-bold hover:bg-slate-800 rounded-lg transition"><X size={20} /></button>
-                </div>
-              ))
-            )}
+              <div className="h-full flex flex-col items-center justify-center text-gray-500"><ShoppingBag size={64} className="mb-4 opacity-50" /><p className="font-bold text-xl">Tap items to add</p></div>
+            ) : cart.map(c => (
+              <div key={c.id} className="flex justify-between items-center border-b border-gray-800 pb-4">
+                <div><div className="font-bold text-white text-lg">{c.name}</div><div className="text-sm text-gray-400">₱{c.price} × {c.qty}</div></div>
+                <button onClick={() => removeFromCart(c.id)} className="text-red-500 p-2 font-bold hover:bg-gray-800 rounded-lg transition"><X size={20} /></button>
+              </div>
+            ))}
           </div>
-          <div className="p-6 bg-slate-950 border-t border-slate-800">
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-slate-400 font-bold text-xl">Total</span>
-              <span className="text-4xl font-black text-white">₱{total}</span>
-            </div>
-            <button disabled={cart.length === 0} onClick={() => { setShowReceipt(true); resetIdleTimer(); }} className="w-full bg-orange-500 text-black font-black text-2xl py-5 rounded-2xl hover:bg-orange-400 transition disabled:opacity-50 shadow-lg min-h-[64px]">Checkout</button>
+          <div className="p-6 bg-black border-t border-gray-800">
+            <div className="flex justify-between items-center mb-6"><span className="text-gray-400 font-bold text-xl">Total</span><span className="text-4xl font-black text-white">₱{total}</span></div>
+            <button disabled={cart.length === 0} onClick={() => { setShowReceipt(true); resetIdleTimer(); }} className="w-full bg-[#EA580C] text-black font-black text-2xl py-5 rounded-2xl hover:bg-[#C2410C] transition disabled:opacity-50 shadow-lg min-h-[64px]">Checkout</button>
           </div>
         </div>
       </div>

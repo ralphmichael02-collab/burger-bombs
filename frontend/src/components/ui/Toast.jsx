@@ -5,17 +5,20 @@ const ToastContext = createContext();
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   };
+
   const styles = {
     info: { bg: 'bg-[#1A1C23]', text: 'text-white', icon: <Info size={18} /> },
     success: { bg: 'bg-[#45C65A]', text: 'text-white', icon: <CheckCircle size={18} /> },
     error: { bg: 'bg-[#EA001E]', text: 'text-white', icon: <AlertCircle size={18} /> },
     warning: { bg: 'bg-[#FE9339]', text: 'text-black', icon: <AlertTriangle size={18} /> },
   };
+
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
@@ -29,7 +32,6 @@ export function ToastProvider({ children }) {
           );
         })}
       </div>
-      <style>{`@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
     </ToastContext.Provider>
   );
 }

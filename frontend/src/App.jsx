@@ -21,8 +21,8 @@ export default function App() {
       .then(res => res.json())
       .then(data => {
         if (data) {
-          document.documentElement.style.setProperty('--theme-primary', data.theme_primary_color || '#2B4FB9');
-          document.documentElement.style.setProperty('--theme-bg', data.theme_bg_color || '#F7F7F7');
+          document.documentElement.style.setProperty('--theme-primary', data.theme_primary_color || '#EA580C');
+          document.documentElement.style.setProperty('--theme-bg', data.theme_bg_color || '#FDFBF7');
           document.documentElement.style.setProperty('--theme-text', data.theme_text_color || '#1A1C23');
           document.documentElement.style.setProperty('--theme-card', data.theme_card_color || '#FFFFFF');
         }

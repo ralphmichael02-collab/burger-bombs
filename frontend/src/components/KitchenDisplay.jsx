@@ -1,3 +1,4 @@
+// frontend/src/components/KitchenDisplay.jsx
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { ChefHat, Clock, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -61,7 +62,7 @@ export default function KitchenDisplay() {
       <header className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center sticky top-0 z-20">
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <ChefHat size={28} className="text-[#FE9339]" /> Kitchen Display
+            <ChefHat size={28} className="text-[#EA580C]" /> Kitchen Display
           </h1>
           <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
             {['ALL', 'ONLINE', 'POS'].map(f => (
@@ -91,9 +92,9 @@ export default function KitchenDisplay() {
             {filteredTickets.map((ticket) => {
               const elapsed = getElapsedTime(ticket.createdAt || ticket.created_at);
               const mins = elapsed.totalMins;
-              let headerColor = 'bg-[#34C759]'; // Green
-              if (mins >= 10) { headerColor = 'bg-[#FF3B30]'; } // Red
-              else if (mins >= 5) { headerColor = 'bg-[#FF9500]'; } // Orange
+              let headerColor = 'bg-[#45C65A]'; // Green
+              if (mins >= 10) { headerColor = 'bg-[#EA001E]'; } // Red
+              else if (mins >= 5) { headerColor = 'bg-[#EA580C]'; } // Orange
 
               return (
                 <div key={ticket.id} className="bg-[#2C2C2E] rounded-xl shadow-lg overflow-hidden flex flex-col border border-[#3A3A3C]">
@@ -107,13 +108,13 @@ export default function KitchenDisplay() {
                     <ul className="space-y-3">
                       {ticket.items.map((item, idx) => (
                         <li key={idx} className="flex justify-between items-start text-base">
-                          <span className="font-semibold text-white"><span className="text-[#FE9339] mr-2">{item.qty}x</span> {item.name}</span>
+                          <span className="font-semibold text-white"><span className="text-[#EA580C] mr-2">{item.qty}x</span> {item.name}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                   <div className="p-3 pt-0">
-                    <button onClick={() => completeOrder(ticket.id)} className="w-full bg-[#3A3A3C] hover:bg-[#34C759] text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button onClick={() => completeOrder(ticket.id)} className="w-full bg-[#3A3A3C] hover:bg-[#45C65A] text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                       <CheckCircle size={18} /> Bump
                     </button>
                   </div>
