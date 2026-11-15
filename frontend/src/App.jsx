@@ -9,7 +9,9 @@ import KitchenDisplay from './components/KitchenDisplay';
 import Kiosk from './components/Kiosk';
 import MobileScanner from './components/MobileScanner';
 import MobilePortal from './components/MobilePortal';
-// import Home from './components/Home'; // 👈 UNCOMMENT IF YOU HAVE A HOME COMPONENT
+import RiderPortal from './components/RiderPortal';
+import TrackOrder from './components/TrackOrder';
+import Home from './components/Home';
 import { refreshMenuFromBackend } from './db';
 import { isLocalEnvironment } from './utils/isLocal';
 
@@ -35,7 +37,40 @@ export default function App() {
 
   useEffect(() => {
     refreshMenuFromBackend();
-  }, []);
+    
+    // Fetch SaaS Settings for Theme, Title, and Favicon
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.site_title) document.title = data.site_title;
+
+        if (data.favicon_url) {
+          let link = document.querySelector("link[rel~='icon']");
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+          }
+          link.href = data.favicon_url;
+        }
+
+        // Apply database theme (If in Cloud/Production)
+        if (!isLocal && data.theme_primary_color) {
+          setCurrentColors({
+            primary: data.theme_primary_color,
+            primaryHover: data.theme_primary_color,
+            background: data.theme_bg_color,
+            surface: data.theme_card_color,
+            text: data.theme_text_color,
+            textMuted: '#6B7280',
+            border: '#E5E7EB',
+            success: '#45C65A',
+            danger: '#EA001E'
+          });
+        }
+      })
+      .catch(console.error);
+  }, [isLocal]);
 
   useEffect(() => {
     localStorage.setItem('burger-bombs-colors', JSON.stringify(currentColors));
@@ -46,41 +81,46 @@ export default function App() {
     });
   }, [currentColors]);
 
-  // Block access to local-only pages if we are on the cloud (Vercel)
+  // Block local-only pages if we are on Vercel (Cloud)
   const isLocalOnlyRoute = ['/pos', '/kitchen', '/kiosk', '/admin'].some(p => location.pathname.startsWith(p));
   if (!isLocal && isLocalOnlyRoute) {
-    return <Navigate to="/store" replace />;
+    return <Navigate to="/" replace />; 
   }
 
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const isStandalone = ['/kitchen', '/kiosk', '/scanner', '/mobile'].some(p => location.pathname.startsWith(p));
+  const isStandalone = ['/kitchen', '/kiosk', '/scanner', '/mobile', '/rider', '/track'].some(p => location.pathname.startsWith(p));
 
   return (
     <div className="min-h-screen bg-background text-text">
       {!isAdminRoute && !isStandalone && (
         <nav className="bg-surface border-b border-border p-3 flex gap-4 shadow-sm sticky top-0 z-50">
+          <Link to="/" className={`capitalize font-bold ${location.pathname === '/' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
+            Home
+          </Link>
           {isLocal && (
-            <Link to="/pos" className={`capitalize font-bold ${location.pathname === '/pos' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>POS</Link>
+            <Link to="/pos" className={`capitalize font-bold ${location.pathname === '/pos' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
+              POS
+            </Link>
           )}
-          
-          <Link to="/store" className={`capitalize font-bold ${location.pathname === '/store' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>Online Store</Link>
-          
+          <Link to="/store" className={`capitalize font-bold ${location.pathname === '/store' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
+            Online Store
+          </Link>
           {isLocal && (
-            <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>Admin Dashboard</Link>
+            <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
+              Admin Dashboard
+            </Link>
           )}
         </nav>
       )}
 
       <Routes>
-        {/* On Cloud, "/" is the Homepage/Store. On Local, "/" is the POS */}
-        <Route path="/" element={isLocal ? <POS /> : <CustomerStore />} />
-        
-        {/* Public Routes (Available on Cloud & Local) */}
+        <Route path="/" element={isLocal ? <POS /> : <Home />} />
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/scanner" element={<MobileScanner />} />
         <Route path="/mobile" element={<MobilePortal />} />
-
-        {/* Local Only Routes (Blocked on Vercel) */}
+        <Route path="/rider" element={<RiderPortal />} />
+        <Route path="/track/:orderId" element={<TrackOrder />} />
+        
         {isLocal && (
           <>
             <Route path="/pos" element={<POS />} />
@@ -91,8 +131,7 @@ export default function App() {
           </>
         )}
 
-        {/* Fallback */}
-        <Route path="*" element={isLocal ? <POS /> : <CustomerStore />} />
+        <Route path="*" element={isLocal ? <POS /> : <Home />} />
       </Routes>
     </div>
   );

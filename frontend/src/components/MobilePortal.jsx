@@ -1,7 +1,10 @@
 // frontend/src/components/MobilePortal.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Lock, Mail, Smartphone, LayoutDashboard, ChefHat, ArrowRight, QrCode, LogOut, Eye, EyeOff } from 'lucide-react';
+import { 
+  Lock, Mail, Smartphone, LayoutDashboard, ChefHat, 
+  ArrowRight, QrCode, LogOut, Eye, EyeOff, Truck 
+} from 'lucide-react';
 
 export default function MobilePortal() {
   const navigate = useNavigate();
@@ -24,6 +27,7 @@ export default function MobilePortal() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
+      // Relative path for Vite Proxy
       const res = await fetch('/api/auth/staff-login', {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
@@ -37,6 +41,7 @@ export default function MobilePortal() {
       localStorage.setItem('staff_user', JSON.stringify(data.user));
       setUser(data.user);
       
+      // If they scanned a pairing QR, send them straight to scanner
       if (urlPairCode) navigate(`/scanner?pair=${urlPairCode}`);
     } catch (err) {
       if (err.message === 'Load failed' || err.message === 'Failed to fetch') {
@@ -49,6 +54,7 @@ export default function MobilePortal() {
     }
   };
 
+  // ─── LOGIN SCREEN ───
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex flex-col justify-center p-6 font-['Source_Sans_Pro',sans-serif]">
@@ -89,6 +95,7 @@ export default function MobilePortal() {
     );
   }
 
+  // ─── DASHBOARD (After Login) ───
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col font-['Source_Sans_Pro',sans-serif]">
       <header className="mb-6 flex justify-between items-center">
@@ -107,19 +114,31 @@ export default function MobilePortal() {
       )}
 
       <div className="grid grid-cols-1 gap-3">
+        {/* Mobile Scanner */}
         <button onClick={() => navigate(`/scanner${urlPairCode ? `?pair=${urlPairCode}` : ''}`)} className="bg-surface p-4 rounded-xl border border-border flex items-center gap-4 shadow-sm active:scale-95 transition text-left">
           <div className="w-12 h-12 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0"><QrCode size={24} /></div>
           <div className="flex-1"><h2 className="font-bold text-text">Mobile Scanner</h2><p className="text-xs text-text-muted mt-0.5">Use camera to scan kiosk QR codes</p></div>
           <ArrowRight size={20} className="text-text-muted shrink-0" />
         </button>
+
+        {/* POS Terminal */}
         <button onClick={() => navigate('/pos')} className="bg-surface p-4 rounded-xl border border-border flex items-center gap-4 shadow-sm active:scale-95 transition text-left">
           <div className="w-12 h-12 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0"><LayoutDashboard size={24} /></div>
           <div className="flex-1"><h2 className="font-bold text-text">POS Terminal</h2><p className="text-xs text-text-muted mt-0.5">Take orders as a cashier</p></div>
           <ArrowRight size={20} className="text-text-muted shrink-0" />
         </button>
+
+        {/* Kitchen Display */}
         <button onClick={() => navigate('/kitchen')} className="bg-surface p-4 rounded-xl border border-border flex items-center gap-4 shadow-sm active:scale-95 transition text-left">
           <div className="w-12 h-12 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0"><ChefHat size={24} /></div>
           <div className="flex-1"><h2 className="font-bold text-text">Kitchen Display</h2><p className="text-xs text-text-muted mt-0.5">View and complete pending orders</p></div>
+          <ArrowRight size={20} className="text-text-muted shrink-0" />
+        </button>
+
+        {/* Rider Portal 👈 NEW */}
+        <button onClick={() => navigate('/rider')} className="bg-surface p-4 rounded-xl border border-border flex items-center gap-4 shadow-sm active:scale-95 transition text-left">
+          <div className="w-12 h-12 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0"><Truck size={24} /></div>
+          <div className="flex-1"><h2 className="font-bold text-text">Rider Portal</h2><p className="text-xs text-text-muted mt-0.5">Deliver orders with GPS tracking</p></div>
           <ArrowRight size={20} className="text-text-muted shrink-0" />
         </button>
       </div>
