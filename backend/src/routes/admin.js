@@ -166,12 +166,15 @@ router.delete('/admin/menu/:id', async (req, res) => {
 });
 
 // ==========================================
-// 4. LOCAL IMAGE UPLOAD FALLBACK
+// 4. LOCAL IMAGE UPLOAD FALLBACK (HTTPS PATCH)
 // ==========================================
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   
-  const localUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  // 👇 PATCH: Force HTTPS if using EnvKit (.test domains) to prevent Mixed Content errors
+  const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
+  const localUrl = `${protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  
   res.json({ url: localUrl });
 });
 
