@@ -11,11 +11,8 @@ export default function Modal({ isOpen, onClose, title, children, variant = 'inf
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      <div 
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
-        onClick={onClose}
-      ></div>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className={`px-6 py-4 border-b flex justify-between items-center ${headerColors[variant]}`}>
           <h3 className="text-lg font-bold">{title}</h3>
           <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition">
