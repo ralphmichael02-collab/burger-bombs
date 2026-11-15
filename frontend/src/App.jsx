@@ -19,16 +19,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* The Demo Hub */}
         <Route path="/" element={<LandingPage />} />
-        
-        {/* Local Store Apps */}
         <Route path="/pos" element={<POS />} />
         <Route path="/kiosk" element={<Kiosk />} />
         <Route path="/kitchen" element={<KitchenDisplay />} />
         <Route path="/admin" element={<AdminDashboard />} />
-        
-        {/* Customer & Delivery Apps */}
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/rider" element={<RiderSimulator />} />
         <Route path="/track/:orderId" element={<CustomerTracker />} />
