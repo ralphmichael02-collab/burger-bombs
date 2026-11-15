@@ -8,12 +8,15 @@ export default function AdminDashboard() {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form State
+  // Menu Form State
   const [newItem, setNewItem] = useState({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
   const [editingId, setEditingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Detect if we are running on Localhost/EnvKit or Vercel Cloud
+  // Recipe / BOM State
+  const [selectedRecipeItem, setSelectedRecipeItem] = useState(null);
+  const [recipeIngredients, setRecipeIngredients] = useState({});
+
   const isLocal = window.location.hostname.includes('.test') || window.location.hostname.includes('localhost');
 
   const fetchData = () => {
@@ -28,6 +31,41 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // --- RECIPE LOGIC ---
+  const loadRecipe = async (item) => {
+    setSelectedRecipeItem(item);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${item.id}/recipe`);
+    const recipe = await res.json();
+    
+    // Convert array [{ ingredient_id, quantity }] into an object { ingredient_id: quantity }
+    const recipeMap = {};
+    recipe.forEach(r => { recipeMap[r.ingredient_id] = r.quantity; });
+    setRecipeIngredients(recipeMap);
+  };
+
+  const handleRecipeChange = (ingId, qty) => {
+    setRecipeIngredients(prev => ({ ...prev, [ingId]: parseFloat(qty) || 0 }));
+  };
+
+  const saveRecipe = async () => {
+    if (!isLocal) return alert("Only the local store can edit recipes.");
+    
+    const payload = Object.keys(recipeIngredients).map(ingId => ({
+      ingredient_id: parseInt(ingId),
+      quantity: recipeIngredients[ingId]
+    }));
+
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredients: payload })
+    });
+    
+    alert("Recipe saved successfully!");
+    setSelectedRecipeItem(null);
+  };
+
+  // --- MENU LOGIC ---
   const handleRestock = async (id) => {
     const amount = prompt("How many units are you adding?");
     if (!amount || isNaN(amount)) return;
@@ -37,38 +75,49 @@ export default function AdminDashboard() {
     fetchData();
   };
 
-  // ☁️ Upload to Cloudinary
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setIsUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
     
-    // Read from .env file
-    const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-    
-    // 👇 This line is CRITICAL for Cloudinary to accept the upload
-    formData.append('upload_preset', UPLOAD_PRESET); 
-
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      // 1. Try Cloudinary first
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      
+      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formData
       });
       
-      const data = await res.json();
-      
-      if (data.secure_url) {
+      if (cloudRes.ok) {
+        const data = await cloudRes.json();
         setNewItem({ ...newItem, image_url: data.secure_url });
       } else {
-        alert("Upload failed: " + (data.error?.message || "Unknown error"));
+        throw new Error("Cloudinary failed");
       }
     } catch (err) {
-      console.error(err);
-      alert("Image upload failed. Check your Cloudinary settings.");
+      // 2. Fallback to Local Backend if offline or Cloudinary fails
+      console.warn("Cloudinary failed or offline. Saving locally...");
+      
+      try {
+        const localFormData = new FormData();
+        localFormData.append('image', file);
+        
+        const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, {
+          method: 'POST',
+          body: localFormData
+        });
+        
+        const data = await localRes.json();
+        if (data.url) {
+          setNewItem({ ...newItem, image_url: data.url });
+        }
+      } catch (localErr) {
+        alert("Failed to upload image entirely (both cloud and local).");
+      }
     } finally {
       setIsUploading(false);
     }
@@ -90,7 +139,6 @@ export default function AdminDashboard() {
       body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), cost: parseFloat(newItem.cost) })
     });
     
-    // Reset form
     setNewItem({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
     setEditingId(null);
     fetchData();
@@ -129,7 +177,7 @@ export default function AdminDashboard() {
             <p className="text-gray-500">{isLocal ? 'Local Store (Master Control)' : 'Cloud Store (Read Only)'}</p>
           </div>
           <div className="flex bg-white rounded-lg shadow-sm p-1">
-            {['overview', 'inventory', 'menu'].map(tab => (
+            {['overview', 'inventory', 'menu', 'recipes'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`px-6 py-2 rounded-md font-bold capitalize transition ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {tab}
@@ -247,7 +295,7 @@ export default function AdminDashboard() {
                   <input required disabled={!isLocal} value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full border p-2 rounded mt-1" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-500">Image (Cloudinary)</label>
+                  <label className="text-xs font-bold text-gray-500">Image (Cloudinary / Local Fallback)</label>
                   <input type="file" accept="image/*" disabled={!isLocal} onChange={handleImageUpload} className="w-full mt-1" />
                   {newItem.image_url && <img src={newItem.image_url} alt="Preview" className="w-full h-32 object-cover rounded mt-2" />}
                 </div>
@@ -281,9 +329,68 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </div>
-
           </div>
         )}
+
+        {/* RECIPES TAB */}
+        {activeTab === 'recipes' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Select Menu Item */}
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit">
+              <h2 className="font-bold text-xl mb-4">Select a Menu Item</h2>
+              <div className="space-y-2">
+                {menuItems.map(item => (
+                  <button 
+                    key={item.id} 
+                    onClick={() => loadRecipe(item)}
+                    className={`w-full text-left p-3 rounded-lg border font-bold transition ${selectedRecipeItem?.id === item.id ? 'bg-yellow-50 border-yellow-500' : 'hover:bg-gray-50'}`}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* BOM Editor */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              {!selectedRecipeItem ? (
+                <div className="text-center text-gray-500 py-20">Select a menu item to edit its ingredients.</div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="font-bold text-2xl">Recipe: {selectedRecipeItem.name}</h2>
+                    <button onClick={saveRecipe} disabled={!isLocal} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700">Save Recipe</button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {ingredients.map(ing => (
+                      <div key={ing.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                        <div>
+                          <span className="font-bold text-gray-800">{ing.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">({ing.unit})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            disabled={!isLocal}
+                            value={recipeIngredients[ing.id] || ''} 
+                            onChange={(e) => handleRecipeChange(ing.id, e.target.value)}
+                            placeholder="0"
+                            className="w-24 border p-2 rounded text-right"
+                          />
+                          <span className="text-sm font-bold text-gray-500 w-8">{ing.unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
