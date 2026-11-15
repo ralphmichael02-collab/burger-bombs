@@ -1,8 +1,10 @@
+// frontend/src/components/AddressPicker.jsx
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { MapPin, X, Navigation, CheckCircle } from 'lucide-react';
 import L from 'leaflet';
 
+// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -10,13 +12,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-function LocationMarker({ position, setPosition }) {
-  useMapEvents({ click(e) { setPosition(e.latlng); } });
-  return position === null ? null : <Marker position={position} />;
+// 👇 Helper component to handle map clicks
+function MapClickHandler({ setPosition }) {
+  useMapEvents({
+    click(e) {
+      setPosition(e.latlng);
+    },
+  });
+  return null;
 }
 
 export default function AddressPicker({ onConfirm, onClose }) {
-  const [position, setPosition] = useState({ lat: 14.5995, lng: 120.9842 });
+  // 👇 Default location: Catarman, Northern Samar
+  const [position, setPosition] = useState({ lat: 12.4989, lng: 124.6377 });
   const [addressText, setAddressText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,18 +47,45 @@ export default function AddressPicker({ onConfirm, onClose }) {
           <h2 className="text-xl font-bold flex items-center gap-2"><MapPin size={20} className="text-primary" /> Pin Your Delivery Address</h2>
           <button onClick={onClose} className="text-text-muted hover:text-text p-2 rounded-full hover:bg-surface transition"><X size={20} /></button>
         </div>
+        
         <div className="flex-1 relative">
-          <MapContainer center={position} zoom={16} style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={position} zoom={14} style={{ height: '100%', width: '100%', zIndex: 0 }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <LocationMarker position={position} setPosition={setPosition} />
+            <MapClickHandler setPosition={setPosition} />
+            
+            {/* 👇 The marker is now draggable as a fallback */}
+            <Marker 
+              position={position} 
+              draggable={true}
+              eventHandlers={{
+                dragend: (e) => {
+                  const marker = e.target;
+                  if (marker != null) {
+                    setPosition(marker.getLatLng());
+                  }
+                },
+              }}
+            />
           </MapContainer>
+          
           <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur px-4 py-2 rounded-full shadow-md z-[400] text-sm font-bold text-text pointer-events-none flex items-center gap-2 border border-border">
-            <Navigation size={14} className="text-primary" /> Tap map to drop pin
+            <Navigation size={14} className="text-primary" /> Tap map or drag pin
           </div>
         </div>
+
         <div className="p-4 bg-surface space-y-4 shrink-0 border-t border-border">
-          <input type="text" placeholder="House / Unit / Landmark" value={addressText} onChange={(e) => setAddressText(e.target.value)} className="w-full border border-border p-3 rounded-lg bg-background text-text focus:ring-2 focus:ring-primary outline-none transition" />
-          <button onClick={handleConfirm} disabled={isLoading} className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover transition flex items-center justify-center gap-2 disabled:opacity-50">
+          <input 
+            type="text" 
+            placeholder="House / Unit / Landmark" 
+            value={addressText} 
+            onChange={(e) => setAddressText(e.target.value)} 
+            className="w-full border border-border p-3 rounded-lg bg-background text-text focus:ring-2 focus:ring-primary outline-none transition" 
+          />
+          <button 
+            onClick={handleConfirm} 
+            disabled={isLoading} 
+            className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary-hover transition flex items-center justify-center gap-2 disabled:opacity-50"
+          >
             {isLoading ? 'Getting Address...' : <><CheckCircle size={18} /> Confirm Address</>}
           </button>
         </div>

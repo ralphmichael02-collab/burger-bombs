@@ -26,7 +26,6 @@ export default function TrackOrder() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // 👇 USING SAFEFETCH TO PREVENT CRASHES
     safeFetch(`${API_BASE}/api/orders/by-id/${orderId}`)
       .then(r => r.json())
       .then(setOrder)
@@ -68,15 +67,22 @@ export default function TrackOrder() {
           </button>
         </div>
       ) : (
-        <div className="flex-1 relative bg-gray-200">
-          <MapContainer center={[14.5995, 120.9842]} zoom={14} style={{ height: '100%', width: '100%' }}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {position && (
-              <Marker position={position}>
-                <Popup>🛵 Your rider is here</Popup>
-              </Marker>
-            )}
-          </MapContainer>
+        <div className="flex-1 relative bg-gray-200 flex flex-col">
+          <div className="flex-1 w-full relative z-0">
+            {/* 👇 Default Center: Northern Samar */}
+            <MapContainer 
+              center={[12.4989, 124.6377]} 
+              zoom={14} 
+              style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {position && (
+                <Marker position={position}>
+                  <Popup>🛵 Your rider is here</Popup>
+                </Marker>
+              )}
+            </MapContainer>
+          </div>
 
           <div className="absolute bottom-4 left-4 right-4 bg-surface p-4 rounded-xl shadow-lg border border-border z-[400]">
             <div className="flex justify-between items-center">
