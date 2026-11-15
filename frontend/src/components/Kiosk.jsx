@@ -8,7 +8,7 @@ export default function Kiosk() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [settings, setSettings] = useState({ restaurant_name: 'Burger Bombs', tagline: '' });
   const [filterCategory, setFilterCategory] = useState('All');
-  const [categories, setCategories] = useState([]); // 👈 Dynamic Categories
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
@@ -41,8 +41,6 @@ export default function Kiosk() {
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
   const qrData = JSON.stringify({ items: cart, total });
-  
-  // Filter dynamically
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (showReceipt) {
@@ -75,9 +73,12 @@ export default function Kiosk() {
   return (
     <div className="min-h-screen bg-yellow-50 flex flex-col">
       <header className="bg-yellow-500 text-black p-6 shadow-md flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black tracking-widest uppercase">{settings.restaurant_name}</h1>
-          <p className="text-sm font-bold text-yellow-800">{settings.tagline}</p>
+        <div className="flex items-center gap-4">
+          {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-sm" />}
+          <div>
+            <h1 className="text-4xl font-black tracking-widest uppercase">{settings.restaurant_name}</h1>
+            <p className="text-sm font-bold text-yellow-800">{settings.tagline}</p>
+          </div>
         </div>
         <span className="text-lg font-bold bg-white px-4 py-1 rounded-full shadow-sm">Self-Service</span>
       </header>
@@ -102,12 +103,33 @@ export default function Kiosk() {
                 key={item.id}
                 disabled={!item.available}
                 onClick={() => addToCart(item)}
-                className={`p-6 rounded-2xl shadow-lg flex flex-col items-center justify-center h-48 transition transform active:scale-95
-                  ${item.available ? 'bg-white hover:bg-gray-50' : 'bg-gray-200 opacity-50 cursor-not-allowed'}`}
+                className={`relative rounded-2xl shadow-lg flex flex-col overflow-hidden h-72 transition transform active:scale-95 text-left
+                  ${item.available ? 'bg-white hover:bg-gray-50 cursor-pointer' : 'bg-gray-200 opacity-80 cursor-not-allowed'}`}
               >
-                <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">{item.name}</h3>
-                <p className="text-xl font-black text-green-600">₱{item.price}</p>
-                {!item.available && <p className="text-red-500 font-bold mt-2">SOLD OUT</p>}
+                {/* Image Rendering */}
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="w-full h-32 object-cover" loading="lazy" />
+                ) : (
+                  <div className="w-full h-32 bg-gray-300 flex items-center justify-center text-gray-500 font-bold">No Image</div>
+                )}
+
+                {/* Item Info */}
+                <div className="p-4 flex flex-col flex-1 justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">{item.category}</div>
+                    <h3 className="text-xl font-bold text-gray-800 leading-tight">{item.name}</h3>
+                  </div>
+                  <p className="text-2xl font-black text-green-600">₱{item.price}</p>
+                </div>
+
+                {/* Sold Out Watermark */}
+                {!item.available && (
+                  <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center">
+                    <span className="bg-red-600 text-white font-black text-xl px-6 py-2 rounded-lg transform -rotate-12 shadow-2xl border-2 border-white">
+                      SOLD OUT
+                    </span>
+                  </div>
+                )}
               </button>
             ))}
           </div>
