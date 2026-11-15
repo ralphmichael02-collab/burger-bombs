@@ -53,44 +53,59 @@ export default function CustomerProfile() {
         <button onClick={() => navigate('/store')} className="text-sm bg-slate-800 px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition">Back to Store</button>
       </header>
 
-      <div className="max-w-3xl mx-auto p-6 mt-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-black text-slate-900">Order History</h2>
+      <div className="max-w-3xl mx-auto p-6 mt-4 space-y-6">
+        
+        {/* Account Info Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-2xl font-black">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900">{user.name}</h2>
+              <p className="text-sm text-slate-500">{user.email}</p>
+            </div>
+          </div>
           <button onClick={handleLogout} className="text-red-500 font-bold text-sm bg-red-50 px-4 py-2 rounded-lg hover:bg-red-100 transition">Logout</button>
         </div>
 
-        {orders.length === 0 ? (
-          <div className="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 text-center">
-            <span className="text-5xl mb-4 block">🍔</span>
-            <p className="text-slate-500 font-bold">You haven't placed any orders yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {orders.map(order => (
-              <div key={order.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-black text-xl text-slate-900">Order #{order.id}</h3>
-                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                      order.status === 'RECEIVED' || order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 
-                      order.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}>{order.status}</span>
+        {/* Order History */}
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 mb-4">Order History</h2>
+          {orders.length === 0 ? (
+            <div className="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 text-center">
+              <span className="text-5xl mb-4 block">🍔</span>
+              <p className="text-slate-500 font-bold">You haven't placed any orders yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orders.map(order => (
+                <div key={order.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-black text-xl text-slate-900">Order #{order.id}</h3>
+                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                        order.status === 'RECEIVED' || order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 
+                        order.status === 'PENDING_PAYMENT' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                      }`}>{order.status}</span>
+                    </div>
+                    <p className="text-sm text-slate-500">{new Date(order.created_at).toLocaleDateString()} • {order.items.length} items</p>
+                    <p className="text-lg font-black text-slate-900 mt-1">₱{order.total}</p>
                   </div>
-                  <p className="text-sm text-slate-500">{new Date(order.created_at).toLocaleDateString()} • {order.items.length} items</p>
-                  <p className="text-lg font-black text-slate-900 mt-1">₱{order.total}</p>
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button onClick={() => navigate(`/track/${order.id}`)} className="flex-1 md:flex-none bg-slate-100 text-slate-700 font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition">Track Order</button>
+                    {order.status === 'RECEIVED' && (
+                      <button onClick={() => { setSelectedOrder(order); setIsReviewOpen(true); }} className="flex-1 md:flex-none bg-orange-500 text-black font-bold px-4 py-2 rounded-xl hover:bg-orange-400 transition">Leave Review</button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2 w-full md:w-auto">
-                  <button onClick={() => navigate(`/track/${order.id}`)} className="flex-1 md:flex-none bg-slate-100 text-slate-700 font-bold px-4 py-2 rounded-xl hover:bg-slate-200 transition">Track Order</button>
-                  {order.status === 'RECEIVED' && (
-                    <button onClick={() => { setSelectedOrder(order); setIsReviewOpen(true); }} className="flex-1 md:flex-none bg-orange-500 text-black font-bold px-4 py-2 rounded-xl hover:bg-orange-400 transition">Leave Review</button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Review Modal */}
       <Modal isOpen={isReviewOpen} onClose={() => setIsReviewOpen(false)} title={`Review Order #${selectedOrder?.id}`}>
         <div className="space-y-4">
           <div>
