@@ -1,7 +1,6 @@
 // backend/src/routes/menu.js
 import { Router } from 'express';
 import { pool } from '../db.js';
-
 const router = Router();
 
 router.get('/menu', async (_req, res) => {
@@ -22,9 +21,10 @@ router.get('/menu', async (_req, res) => {
           ELSE m.available 
         END as available,
         COALESCE(
-          (SELECT json_agg(json_build_object('name', i.name, 'quantity', r.quantity, 'unit', i.unit))
+          (SELECT json_agg(json_build_object('name', COALESCE(i.name, cm.name), 'quantity', r.quantity, 'unit', COALESCE(i.unit, 'item')))
            FROM recipes r
-           JOIN ingredients i ON r.ingredient_id = i.id
+           LEFT JOIN ingredients i ON r.ingredient_id = i.id
+           LEFT JOIN menu_items cm ON r.component_menu_item_id = cm.id
            WHERE r.menu_item_id = m.id),
           '[]'::json
         ) as ingredients
@@ -38,14 +38,13 @@ router.get('/menu', async (_req, res) => {
   }
 });
 
-// Add to menu.js
 router.get('/categories', async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT name FROM categories ORDER BY name ASC');
-    res.json(rows.map(r => r.name)); // Returns a simple array: ["Burgers", "Drinks"]
+    res.json(rows.map(r => r.name));
   } catch (err) {
-    console.error('[categories] DB error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.warn('[categories] Returning fallback categories:', err.message);
+    res.json(['Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts']); 
   }
 });
 

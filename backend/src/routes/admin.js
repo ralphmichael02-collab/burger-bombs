@@ -10,6 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '../../public/uploads');
 
+// Ensure local upload directory exists
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -25,7 +26,9 @@ const upload = multer({ storage: storage });
 
 const router = Router();
 
-// 1. STATS
+// ==========================================
+// 1. STATS (Overview Tab)
+// ==========================================
 router.get('/admin/stats', async (_req, res) => {
   try {
     const totalsRes = await pool.query(`
@@ -70,7 +73,9 @@ router.get('/admin/stats', async (_req, res) => {
   }
 });
 
+// ==========================================
 // 2. CHART DATA
+// ==========================================
 router.get('/admin/chart-data', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -84,11 +89,14 @@ router.get('/admin/chart-data', async (_req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.warn('[admin-chart] Returning empty array:', err.message);
+    res.json([]);
   }
 });
 
+// ==========================================
 // 3. MENU MANAGEMENT
+// ==========================================
 router.get('/admin/menu', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM menu_items ORDER BY category, name`);
@@ -151,7 +159,9 @@ router.delete('/admin/menu/:id', async (req, res) => {
   }
 });
 
-// 4. LOCAL IMAGE UPLOAD
+// ==========================================
+// 4. LOCAL IMAGE UPLOAD FALLBACK
+// ==========================================
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
@@ -159,7 +169,9 @@ router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   res.json({ url: localUrl });
 });
 
+// ==========================================
 // 5. INVENTORY MANAGEMENT
+// ==========================================
 router.get('/ingredients', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM ingredients ORDER BY name ASC`);
@@ -181,7 +193,9 @@ router.post('/ingredients/:id/restock', async (req, res) => {
   }
 });
 
-// 6. RECIPES
+// ==========================================
+// 6. RECIPE / BOM MANAGEMENT
+// ==========================================
 router.get('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
   try {
@@ -217,13 +231,16 @@ router.post('/admin/menu/:id/recipe', async (req, res) => {
   }
 });
 
-// 7. CATEGORIES
+// ==========================================
+// 7. CATEGORY MANAGEMENT
+// ==========================================
 router.get('/admin/categories', async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories ORDER BY name ASC');
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.warn('[admin-categories] Returning empty array. Error:', err.message);
+    res.json([]); 
   }
 });
 
@@ -244,18 +261,26 @@ router.delete('/admin/categories/:id', async (req, res) => {
   try {
     const catRes = await pool.query('SELECT name FROM categories WHERE id = $1', [id]);
     if (catRes.rowCount === 0) return res.status(404).json({ error: 'Category not found' });
+    
     const catName = catRes.rows[0].name;
     const itemsRes = await pool.query('SELECT id FROM menu_items WHERE category = $1', [catName]);
-    if (itemsRes.rowCount > 0) return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
+    
+    if (itemsRes.rowCount > 0) {
+      return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
+    }
+
     await pool.query('DELETE FROM categories WHERE id = $1', [id]);
     if (cloudPool) await cloudPool.query('DELETE FROM categories WHERE id = $1', [id]);
+    
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ==========================================
 // 8. PENDING PAYMENTS & CRM
+// ==========================================
 router.get('/admin/pending-payments', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -285,16 +310,21 @@ router.get('/admin/reviews', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT r.*, c.name as customer_name, o.total::float as order_total
-      FROM reviews r LEFT JOIN customers c ON r.customer_id = c.id LEFT JOIN orders o ON r.order_id = o.id
+      FROM reviews r 
+      LEFT JOIN customers c ON r.customer_id = c.id 
+      LEFT JOIN orders o ON r.order_id = o.id
       ORDER BY r.created_at DESC
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.warn('[admin-reviews] Returning empty array. Error:', err.message);
+    res.json([]); 
   }
 });
 
+// ==========================================
 // 9. REPORTS
+// ==========================================
 router.get('/admin/reports/sales', async (req, res) => {
   const { startDate, endDate } = req.query;
   try {

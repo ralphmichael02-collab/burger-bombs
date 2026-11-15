@@ -4,34 +4,30 @@
 @tailwind utilities;
 
 :root {
-  /* Default Theme */
-  --theme-primary: #ea580c; 
-  --theme-bg: #f8fafc;      
-  --theme-text: #0f172a;    
-  --theme-card: #ffffff;    
+  /* Enterprise Default Theme */
+  --theme-primary: #2B4FB9; 
+  --theme-bg: #F7F7F7;      
+  --theme-text: #1A1C23;    
+  --theme-card: #FFFFFF;    
 }
 
 body {
   background-color: var(--theme-bg);
   color: var(--theme-text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Source Sans Pro', 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Global Theme Utilities */
+/* Theme Utilities */
 .bg-theme-main { background-color: var(--theme-bg); }
 .bg-theme-card { background-color: var(--theme-card); }
-
-/* Text */
 .text-theme-primary { color: var(--theme-text); }
-.text-theme-secondary { color: var(--theme-text); opacity: 0.6; }
-
-/* Accent Colors */
+.text-theme-secondary { color: var(--theme-text); opacity: 0.65; }
 .bg-accent { background-color: var(--theme-primary); }
 .text-accent { color: var(--theme-primary); }
 
-/* Fixed border class to prevent the "white ghost" effect */
+/* FIXED: Border opacity does not affect text color */
 .border-theme { border-color: color-mix(in srgb, var(--theme-text) 15%, transparent); }
 
 /* Custom Scrollbar */
