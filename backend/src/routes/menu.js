@@ -44,6 +44,7 @@ router.get('/categories', async (_req, res) => {
     const { rows } = await pool.query('SELECT name FROM categories ORDER BY name ASC');
     res.json(rows.map(r => r.name)); // Returns a simple array: ["Burgers", "Drinks"]
   } catch (err) {
+    console.error('[categories] DB error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
