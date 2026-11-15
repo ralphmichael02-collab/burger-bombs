@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [categories, setCategories] = useState([]); // 👈 New State
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -15,7 +16,7 @@ export default function AdminDashboard() {
   const [newItem, setNewItem] = useState({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
   const [editingId, setEditingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [menuFilter, setMenuFilter] = useState('All'); // 👈 Category Filter State
+  const [menuFilter, setMenuFilter] = useState('All'); 
 
   // Recipe / BOM State
   const [selectedRecipeItem, setSelectedRecipeItem] = useState(null);
@@ -28,6 +29,7 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : []));
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`).then(r => r.json()).then(d => setCategories(Array.isArray(d) ? d : [])); // 👈 Fetch Categories
     fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d));
   };
 
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
       body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), cost: parseFloat(newItem.cost) })
     });
     
-    setNewItem({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
+    setNewItem({ name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' });
     setEditingId(null);
     fetchData();
   };
@@ -153,6 +155,35 @@ export default function AdminDashboard() {
     fetchData();
   };
 
+  // --- CATEGORY LOGIC ---
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    const name = e.target.categoryName.value.trim();
+    if (!name) return;
+    
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name })
+    });
+    
+    if (res.ok) {
+      e.target.reset();
+      fetchData();
+    } else {
+      const d = await res.json();
+      alert(d.error);
+    }
+  };
+
+  const handleDeleteCategory = async (id, name) => {
+    if (!window.confirm(`Delete category "${name}"?`)) return;
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories/${id}`, { method: 'DELETE' });
+    if (res.ok) fetchData();
+    else {
+      const d = await res.json();
+      alert(d.error);
+    }
+  };
+
   if (loading) return <div className="p-10 text-center text-xl">Loading Dashboard...</div>;
 
   const filteredMenuItems = menuItems.filter(item => menuFilter === 'All' || item.category === menuFilter);
@@ -167,7 +198,8 @@ export default function AdminDashboard() {
             <p className="text-gray-500">{isLocal ? 'Local Store (Master Control)' : 'Cloud Store (Read Only)'}</p>
           </div>
           <div className="flex bg-white rounded-lg shadow-sm p-1 overflow-x-auto">
-            {['overview', 'inventory', 'menu', 'recipes', 'settings'].map(tab => (
+            {/* 👇 Added 'categories' to the tabs */}
+            {['overview', 'inventory', 'menu', 'recipes', 'categories', 'settings'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`px-6 py-2 rounded-md font-bold capitalize transition whitespace-nowrap ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {tab}
@@ -268,7 +300,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-xl">{editingId ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
                 {editingId && (
-                  <button onClick={() => { setEditingId(null); setNewItem({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' }); }} className="text-sm text-red-500 font-bold hover:underline">Cancel Edit</button>
+                  <button onClick={() => { setEditingId(null); setNewItem({ name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' }); }} className="text-sm text-red-500 font-bold hover:underline">Cancel Edit</button>
                 )}
               </div>
               
@@ -291,12 +323,9 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-500">Category</label>
+                  {/* 👇 Dynamic Category Dropdown */}
                   <select disabled={!isLocal} value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full border p-2 rounded mt-1 bg-white">
-                    <option value="Burgers">Burgers</option>
-                    <option value="Combos">Combos</option>
-                    <option value="Sides">Sides</option>
-                    <option value="Drinks">Drinks</option>
-                    <option value="Desserts">Desserts</option>
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -314,7 +343,8 @@ export default function AdminDashboard() {
               <div className="p-6 border-b flex flex-col gap-4">
                 <h2 className="font-bold text-xl">Current Menu</h2>
                 <div className="flex gap-2 overflow-x-auto pb-2">
-                  {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+                  {/* 👇 Dynamic Menu Filters */}
+                  {['All', ...categories.map(c => c.name)].map(cat => (
                     <button key={cat} onClick={() => setMenuFilter(cat)} 
                       className={`px-3 py-1 text-sm font-bold rounded-lg border whitespace-nowrap transition ${menuFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                       {cat}
@@ -390,6 +420,31 @@ export default function AdminDashboard() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* CATEGORIES TAB (NEW) */}
+        {activeTab === 'categories' && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <h2 className="font-bold text-xl mb-4">Add New Category</h2>
+              <form onSubmit={handleAddCategory} className="flex gap-2">
+                <input name="categoryName" required disabled={!isLocal} placeholder="e.g. Tacos, Pasta, Coffee" className="flex-1 border p-3 rounded-lg" />
+                <button type="submit" disabled={!isLocal} className="bg-black text-white px-6 font-bold rounded-lg hover:bg-gray-800 disabled:opacity-50">Add</button>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b"><h2 className="font-bold text-xl">Manage Categories</h2></div>
+              <ul>
+                {categories.map(cat => (
+                  <li key={cat.id} className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-gray-50">
+                    <span className="font-bold text-gray-800">{cat.name}</span>
+                    <button onClick={() => handleDeleteCategory(cat.id, cat.name)} disabled={!isLocal} className="text-red-500 text-sm font-bold hover:underline">Delete</button>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         )}

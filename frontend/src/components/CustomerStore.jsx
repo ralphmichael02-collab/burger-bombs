@@ -11,14 +11,23 @@ export default function CustomerStore() {
   
   const [pastOrders, setPastOrders] = useState([]);
   const [viewingIngredients, setViewingIngredients] = useState(null); 
-  const [filterCategory, setFilterCategory] = useState('All'); // 👈 Category Filter State
+  const [filterCategory, setFilterCategory] = useState('All'); 
+  const [categories, setCategories] = useState([]); // 👈 Dynamic Categories State
 
   useEffect(() => {
+    // Fetch Menu
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
       .then(res => res.json())
       .then(data => setMenu(data))
       .catch(err => console.error('Failed to load menu', err));
 
+    // Fetch Categories
+    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
+      .then(res => res.json())
+      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Failed to load categories', err));
+
+    // Load past orders
     const saved = JSON.parse(localStorage.getItem('burger_bombs_orders') || '[]');
     setPastOrders(saved);
   }, []);
@@ -74,6 +83,8 @@ export default function CustomerStore() {
   };
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  
+  // Filter the menu dynamically
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (checkoutStatus === 'loading') {
@@ -100,6 +111,7 @@ export default function CustomerStore() {
 
       <div className="max-w-md mx-auto p-4 mt-2">
         
+        {/* Past Orders */}
         {pastOrders.length > 0 && (
           <div className="mb-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
             <h2 className="text-lg font-bold text-gray-800 mb-3">Your Recent Orders</h2>
@@ -119,9 +131,9 @@ export default function CustomerStore() {
 
         <h2 className="text-xl font-bold mb-4 text-gray-800">Our Menu</h2>
         
-        {/* Category Filter Buttons */}
+        {/* Dynamic Category Filter */}
         <div className="flex gap-2 overflow-x-auto pb-4 mb-2">
-          {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+          {['All', ...categories].map(cat => (
             <button key={cat} onClick={() => setFilterCategory(cat)} 
               className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap shadow-sm transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'}`}>
               {cat}
@@ -129,6 +141,7 @@ export default function CustomerStore() {
           ))}
         </div>
 
+        {/* Menu List */}
         <div className="space-y-4">
           {filteredMenu.map(item => (
             <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -163,6 +176,7 @@ export default function CustomerStore() {
         </div>
       </div>
 
+      {/* Checkout Bar */}
       {cart.length > 0 && (
         <div className="fixed bottom-0 w-full bg-white border-t p-4 shadow-2xl z-40">
           <div className="max-w-md mx-auto flex justify-between items-center">
@@ -176,6 +190,7 @@ export default function CustomerStore() {
         </div>
       )}
 
+      {/* Ingredients Modal */}
       {viewingIngredients && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">

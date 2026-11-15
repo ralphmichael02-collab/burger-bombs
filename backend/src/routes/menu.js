@@ -38,4 +38,14 @@ router.get('/menu', async (_req, res) => {
   }
 });
 
+// Add to menu.js
+router.get('/categories', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT name FROM categories ORDER BY name ASC');
+    res.json(rows.map(r => r.name)); // Returns a simple array: ["Burgers", "Drinks"]
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

@@ -261,4 +261,57 @@ router.post('/admin/menu/:id/recipe', async (req, res) => {
   }
 });
 
+// ==========================================
+// 7. CATEGORY MANAGEMENT
+// ==========================================
+router.get('/admin/categories', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM categories ORDER BY name ASC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/categories', async (req, res) => {
+  const { name } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO categories (name) VALUES ($1) RETURNING *',
+      [name]
+    );
+    
+    if (cloudPool) {
+      await cloudPool.query('INSERT INTO categories (name) VALUES ($1)', [name]);
+    }
+    res.json({ ok: true, category: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Category already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/categories/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Check if any menu items are using this category
+    const catRes = await pool.query('SELECT name FROM categories WHERE id = $1', [id]);
+    if (catRes.rowCount === 0) return res.status(404).json({ error: 'Category not found' });
+    
+    const catName = catRes.rows[0].name;
+    const itemsRes = await pool.query('SELECT id FROM menu_items WHERE category = $1', [catName]);
+    
+    if (itemsRes.rowCount > 0) {
+      return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
+    }
+
+    await pool.query('DELETE FROM categories WHERE id = $1', [id]);
+    if (cloudPool) await cloudPool.query('DELETE FROM categories WHERE id = $1', [id]);
+    
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

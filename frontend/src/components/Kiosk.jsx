@@ -7,7 +7,8 @@ export default function Kiosk() {
   const [cart, setCart] = useState([]);
   const [showReceipt, setShowReceipt] = useState(false);
   const [settings, setSettings] = useState({ restaurant_name: 'Burger Bombs', tagline: '' });
-  const [filterCategory, setFilterCategory] = useState('All'); // 👈 Category Filter State
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [categories, setCategories] = useState([]); // 👈 Dynamic Categories
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
@@ -19,6 +20,11 @@ export default function Kiosk() {
       .then(res => res.json())
       .then(data => setSettings(data))
       .catch(err => console.error('Failed to load settings', err));
+
+    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
+      .then(res => res.json())
+      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Failed to load categories', err));
   }, []);
 
   const addToCart = (item) => {
@@ -35,6 +41,8 @@ export default function Kiosk() {
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
   const qrData = JSON.stringify({ items: cart, total });
+  
+  // Filter dynamically
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (showReceipt) {
@@ -77,9 +85,9 @@ export default function Kiosk() {
       <div className="flex-1 flex flex-col md:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
         <div className="flex-1 flex flex-col">
           
-          {/* Category Filter Buttons */}
+          {/* Dynamic Category Filter */}
           <div className="flex gap-2 overflow-x-auto pb-4">
-            {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+            {['All', ...categories].map(cat => (
               <button key={cat} onClick={() => setFilterCategory(cat)} 
                 className={`px-6 py-3 text-lg font-bold rounded-xl whitespace-nowrap shadow-sm transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
                 {cat}
@@ -87,6 +95,7 @@ export default function Kiosk() {
             ))}
           </div>
 
+          {/* Menu Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMenu.map(item => (
               <button
@@ -104,6 +113,7 @@ export default function Kiosk() {
           </div>
         </div>
 
+        {/* Cart Sidebar */}
         <div className="w-full md:w-96 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
           <div className="bg-black text-white p-4">
             <h2 className="text-xl font-bold">Your Order</h2>

@@ -1,11 +1,20 @@
 // frontend/src/components/MenuList.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 
 export default function MenuList({ onAdd }) {
   const [filterCategory, setFilterCategory] = useState('All');
+  const [categories, setCategories] = useState([]);
   const items = useLiveQuery(() => db.menuItems.toArray(), []);
+
+  // Fetch dynamic categories
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
+      .then(res => res.json())
+      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .catch(err => console.error('Failed to load categories', err));
+  }, []);
 
   if (!items) return <p className="p-4">Loading menu…</p>;
   if (items.length === 0) return <p className="p-4 text-gray-500">No menu items. Is the backend running?</p>;
@@ -14,9 +23,9 @@ export default function MenuList({ onAdd }) {
 
   return (
     <div>
-      {/* Category Filter */}
+      {/* Category Filter Buttons */}
       <div className="flex gap-2 overflow-x-auto p-4 pb-0">
-        {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+        {['All', ...categories].map(cat => (
           <button key={cat} onClick={() => setFilterCategory(cat)} 
             className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
             {cat}
@@ -24,6 +33,7 @@ export default function MenuList({ onAdd }) {
         ))}
       </div>
 
+      {/* Menu Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4">
         {filteredItems.map((item) => (
           <button
