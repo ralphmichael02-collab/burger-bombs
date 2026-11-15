@@ -9,12 +9,19 @@ import { sendVerificationEmail } from '../utils/mailer.js';
 const router = Router();
 const JWT_SECRET = 'burger-bombs-secret-key-123'; 
 
+// Helper to log activity
+async function logActivity(userName, action, details) {
+  try {
+    await pool.query(
+      `INSERT INTO activity_logs (user_name, action, details) VALUES ($1, $2, $3)`,
+      [userName, action, details]
+    );
+  } catch (e) { console.error('Activity log failed', e); }
+}
+
 router.post('/register', async (req, res) => {
   const { email, password, confirmPassword, name, phone } = req.body;
-  
-  if (password !== confirmPassword) {
-    return res.status(400).json({ error: 'Passwords do not match' });
-  }
+  if (password !== confirmPassword) return res.status(400).json({ error: 'Passwords do not match' });
 
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -35,8 +42,9 @@ router.post('/register', async (req, res) => {
     }
 
     await sendVerificationEmail(email, name, verificationToken);
+    await logActivity(name, 'REGISTER', `New customer registered: ${email}`);
 
-    res.json({ ok: true, message: 'Verification email sent. Please check your inbox.' });
+    res.json({ ok: true, message: 'Verification email sent.' });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Email already exists' });
     res.status(500).json({ error: err.message });
@@ -51,18 +59,12 @@ router.get('/verify', async (req, res) => {
        WHERE verification_token = $1 RETURNING id, email, name`,
       [token]
     );
+    if (rows.length === 0) return res.status(400).json({ error: 'Invalid token' });
+    if (cloudPool) await cloudPool.query(`UPDATE customers SET is_verified = TRUE WHERE id = $1`, [rows[0].id]);
     
-    if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired token' });
-
-    if (cloudPool) {
-      await cloudPool.query(`UPDATE customers SET is_verified = TRUE WHERE id = $1`, [rows[0].id]);
-    }
-
     const jwtToken = jwt.sign({ id: rows[0].id, name: rows[0].name }, JWT_SECRET);
     res.json({ ok: true, token: jwtToken, user: rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/login', async (req, res) => {
@@ -70,36 +72,51 @@ router.post('/login', async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM customers WHERE email = $1`, [email]);
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!rows[0].is_verified) return res.status(403).json({ error: 'Please verify your email first.' });
     
-    if (!rows[0].is_verified) {
-      return res.status(403).json({ error: 'Please verify your email before logging in.' });
-    }
-
     const valid = await bcrypt.compare(password, rows[0].password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
     
     const token = jwt.sign({ id: rows[0].id, name: rows[0].name }, JWT_SECRET);
     res.json({ ok: true, token, user: { id: rows[0].id, email: rows[0].email, name: rows[0].name } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Customer Order History
+// STAFF LOGIN (RBAC)
+router.post('/staff-login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const { rows } = await pool.query(`SELECT * FROM customers WHERE email = $1 AND role != 'customer'`, [email]);
+    if (rows.length === 0) return res.status(401).json({ error: 'Invalid staff credentials' });
+    
+    const valid = await bcrypt.compare(password, rows[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    await logActivity(rows[0].name, 'LOGIN', `${rows[0].role.toUpperCase()} portal access`);
+    const token = jwt.sign({ id: rows[0].id, name: rows[0].name, role: rows[0].role }, JWT_SECRET);
+    res.json({ ok: true, token, user: { id: rows[0].id, email: rows[0].email, name: rows[0].name, role: rows[0].role } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// LIVE FEED
+router.get('/live-feed', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 15`);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// CUSTOMER ORDER HISTORY
 router.get('/orders/:customerId', async (req, res) => {
   const { customerId } = req.params;
   try {
     const { rows } = await pool.query(
       `SELECT id, status, total::float, created_at, items, delivery_address 
-       FROM orders 
-       WHERE customer_id = $1 
-       ORDER BY created_at DESC`,
+       FROM orders WHERE customer_id = $1 ORDER BY created_at DESC`,
       [customerId]
     );
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;
