@@ -24,10 +24,10 @@ export default function App() {
       .then(res => res.json())
       .then(data => {
         if (data) {
-          document.documentElement.style.setProperty('--theme-primary', data.theme_primary_color || '#ea580c');
-          document.documentElement.style.setProperty('--theme-bg', data.theme_bg_color || '#f8fafc');
-          document.documentElement.style.setProperty('--theme-text', data.theme_text_color || '#0f172a');
-          document.documentElement.style.setProperty('--theme-card', data.theme_card_color || '#ffffff');
+          document.documentElement.style.setProperty('--theme-primary', data.theme_primary_color || '#2B4FB9');
+          document.documentElement.style.setProperty('--theme-bg', data.theme_bg_color || '#F7F7F7');
+          document.documentElement.style.setProperty('--theme-text', data.theme_text_color || '#1A1C23');
+          document.documentElement.style.setProperty('--theme-card', data.theme_card_color || '#FFFFFF');
         }
       })
       .catch(err => console.error("Could not load theme settings", err));
@@ -39,23 +39,19 @@ export default function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Storefront */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/store" element={<CustomerStore />} />
           <Route path="/track/:orderId" element={<CustomerTracker />} />
           <Route path="/verify" element={<VerifyEmail />} />
           <Route path="/profile" element={<CustomerProfile />} />
           
-          {/* Local Store Apps */}
           <Route path="/pos" element={<POS />} />
           <Route path="/kiosk" element={<Kiosk />} />
           <Route path="/kitchen" element={<KitchenDisplay />} />
           <Route path="/rider" element={<RiderSimulator />} />
           
-          {/* Admin Auth */}
           <Route path="/admin/login" element={<AdminLogin />} />
           
-          {/* Protected Admin Route */}
           <Route 
             path="/admin" 
             element={
