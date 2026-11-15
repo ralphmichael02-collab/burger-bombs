@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
+const DEFAULT_CATEGORIES = [
+  { id: 1, name: 'Burgers' },
+  { id: 2, name: 'Combos' },
+  { id: 3, name: 'Sides' },
+  { id: 4, name: 'Drinks' },
+  { id: 5, name: 'Desserts' }
+];
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -27,12 +35,23 @@ export default function AdminDashboard() {
   const isLocal = window.location.hostname.includes('.test') || window.location.hostname.includes('localhost');
 
   const fetchData = () => {
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/stats`).then(r => r.json()).then(d => { setData(d); setLoading(false); });
-    fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : []));
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : []));
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : []));
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`).then(r => r.json()).then(d => setCategories(Array.isArray(d) ? d : []));
-    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d));
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/stats`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(console.error);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)).catch(console.error);
+    
+    // Fetch categories and fallback if empty
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`)
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d) && d.length > 0) {
+          setCategories(d);
+        } else {
+          setCategories(DEFAULT_CATEGORIES); // Fallback if DB is empty
+        }
+      })
+      .catch(() => setCategories(DEFAULT_CATEGORIES));
   };
 
   useEffect(() => {
@@ -363,12 +382,15 @@ export default function AdminDashboard() {
                     <input required type="number" step="0.01" disabled={!isLocal} value={newItem.cost} onChange={e => setNewItem({...newItem, cost: e.target.value})} className="w-full border p-2 rounded mt-1" />
                   </div>
                 </div>
+                
+                {/* Category Dropdown */}
                 <div>
                   <label className="text-xs font-bold text-gray-500">Category</label>
                   <select disabled={!isLocal} value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full border p-2 rounded mt-1 bg-white">
                     {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
+
                 <div>
                   <label className="text-xs font-bold text-gray-500">Image (Cloudinary / Local Fallback)</label>
                   <input type="file" accept="image/*" disabled={!isLocal} onChange={handleImageUpload} className="w-full mt-1" />
