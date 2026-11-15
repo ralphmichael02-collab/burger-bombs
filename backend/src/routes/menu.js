@@ -10,7 +10,9 @@ router.get('/menu', async (_req, res) => {
       SELECT 
         m.id::int, 
         m.name, 
-        m.price::float, 
+        m.price::float,
+        m.category,
+        m.image_url,
         CASE 
           WHEN EXISTS (
             SELECT 1 FROM recipes r 
@@ -20,11 +22,10 @@ router.get('/menu', async (_req, res) => {
           ELSE m.available 
         END as available
       FROM menu_items m 
-      ORDER BY m.id
+      ORDER BY m.category, m.id
     `);
     res.json(rows);
   } catch (err) {
-    console.error('[menu] error', err);
     res.status(500).json({ error: err.message });
   }
 });

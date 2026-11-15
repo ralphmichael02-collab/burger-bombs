@@ -1,13 +1,14 @@
 // frontend/src/App.jsx
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import LandingPage from './components/LandingPage';
 import POS from './components/POS';
 import KitchenDisplay from './components/KitchenDisplay';
 import CustomerStore from './components/CustomerStore';
 import AdminDashboard from './components/AdminDashboard';
 import RiderSimulator from './components/RiderSimulator';
 import CustomerTracker from './components/CustomerTracker';
-import Kiosk from './components/Kiosk'; // <-- Add import
+import Kiosk from './components/Kiosk';
 import { refreshMenuFromBackend } from './db';
 
 export default function App() {
@@ -18,13 +19,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<POS />} />
-        <Route path="/kitchen" element={<KitchenDisplay />} />
-        <Route path="/store" element={<CustomerStore />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/rider" element={<RiderSimulator />} />
+        {/* The Demo Hub */}
+        <Route path="/" element={<LandingPage />} />
+        
+        {/* Local Store Apps */}
+        <Route path="/pos" element={<POS />} />
         <Route path="/kiosk" element={<Kiosk />} />
-        {/* The :orderId parameter allows us to track specific orders */}
+        <Route path="/kitchen" element={<KitchenDisplay />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        
+        {/* Customer & Delivery Apps */}
+        <Route path="/store" element={<CustomerStore />} />
+        <Route path="/rider" element={<RiderSimulator />} />
         <Route path="/track/:orderId" element={<CustomerTracker />} />
       </Routes>
     </BrowserRouter>
