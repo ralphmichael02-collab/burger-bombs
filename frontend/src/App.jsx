@@ -11,14 +11,13 @@ import CustomerTracker from './components/CustomerTracker';
 import Kiosk from './components/Kiosk';
 import AdminLogin from './components/AdminLogin';
 import VerifyEmail from './components/VerifyEmail';
-import CustomerProfile from './components/CustomerProfile'; // 👈 New Import
+import CustomerProfile from './components/CustomerProfile';
 import { refreshMenuFromBackend } from './db';
 
 export default function App() {
   useEffect(() => { 
     refreshMenuFromBackend(); 
     
-    // Fetch and apply Theme & Settings globally
     fetch(`${import.meta.env.VITE_API_BASE}/api/settings`)
       .then(res => res.json())
       .then(data => {
@@ -35,23 +34,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Storefront */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/track/:orderId" element={<CustomerTracker />} />
         <Route path="/verify" element={<VerifyEmail />} />
-        <Route path="/profile" element={<CustomerProfile />} /> {/* 👈 New Route */}
+        <Route path="/profile" element={<CustomerProfile />} />
         
-        {/* Local Store Apps */}
         <Route path="/pos" element={<POS />} />
         <Route path="/kiosk" element={<Kiosk />} />
         <Route path="/kitchen" element={<KitchenDisplay />} />
         <Route path="/rider" element={<RiderSimulator />} />
         
-        {/* Admin Auth */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        
-        {/* Protected Admin Route */}
         <Route 
           path="/admin" 
           element={

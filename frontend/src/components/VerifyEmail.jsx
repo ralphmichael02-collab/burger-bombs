@@ -1,3 +1,4 @@
+// frontend/src/components/VerifyEmail.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -23,11 +24,11 @@ export default function VerifyEmail() {
       .catch(() => setStatus('error'));
   }, [searchParams, navigate]);
 
-  if (status === 'verifying') return <div className="h-screen flex items-center justify-center text-xl">Verifying your email...</div>;
-  if (status === 'error') return <div className="h-screen flex items-center justify-center text-red-500 text-xl">Invalid or expired link.</div>;
+  if (status === 'verifying') return <div className="h-screen flex items-center justify-center text-xl font-bold bg-slate-50">Verifying your email...</div>;
+  if (status === 'error') return <div className="h-screen flex items-center justify-center text-red-500 text-xl font-bold bg-slate-50">Invalid or expired link.</div>;
 
   return (
-    <div className="h-screen flex items-center justify-center text-green-600 text-xl font-bold">
+    <div className="h-screen flex items-center justify-center text-green-600 text-xl font-bold bg-slate-50">
       ✅ Email Verified! Redirecting to store...
     </div>
   );
