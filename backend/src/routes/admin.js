@@ -320,4 +320,57 @@ router.get('/admin/pending-payments', async (_req, res) => {
   }
 });
 
+// backend/src/routes/admin.js
+// ... (Keep existing imports and routes)
+
+// ==========================================
+// 8. REPORTS: SALES TRANSACTIONS
+// ==========================================
+router.get('/admin/reports/sales', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, total::float, order_type, payment_method, status, created_at 
+       FROM orders 
+       WHERE created_at >= $1 AND created_at <= $2 
+       ORDER BY created_at DESC`,
+      [startDate || '2000-01-01', endDate || new Date()]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 9. REPORTS: INVENTORY AUDIT
+// ==========================================
+router.get('/admin/reports/inventory', async (_req, res) => {
+  try {
+    // This query compares the current stock against the theoretical stock
+    // (Total Purchased - Total Used in Recipes)
+    const { rows } = await pool.query(`
+      SELECT 
+        i.id, 
+        i.name, 
+        i.unit, 
+        i.stock::float as actual_stock,
+        COALESCE(
+          (SELECT SUM(r.quantity * (item->>'qty')::int) 
+           FROM orders o, jsonb_array_elements(o.items::jsonb) item
+           JOIN recipes r ON r.menu_item_id = (item->>'id')::int
+           WHERE r.ingredient_id = i.id AND o.status != 'VOIDED'), 
+          0
+        )::float as theoretical_usage
+      FROM ingredients i
+      ORDER BY i.name ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;
+
 export default router;
