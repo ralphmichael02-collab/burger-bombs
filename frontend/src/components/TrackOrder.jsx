@@ -6,7 +6,6 @@ import { io } from 'socket.io-client';
 import L from 'leaflet';
 import { ArrowLeft, Truck } from 'lucide-react';
 
-// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -24,13 +23,11 @@ export default function TrackOrder() {
   const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    // Fetch order details to ensure it exists
-    fetch(`/api/orders/by-sync-id/${orderId}`) // Or use a generic /api/orders/:id if you have one
+    fetch(`/api/orders/by-sync-id/${orderId}`)
       .then(r => r.json())
       .then(setOrder)
       .catch(console.error);
 
-    // Join the specific tracking room
     socket.emit('join:order', orderId);
 
     socket.on('rider:location', ({ lat, lng }) => {
@@ -40,13 +37,12 @@ export default function TrackOrder() {
 
     return () => {
       socket.off('rider:location');
-      socket.disconnect();
     };
   }, [orderId]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-['Source_Sans_Pro',sans-serif]">
-      <header className="bg-surface p-4 shadow-sm flex items-center gap-4 border-b border-border">
+      <header className="bg-surface p-4 shadow-sm flex items-center gap-4 border-b border-border z-10 relative">
         <button onClick={() => navigate('/store')} className="p-2 bg-background rounded-lg hover:bg-gray-100">
           <ArrowLeft size={20} />
         </button>
@@ -65,7 +61,7 @@ export default function TrackOrder() {
           )}
         </MapContainer>
 
-        <div className="absolute bottom-4 left-4 right-4 bg-surface p-4 rounded-xl shadow-lg border border-border">
+        <div className="absolute bottom-4 left-4 right-4 bg-surface p-4 rounded-xl shadow-lg border border-border z-[400]">
           <div className="flex justify-between items-center">
             <div>
               <p className="font-black text-lg text-text">Order #{orderId.slice(0, 8).toUpperCase()}</p>
