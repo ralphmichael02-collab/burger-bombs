@@ -21,6 +21,10 @@ export default function AdminDashboard() {
   const [ingredients, setIngredients] = useState([]);
   const [pendingPayments, setPendingPayments] = useState([]);
   const [settings, setSettings] = useState(null);
+  
+  // CRM States
+  const [customers, setCustomers] = useState([]);
+  const [reviews, setReviews] = useState([]);
 
   // Recipe / BOM State
   const [selectedRecipeItem, setSelectedRecipeItem] = useState(null);
@@ -41,6 +45,10 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/pending-payments`).then(r => r.json()).then(d => setPendingPayments(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)).catch(console.error);
+    
+    // CRM Fetches
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/customers`).then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reviews`).then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
     
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`)
       .then(r => r.json())
@@ -163,10 +171,11 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 mt-4">
+        <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto">
           {[
             { id: 'overview', label: 'Overview', icon: '📊' },
             { id: 'payments', label: 'Payments', icon: '💳', badge: pendingPayments.length },
+            { id: 'customers', label: 'Customers & CRM', icon: '👥' },
             { id: 'menu', label: 'Menu Editor', icon: '🍔' },
             { id: 'inventory', label: 'Inventory', icon: '📦' },
             { id: 'recipes', label: 'Recipes', icon: '👨‍🍳' },
@@ -191,7 +200,7 @@ export default function AdminDashboard() {
       <main className="flex-1 ml-64 p-8">
         <header className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-black text-theme-primary capitalize">{activeTab}</h1>
+            <h1 className="text-3xl font-black text-theme-primary capitalize">{activeTab.replace('customers', 'Customers & CRM')}</h1>
             <p className="text-theme-secondary font-medium mt-1">Manage your restaurant operations.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -289,6 +298,72 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* --- CUSTOMERS (CRM) TAB --- */}
+        {activeTab === 'customers' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            
+            {/* Customer Logs Table */}
+            <div className="bg-theme-card rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                <h2 className="font-bold text-xl text-theme-primary">Customer Database</h2>
+                <p className="text-sm text-slate-500">Track user activity, IP addresses, and lifetime spend.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-sm text-slate-500">
+                    <tr>
+                      <th className="p-4">Customer</th>
+                      <th className="p-4">Contact</th>
+                      <th className="p-4">Total Orders</th>
+                      <th className="p-4">Lifetime Spend</th>
+                      <th className="p-4">Last Order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.length === 0 ? (
+                      <tr><td colSpan="5" className="p-8 text-center text-gray-500 font-bold">No customers registered yet.</td></tr>
+                    ) : customers.map(c => (
+                      <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="p-4">
+                          <p className="font-bold text-theme-primary">{c.name}</p>
+                          <p className="text-xs text-slate-500">{c.email}</p>
+                        </td>
+                        <td className="p-4 text-sm text-slate-600">{c.phone || 'N/A'}</td>
+                        <td className="p-4 font-bold text-slate-700">{c.total_orders}</td>
+                        <td className="p-4 font-black text-green-600">₱{c.total_spent.toLocaleString()}</td>
+                        <td className="p-4 text-xs text-slate-500">{c.last_order ? new Date(c.last_order).toLocaleDateString() : 'Never'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Reviews Feed */}
+            <div className="bg-theme-card rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="p-6 border-b border-slate-100 bg-amber-50">
+                <h2 className="font-bold text-xl text-amber-800">Customer Feedback</h2>
+                <p className="text-sm text-amber-600">Monitor reviews to ensure quality control.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
+                {reviews.length === 0 ? (
+                  <div className="col-span-2 text-center text-gray-500 font-bold py-8">No reviews yet.</div>
+                ) : reviews.map(r => (
+                  <div key={r.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-bold text-slate-800">{r.customer_name || 'Guest'}</p>
+                      <p className="text-yellow-500 text-lg">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</p>
+                    </div>
+                    <p className="text-sm text-slate-600 italic">"{r.comment}"</p>
+                    <p className="text-xs text-slate-400 mt-3 text-right">Order #{r.order_id} • {new Date(r.created_at).toLocaleDateString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
           </div>
         )}
 
