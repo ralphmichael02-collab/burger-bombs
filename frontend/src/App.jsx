@@ -9,8 +9,9 @@ import KitchenDisplay from './components/KitchenDisplay';
 import Kiosk from './components/Kiosk';
 import MobileScanner from './components/MobileScanner';
 import MobilePortal from './components/MobilePortal';
+// import Home from './components/Home'; // 👈 UNCOMMENT IF YOU HAVE A HOME COMPONENT
 import { refreshMenuFromBackend } from './db';
-import { isLocalEnvironment } from './utils/isLocal'; // 👈 IMPORT THE DETECTOR
+import { isLocalEnvironment } from './utils/isLocal';
 
 const PRESET_THEMES = [
   { name: 'Enterprise Orange', colors: { primary: '#EA580C', primaryHover: '#C2410C', background: '#FDFBF7', surface: '#FFFFFF', text: '#1A1C23', textMuted: '#6B7280', border: '#E5E7EB', success: '#45C65A', danger: '#EA001E' } },
@@ -25,7 +26,7 @@ const PRESET_THEMES = [
 
 export default function App() {
   const location = useLocation();
-  const isLocal = isLocalEnvironment(); // 👈 Check if we are on the LAN
+  const isLocal = isLocalEnvironment();
   
   const [currentColors, setCurrentColors] = useState(() => {
     const saved = localStorage.getItem('burger-bombs-colors');
@@ -58,7 +59,6 @@ export default function App() {
     <div className="min-h-screen bg-background text-text">
       {!isAdminRoute && !isStandalone && (
         <nav className="bg-surface border-b border-border p-3 flex gap-4 shadow-sm sticky top-0 z-50">
-          {/* Only show POS and Admin links if we are local */}
           {isLocal && (
             <Link to="/pos" className={`capitalize font-bold ${location.pathname === '/pos' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>POS</Link>
           )}
@@ -72,7 +72,7 @@ export default function App() {
       )}
 
       <Routes>
-        {/* The root URL (/) goes to the Online Store on Cloud, but POS on Local */}
+        {/* On Cloud, "/" is the Homepage/Store. On Local, "/" is the POS */}
         <Route path="/" element={isLocal ? <POS /> : <CustomerStore />} />
         
         {/* Public Routes (Available on Cloud & Local) */}
@@ -80,7 +80,7 @@ export default function App() {
         <Route path="/scanner" element={<MobileScanner />} />
         <Route path="/mobile" element={<MobilePortal />} />
 
-        {/* Local Only Routes */}
+        {/* Local Only Routes (Blocked on Vercel) */}
         {isLocal && (
           <>
             <Route path="/pos" element={<POS />} />
