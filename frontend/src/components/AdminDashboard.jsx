@@ -5,11 +5,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { 
   LayoutDashboard, CreditCard, Users, Utensils, Package, ChefHat, Folder, Settings, 
   LogOut, Menu, Bell, TrendingUp, DollarSign, ShoppingBag, AlertTriangle, 
-  CheckCircle, Pencil, Trash2, Globe, Store, Beef, FileText, Printer, Calendar,
-  ArrowUpRight, ArrowDownRight, Search, Plus, X, User, Lock, Activity, RefreshCw
+  CheckCircle, Pencil, Trash2, Beef, FileText, Printer, Calendar,
+  Search, Plus, X, User, Lock, Activity, RefreshCw, Globe, Image, Store
 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
+import { isLocalEnvironment } from '../utils/isLocal';
 
 const DEFAULT_CATEGORIES = [
   { id: 1, name: 'Burgers' }, { id: 2, name: 'Combos' }, { id: 3, name: 'Sides' }, { id: 4, name: 'Drinks' }, { id: 5, name: 'Desserts' }
@@ -21,6 +22,8 @@ const THEME_PRESETS = [
   { name: 'Fresh Bistro', primary: '#10b981', bg: '#f0fdf4', text: '#064e3b', card: '#ffffff' },
   { name: 'Classic Burger', primary: '#ea580c', bg: '#f8fafc', text: '#0f172a', card: '#ffffff' },
 ];
+
+const ICON_OPTIONS = ['ShieldCheck', 'MapPin', 'Zap', 'Clock', 'Truck', 'Star', 'Heart', 'Utensils'];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -55,12 +58,12 @@ export default function AdminDashboard() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const isLocal = window.location.hostname.includes('.test') || window.location.hostname.includes('localhost');
+  const isLocal = isLocalEnvironment();
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (profileRef.current && !profileRef.current.contains(event.target)) setShowProfileMenu(false);
-      if (notifRef.current && !notifRef.current.contains(event.target)) setShowNotifications(false);
+    function handleClickOutside(e) {
+      if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfileMenu(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -76,10 +79,7 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/customers`).then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reviews`).then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${import.meta.env.VITE_API_BASE}/api/auth/live-feed`).then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`)
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); })
-      .catch(() => setCategories(DEFAULT_CATEGORIES));
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`).then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
   };
 
   const fetchReports = () => {
@@ -100,85 +100,83 @@ export default function AdminDashboard() {
     if (activeTab === 'reports') fetchReports();
   }, [activeTab, reportDateRange]);
 
-  const updateTheme = (newSettings) => {
-    document.documentElement.style.setProperty('--theme-primary', newSettings.theme_primary_color);
-    document.documentElement.style.setProperty('--theme-bg', newSettings.theme_bg_color);
-    document.documentElement.style.setProperty('--theme-text', newSettings.theme_text_color);
-    document.documentElement.style.setProperty('--theme-card', newSettings.theme_card_color);
+  const updateTheme = (s) => {
+    document.documentElement.style.setProperty('--theme-primary', s.theme_primary_color);
+    document.documentElement.style.setProperty('--theme-bg', s.theme_bg_color);
+    document.documentElement.style.setProperty('--theme-text', s.theme_text_color);
+    document.documentElement.style.setProperty('--theme-card', s.theme_card_color);
   };
 
-  const handleImageUpload = async (e) => {
+  const handleUploadImage = async (e, field, target = 'settings') => {
     const file = e.target.files[0]; if (!file) return;
     setIsUploading(true);
     try {
-      const formData = new FormData(); formData.append('file', file); formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      const formData = new FormData(); 
+      formData.append('file', file); 
+      formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
       const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, { method: 'POST', body: formData });
-      if (cloudRes.ok) { const data = await cloudRes.json(); setSelectedItem(prev => ({ ...prev, image_url: data.secure_url })); addToast("Image uploaded!", 'success'); } else throw new Error();
+      if (cloudRes.ok) { 
+        const data = await cloudRes.json(); 
+        if (target === 'settings') setSettings(prev => ({ ...prev, [field]: data.secure_url }));
+        else setSelectedItem(prev => ({ ...prev, [field]: data.secure_url }));
+        addToast("Image uploaded!", 'success'); 
+      } else throw new Error();
     } catch (err) {
       const localFormData = new FormData(); localFormData.append('image', file);
       const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, { method: 'POST', body: localFormData });
-      const data = await localRes.json(); if (data.url) { setSelectedItem(prev => ({ ...prev, image_url: data.url })); addToast("Image saved locally.", 'warning'); }
+      const data = await localRes.json(); 
+      if (data.url) { 
+        if (target === 'settings') setSettings(prev => ({ ...prev, [field]: data.url }));
+        else setSelectedItem(prev => ({ ...prev, [field]: data.url }));
+        addToast("Image saved locally.", 'warning'); 
+      }
     } finally { setIsUploading(false); }
   };
 
-  const handleSettingsImageUpload = async (e, field) => {
-    const file = e.target.files[0]; if (!file) return;
-    setIsUploading(true);
-    try {
-      const formData = new FormData(); formData.append('file', file); formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
-      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, { method: 'POST', body: formData });
-      if (cloudRes.ok) { const data = await cloudRes.json(); setSettings(prev => ({ ...prev, [field]: data.secure_url })); addToast("Image uploaded!", 'success'); } else throw new Error();
-    } catch (err) {
-      const localFormData = new FormData(); localFormData.append('image', file);
-      const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, { method: 'POST', body: localFormData });
-      const data = await localRes.json(); if (data.url) { setSettings(prev => ({ ...prev, [field]: data.url })); addToast("Image saved locally.", 'warning'); }
-    } finally { setIsUploading(false); }
+  const saveSettings = async () => {
+    if (!isLocal) return addToast("Only the local store can edit settings.", 'error');
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings)
+    });
+    addToast("Settings saved! Refresh to see changes.", 'success');
   };
 
   const loadRecipe = async (item) => {
     setSelectedRecipeItem(item);
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${item.id}/recipe`);
     const recipe = await res.json();
-    const recipeMap = {};
+    const map = {};
     recipe.forEach(r => { 
-      if (r.ingredient_id) recipeMap[`ing_${r.ingredient_id}`] = r.quantity;
-      if (r.component_menu_item_id) recipeMap[`comp_${r.component_menu_item_id}`] = r.quantity;
+      if (r.ingredient_id) map[`ing_${r.ingredient_id}`] = r.quantity;
+      if (r.component_menu_item_id) map[`comp_${r.component_menu_item_id}`] = r.quantity;
     });
-    setRecipeIngredients(recipeMap);
+    setRecipeIngredients(map);
   };
-
   const handleRecipeChange = (key, qty) => setRecipeIngredients(prev => ({ ...prev, [key]: parseFloat(qty) || 0 }));
-
   const saveRecipe = async () => {
     if (!isLocal) return addToast("Only the local store can edit recipes.", 'error');
     const payload = Object.keys(recipeIngredients).map(key => {
       const [type, id] = key.split('_');
       return { ingredient_id: type === 'ing' ? parseInt(id) : null, component_menu_item_id: type === 'comp' ? parseInt(id) : null, quantity: recipeIngredients[key] };
     }).filter(p => p.quantity > 0);
-
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: payload })
     });
-    addToast("Recipe saved!", 'success');
-    setSelectedRecipeItem(null);
+    addToast("Recipe saved!", 'success'); setSelectedRecipeItem(null);
   };
-
   const clearRecipe = async () => {
-    if (!isLocal || !window.confirm("Are you sure you want to delete this entire recipe?")) return;
+    if (!isLocal || !window.confirm("Delete this recipe?")) return;
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: [] })
     });
-    addToast("Recipe cleared.", 'success');
-    setRecipeIngredients({});
-    setSelectedRecipeItem(null);
+    addToast("Recipe cleared.", 'success'); setRecipeIngredients({}); setSelectedRecipeItem(null);
   };
 
   const handleRestock = async (id) => {
-    const amount = prompt("How many units are you adding?");
+    const amount = prompt("How many units?");
     if (!amount || isNaN(amount)) return;
     await fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients/${id}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) }) });
-    addToast(`Restocked ${amount} units.`, 'success');
-    fetchData();
+    addToast(`Restocked ${amount}.`, 'success'); fetchData();
   };
 
   const openModal = (mode, item = null) => {
@@ -186,42 +184,34 @@ export default function AdminDashboard() {
     setSelectedItem(item || { name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' });
     setIsModalOpen(true);
   };
-
   const handleSaveItem = async (e) => {
     e.preventDefault();
-    if (!isLocal) return addToast("Only local store can modify items.", 'error');
+    if (!isLocal) return addToast("Only the local store can modify items.", 'error');
     const url = modalMode === 'edit' ? `${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedItem.id}` : `${import.meta.env.VITE_API_BASE}/api/admin/menu`;
     await fetch(url, { method: modalMode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...selectedItem, price: parseFloat(selectedItem.price), cost: parseFloat(selectedItem.cost) }) });
-    setIsModalOpen(false); 
-    addToast(modalMode === 'edit' ? "Item updated!" : "Item added!", 'success');
-    fetchData();
+    setIsModalOpen(false); addToast("Saved!", 'success'); fetchData();
   };
-
   const handleDeleteItem = async () => {
     if (!isLocal) return;
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedItem.id}`, { method: 'DELETE' });
-    setIsModalOpen(false); 
-    addToast("Item deleted.", 'success');
-    fetchData();
+    setIsModalOpen(false); addToast("Deleted.", 'success'); fetchData();
   };
 
   const handleAddCategory = async (e) => {
     e.preventDefault(); const name = e.target.categoryName.value.trim(); if (!name) return;
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    if (res.ok) { e.target.reset(); addToast("Category added!", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
+    if (res.ok) { e.target.reset(); addToast("Added!", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
   };
-
   const handleDeleteCategory = async (id, name) => {
-    if (!window.confirm(`Delete category "${name}"?`)) return;
+    if (!window.confirm(`Delete "${name}"?`)) return;
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories/${id}`, { method: 'DELETE' });
-    if (res.ok) { addToast("Category deleted.", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
+    if (res.ok) { addToast("Deleted.", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
   };
 
-  const handleVerifyPayment = async (orderId) => {
+  const handleVerifyPayment = async (id) => {
     if (!window.confirm("Confirm payment received? This sends the order to the kitchen.")) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${orderId}/verify-payment`, { method: 'POST' });
-    addToast("Payment verified!", 'success');
-    fetchData();
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${id}/verify-payment`, { method: 'POST' });
+    addToast("Payment verified!", 'success'); fetchData();
   };
 
   const handlePrint = (type) => {
@@ -229,28 +219,28 @@ export default function AdminDashboard() {
     const style = `<style>body { font-family: sans-serif; padding: 20px; } table { width: 100%; border-collapse: collapse; margin-top: 20px; } th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; } th { background-color: #F7F7F7; font-weight: bold; } .header { text-align: center; margin-bottom: 20px; }</style>`;
     let content = '';
     if (type === 'sales') {
-      content = `<div class="header"><h1>Sales Transaction Report</h1><p>Date: ${new Date().toLocaleDateString()}</p></div><table><thead><tr><th>Order ID</th><th>Date</th><th>Type</th><th>Method</th><th>Status</th><th>Total</th></tr></thead><tbody>${salesReport.map(o => `<tr><td>#${o.id}</td><td>${new Date(o.created_at).toLocaleDateString()}</td><td>${o.order_type}</td><td>${o.payment_method}</td><td>${o.status}</td><td>₱${o.total.toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
+      content = `<div class="header"><h1>Sales Report</h1><p>${new Date().toLocaleDateString()}</p></div><table><thead><tr><th>ID</th><th>Date</th><th>Type</th><th>Method</th><th>Status</th><th>Total</th></tr></thead><tbody>${salesReport.map(o => `<tr><td>#${o.id}</td><td>${new Date(o.created_at).toLocaleDateString()}</td><td>${o.order_type}</td><td>${o.payment_method}</td><td>${o.status}</td><td>₱${o.total.toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
     } else {
-      content = `<div class="header"><h1>Inventory Audit Report</h1><p>Date: ${new Date().toLocaleDateString()}</p></div><table><thead><tr><th>Ingredient</th><th>Unit</th><th>Actual Stock</th><th>Theoretical Usage</th><th>Variance</th></tr></thead><tbody>${inventoryReport.map(i => { const variance = i.actual_stock - i.theoretical_usage; return `<tr><td>${i.name}</td><td>${i.unit}</td><td>${i.actual_stock.toFixed(2)}</td><td>${i.theoretical_usage.toFixed(2)}</td><td style="color: ${variance < 0 ? 'red' : 'green'}">${variance.toFixed(2)}</td></tr>`; }).join('')}</tbody></table>`;
+      content = `<div class="header"><h1>Inventory Audit</h1><p>${new Date().toLocaleDateString()}</p></div><table><thead><tr><th>Ingredient</th><th>Unit</th><th>Actual</th><th>Theoretical</th><th>Variance</th></tr></thead><tbody>${inventoryReport.map(i => { const v = i.actual_stock - i.theoretical_usage; return `<tr><td>${i.name}</td><td>${i.unit}</td><td>${i.actual_stock.toFixed(2)}</td><td>${i.theoretical_usage.toFixed(2)}</td><td style="color:${v < 0 ? 'red' : 'green'}">${v.toFixed(2)}</td></tr>`; }).join('')}</tbody></table>`;
     }
-    printWindow.document.write(`<html><head><title>Print Report</title>${style}</head><body>${content}</body></html>`);
-    printWindow.document.close();
-    printWindow.print();
+    printWindow.document.write(`<html><head><title>Report</title>${style}</head><body>${content}</body></html>`);
+    printWindow.document.close(); printWindow.print();
   };
 
   const handleLogout = () => { localStorage.clear(); navigate('/admin/login'); };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-[#FDFBF7] text-[#EA580C] font-bold text-xl">Loading Enterprise Dashboard...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-[#FDFBF7] text-[#EA580C] font-bold text-xl">Loading...</div>;
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
-    { id: 'customers', label: 'Customers & CRM', icon: Users },
-    { id: 'menu', label: 'Menu Editor', icon: Utensils },
+    { id: 'customers', label: 'CRM', icon: Users },
+    { id: 'menu', label: 'Menu', icon: Utensils },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'recipes', label: 'Recipes', icon: ChefHat },
     { id: 'categories', label: 'Categories', icon: Folder },
+    { id: 'content', label: 'Website Content', icon: Globe },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -274,26 +264,47 @@ export default function AdminDashboard() {
                 <button key={item.id} onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-semibold text-sm transition-all
                     ${activeTab === item.id ? 'bg-[#EA580C]/10 text-[#EA580C]' : 'text-gray-500 hover:bg-gray-50 hover:text-[#1A1C23]'}`}>
-                  <div className="flex items-center gap-3">
-                    <Icon size={20} /> {sidebarOpen && <span>{item.label}</span>}
-                  </div>
+                  <div className="flex items-center gap-3"><Icon size={20} /> {sidebarOpen && <span>{item.label}</span>}</div>
                   {sidebarOpen && item.badge > 0 && <span className="bg-[#EA001E] text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>}
                 </button>
               );
             })}
+
+            {/* LOCAL-ONLY QUICK ACCESS (hidden from cloud) */}
+            {isLocal && sidebarOpen && (
+              <div className="pt-4 mt-4 border-t border-gray-200">
+                <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Local Apps</p>
+                <a href="/pos" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:bg-gray-50 hover:text-[#EA580C] transition">
+                  <LayoutDashboard size={20} /> POS Terminal
+                </a>
+                <a href="/kitchen" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:bg-gray-50 hover:text-[#EA580C] transition">
+                  <ChefHat size={20} /> Kitchen Display
+                </a>
+                <a href="/kiosk" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:bg-gray-50 hover:text-[#EA580C] transition">
+                  <Store size={20} /> Kiosk
+                </a>
+              </div>
+            )}
+
+            {/* CLOUD INFO NOTE (only when on cloud) */}
+            {!isLocal && sidebarOpen && (
+              <div className="pt-4 mt-4 border-t border-gray-200">
+                <div className="px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                  <p className="text-xs font-bold text-blue-700">☁️ Cloud Mode</p>
+                  <p className="text-xs text-blue-600 mt-1 leading-tight">POS, Kitchen & Kiosk are only available on the local network.</p>
+                </div>
+              </div>
+            )}
           </nav>
         </aside>
 
         {/* MAIN CONTENT */}
         <main className={`flex-1 transition-all duration-300 flex flex-col ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>
           
-          {/* TOP HEADER */}
           <header className="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
             <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg text-gray-500 hover:bg-gray-50 transition">
-                <Menu size={22} />
-              </button>
-              <h1 className="text-lg font-bold text-[#1A1C23] capitalize">{activeTab}</h1>
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg text-gray-500 hover:bg-gray-50 transition"><Menu size={22} /></button>
+              <h1 className="text-lg font-bold text-[#1A1C23] capitalize">{activeTab.replace('content', 'Website Content')}</h1>
             </div>
             
             <div className="flex items-center gap-4 relative">
@@ -319,9 +330,7 @@ export default function AdminDashboard() {
 
               <div className="flex items-center gap-3 pl-4 border-l border-gray-200 relative" ref={profileRef}>
                 <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="flex items-center gap-3 hover:opacity-80 transition">
-                  <div className="w-9 h-9 bg-[#EA580C] text-white rounded-full flex items-center justify-center font-bold text-sm">
-                    {staffUser?.name?.charAt(0) || 'A'}
-                  </div>
+                  <div className="w-9 h-9 bg-[#EA580C] text-white rounded-full flex items-center justify-center font-bold text-sm">{staffUser?.name?.charAt(0) || 'A'}</div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-bold text-[#1A1C23] leading-tight">{staffUser?.name || 'Admin'}</p>
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{staffUser?.role || 'Administrator'}</p>
@@ -345,7 +354,6 @@ export default function AdminDashboard() {
 
           <div className="p-6 max-w-[1440px] mx-auto w-full flex-1 pb-16">
             
-            {/* OVERVIEW TAB */}
             {activeTab === 'overview' && data && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -408,7 +416,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* REPORTS TAB */}
             {activeTab === 'reports' && (
               <div className="space-y-6">
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
@@ -483,7 +490,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* PAYMENTS TAB */}
             {activeTab === 'payments' && (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-gray-200 bg-[#FE9339]/10">
@@ -515,7 +521,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* CUSTOMERS TAB */}
             {activeTab === 'customers' && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -570,7 +575,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* MENU TAB */}
             {activeTab === 'menu' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
@@ -602,7 +606,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* INVENTORY TAB */}
             {activeTab === 'inventory' && (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <table className="w-full text-left">
@@ -624,7 +627,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* RECIPES TAB */}
             {activeTab === 'recipes' && (
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm h-[calc(100vh-140px)] overflow-y-auto">
@@ -678,7 +680,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* CATEGORIES TAB */}
             {activeTab === 'categories' && (
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
@@ -702,96 +703,176 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* SETTINGS TAB */}
-            {activeTab === 'settings' && settings && (
-              <div className="bg-white p-10 rounded-xl shadow-sm border border-gray-200 max-w-5xl mx-auto">
-                <div className="flex justify-between items-center mb-8 pb-6 border-b border-gray-200">
-                  <div>
-                    <h2 className="font-black text-3xl text-[#1A1C23] flex items-center gap-3"><Settings size={28} className="text-[#EA580C]" /> Store Customization</h2>
-                    <p className="text-gray-500 font-medium mt-1">White-label the app for your restaurant brand.</p>
+            {activeTab === 'content' && settings && (
+              <div className="space-y-6">
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <h2 className="font-black text-2xl text-[#1A1C23] mb-6 flex items-center gap-3"><Globe size={24} className="text-[#EA580C]" /> Browser & Branding</h2>
+                  <div className="space-y-5">
+                    <div>
+                      <label className="text-sm font-bold text-gray-600 mb-1 block">Browser Tab Title</label>
+                      <input type="text" disabled={!isLocal} value={settings.site_title || ''} onChange={e => setSettings({...settings, site_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white transition outline-none focus:ring-2 focus:ring-[#EA580C]" placeholder="e.g. Burger Bombs | Best Burgers in Manila" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-bold text-gray-600 mb-2 block">Favicon (Browser Icon)</label>
+                      <input type="file" accept="image/png,image/x-icon,image/svg+xml" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'favicon_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
+                      {settings.favicon_url && (
+                        <div className="mt-3 flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          <img src={settings.favicon_url} alt="Favicon" className="w-8 h-8" />
+                          <button onClick={() => setSettings({...settings, favicon_url: ''})} className="ml-auto text-red-500 hover:bg-red-50 p-1 rounded"><X size={16} /></button>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-bold text-gray-600 mb-2 block">Restaurant Logo</label>
+                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'logo_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
+                      {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="mt-3 w-16 h-16 rounded-lg object-cover" />}
+                    </div>
                   </div>
-                  {!isLocal && <span className="bg-[#FE9339]/10 text-[#FE9339] px-4 py-2 rounded-lg text-sm font-bold">Cloud View Only</span>}
                 </div>
-                
-                <form onSubmit={async (e) => {
-                  e.preventDefault(); if (!isLocal) return addToast("Only local store can edit settings.", 'error');
-                  await fetch(`${import.meta.env.VITE_API_BASE}/api/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
-                  addToast("Settings saved!", 'success');
-                }} className="space-y-8">
-                  
+
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <h2 className="font-black text-2xl text-[#1A1C23] mb-6 flex items-center gap-3"><Image size={24} className="text-[#EA580C]" /> Homepage Hero</h2>
+                  <div className="space-y-5">
+                    <div>
+                      <label className="text-sm font-bold text-gray-600 mb-1 block">Hero Background Image</label>
+                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'hero_image_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
+                      {settings.hero_image_url && <img src={settings.hero_image_url} alt="Hero" className="mt-3 w-full h-40 object-cover rounded-xl" />}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Hero Title</label><input type="text" disabled={!isLocal} value={settings.hero_title || ''} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Hero Subtitle</label><input type="text" disabled={!isLocal} value={settings.hero_subtitle || ''} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Button Text</label><input type="text" disabled={!isLocal} value={settings.hero_button_text || ''} onChange={e => setSettings({...settings, hero_button_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Button Link</label><input type="text" disabled={!isLocal} value={settings.hero_button_link || ''} onChange={e => setSettings({...settings, hero_button_link: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="/store" /></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="font-black text-2xl text-[#1A1C23]">Feature Highlights</h2>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" disabled={!isLocal} checked={settings.show_features} onChange={e => setSettings({...settings, show_features: e.target.checked})} className="w-5 h-5 accent-[#EA580C]" />
+                      <span className="text-sm font-bold text-gray-600">Show on Homepage</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {[1, 2, 3].map(num => (
+                      <div key={num} className="p-5 border border-gray-200 rounded-xl bg-gray-50">
+                        <p className="text-xs font-bold text-gray-400 uppercase mb-3">Feature {num}</p>
+                        <div className="space-y-3">
+                          <div><label className="text-xs font-bold text-gray-600 mb-1 block">Icon</label>
+                            <select disabled={!isLocal} value={settings[`feature_${num}_icon`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_icon`]: e.target.value})} className="w-full border-gray-200 border p-2 rounded-lg bg-white text-sm">
+                              {ICON_OPTIONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                            </select>
+                          </div>
+                          <div><label className="text-xs font-bold text-gray-600 mb-1 block">Title</label><input type="text" disabled={!isLocal} value={settings[`feature_${num}_title`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_title`]: e.target.value})} className="w-full border-gray-200 border p-2 rounded-lg bg-white text-sm" /></div>
+                          <div><label className="text-xs font-bold text-gray-600 mb-1 block">Description</label><input type="text" disabled={!isLocal} value={settings[`feature_${num}_desc`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_desc`]: e.target.value})} className="w-full border-gray-200 border p-2 rounded-lg bg-white text-sm" /></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="font-black text-2xl text-[#1A1C23]">About Us Section</h2>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" disabled={!isLocal} checked={settings.show_about} onChange={e => setSettings({...settings, show_about: e.target.checked})} className="w-5 h-5 accent-[#EA580C]" />
+                      <span className="text-sm font-bold text-gray-600">Show on Homepage</span>
+                    </label>
+                  </div>
+                  <div className="space-y-5">
+                    <div><label className="text-sm font-bold text-gray-600 mb-1 block">About Title</label><input type="text" disabled={!isLocal} value={settings.about_title || ''} onChange={e => setSettings({...settings, about_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    <div><label className="text-sm font-bold text-gray-600 mb-1 block">About Description</label><textarea rows="4" disabled={!isLocal} value={settings.about_text || ''} onChange={e => setSettings({...settings, about_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    <div>
+                      <label className="text-sm font-bold text-gray-600 mb-2 block">About Image</label>
+                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'about_image_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
+                      {settings.about_image_url && <img src={settings.about_image_url} alt="About" className="mt-3 w-full h-40 object-cover rounded-xl" />}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <h2 className="font-black text-2xl text-[#1A1C23] mb-6">Footer & Social Media</h2>
+                  <div className="space-y-5">
+                    <div><label className="text-sm font-bold text-gray-600 mb-1 block">Footer Text</label><input type="text" disabled={!isLocal} value={settings.footer_text || ''} onChange={e => setSettings({...settings, footer_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Facebook URL</label><input type="url" disabled={!isLocal} value={settings.social_facebook || ''} onChange={e => setSettings({...settings, social_facebook: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://facebook.com/..." /></div>
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Instagram URL</label><input type="url" disabled={!isLocal} value={settings.social_instagram || ''} onChange={e => setSettings({...settings, social_instagram: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://instagram.com/..." /></div>
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">TikTok URL</label><input type="url" disabled={!isLocal} value={settings.social_tiktok || ''} onChange={e => setSettings({...settings, social_tiktok: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://tiktok.com/@..." /></div>
+                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Twitter / X URL</label><input type="url" disabled={!isLocal} value={settings.social_twitter || ''} onChange={e => setSettings({...settings, social_twitter: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://x.com/..." /></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                  <h2 className="font-black text-2xl text-[#1A1C23] mb-2">Custom Domain / URL</h2>
+                  <p className="text-sm text-gray-500 mb-6">This is your "vanity URL" slug.</p>
+                  <div className="flex items-center">
+                    <input disabled={!isLocal} value={settings.brand_url || ''} onChange={e => setSettings({...settings, brand_url: e.target.value})} className="flex-1 border-gray-200 border p-3 rounded-l-xl bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" placeholder="burger-bombs" />
+                    <span className="bg-gray-100 border border-l-0 border-gray-200 p-3 rounded-r-xl text-gray-500 font-bold text-sm">.vercel.app</span>
+                  </div>
+                </div>
+
+                <button onClick={saveSettings} disabled={!isLocal || isUploading} className="w-full bg-[#EA580C] text-white font-bold py-4 rounded-xl hover:bg-[#C2410C] transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 sticky bottom-20 z-10">
+                  {isUploading ? 'Uploading...' : <><CheckCircle size={20} /> Save All Changes</>}
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'settings' && settings && (
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-5xl mx-auto">
+                <h2 className="font-black text-3xl text-[#1A1C23] flex items-center gap-3 mb-8 pb-6 border-b border-gray-200"><Settings size={28} className="text-[#EA580C]" /> Store Settings</h2>
+                <div className="space-y-8">
                   <div>
-                    <h3 className="text-xl font-bold text-[#1A1C23] mb-4 flex items-center gap-2"><Settings size={20} /> One-Click Themes</h3>
+                    <h3 className="text-xl font-bold text-[#1A1C23] mb-4">One-Click Themes</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {THEME_PRESETS.map((theme) => {
                         const isActive = settings.theme_primary_color === theme.primary && settings.theme_bg_color === theme.bg;
                         return (
                           <button key={theme.name} type="button" disabled={!isLocal}
                             onClick={() => { const s = { ...settings, theme_primary_color: theme.primary, theme_bg_color: theme.bg, theme_text_color: theme.text, theme_card_color: theme.card }; setSettings(s); updateTheme(s); }}
-                            className={`relative p-4 rounded-xl border-2 transition-all text-left overflow-hidden ${isActive ? 'border-[#EA580C] shadow-md transform scale-[1.02]' : 'border-gray-200 hover:border-gray-300'}`}>
+                            className={`relative p-4 rounded-xl border-2 transition-all text-left ${isActive ? 'border-[#EA580C] shadow-md scale-[1.02]' : 'border-gray-200'}`}>
                             <div className="flex gap-2 mb-3">
                               <div className="w-6 h-6 rounded-full shadow-sm" style={{ backgroundColor: theme.primary }}></div>
-                              <div className="w-6 h-6 rounded-full shadow-sm border border-gray-200" style={{ backgroundColor: theme.bg }}></div>
-                              <div className="w-6 h-6 rounded-full shadow-sm border border-gray-200" style={{ backgroundColor: theme.card }}></div>
+                              <div className="w-6 h-6 rounded-full shadow-sm border" style={{ backgroundColor: theme.bg }}></div>
+                              <div className="w-6 h-6 rounded-full shadow-sm border" style={{ backgroundColor: theme.card }}></div>
                             </div>
                             <p className="font-bold text-[#1A1C23] text-sm">{theme.name}</p>
-                            {isActive && <span className="absolute top-2 right-2 text-[#EA580C] text-lg">✓</span>}
+                            {isActive && <span className="absolute top-2 right-2 text-[#EA580C]">✓</span>}
                           </button>
                         );
                       })}
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-6">
-                    <div><label className="text-sm font-bold text-gray-500">Restaurant Name</label><input required disabled={!isLocal} value={settings.restaurant_name} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" /></div>
-                    <div><label className="text-sm font-bold text-gray-500">Tagline</label><input required disabled={!isLocal} value={settings.tagline} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" /></div>
+                    <div><label className="text-sm font-bold text-gray-600">Restaurant Name</label><input required disabled={!isLocal} value={settings.restaurant_name} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    <div><label className="text-sm font-bold text-gray-600">Tagline</label><input required disabled={!isLocal} value={settings.tagline} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-6">
-                    <div><label className="text-sm font-bold text-gray-500">Hero Title</label><input required disabled={!isLocal} value={settings.hero_title} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" /></div>
-                    <div><label className="text-sm font-bold text-gray-500">Hero Subtitle</label><input required disabled={!isLocal} value={settings.hero_subtitle} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" /></div>
+                    <div><label className="text-sm font-bold text-gray-600">Contact Phone</label><input disabled={!isLocal} value={settings.contact_phone || ''} onChange={e => setSettings({...settings, contact_phone: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    <div><label className="text-sm font-bold text-gray-600">Contact Email</label><input disabled={!isLocal} value={settings.contact_email || ''} onChange={e => setSettings({...settings, contact_email: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                    <div>
-                      <label className="text-sm font-bold text-gray-500">Restaurant Logo</label>
-                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleSettingsImageUpload(e, 'logo_url')} className="w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20 transition" />
-                      {settings.logo_url && <div className="mt-3 relative w-20 h-20 group"><img src={settings.logo_url} alt="Logo Preview" className="w-full h-full object-cover rounded-lg shadow-sm border-2 border-white" /><button type="button" onClick={() => setSettings({...settings, logo_url: ''})} className="absolute -top-2 -right-2 bg-[#EA001E] text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow-md"><X size={12} /></button></div>}
-                    </div>
-                    <div>
-                      <label className="text-sm font-bold text-gray-500">Hero Background Image</label>
-                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleSettingsImageUpload(e, 'hero_image_url')} className="w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20 transition" />
-                      {settings.hero_image_url && <div className="mt-3 relative w-full h-24 group"><img src={settings.hero_image_url} alt="Hero Preview" className="w-full h-full object-cover rounded-lg shadow-sm border-2 border-white" /><button type="button" onClick={() => setSettings({...settings, hero_image_url: ''})} className="absolute -top-2 -right-2 bg-[#EA001E] text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow-md"><X size={12} /></button></div>}
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-6">
-                    <div><label className="text-sm font-bold text-gray-500">Contact Phone</label><input disabled={!isLocal} value={settings.contact_phone || ''} onChange={e => setSettings({...settings, contact_phone: e.target.value})} className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" /></div>
-                    <div><label className="text-sm font-bold text-gray-500">Contact Email</label><input disabled={!isLocal} value={settings.contact_email || ''} onChange={e => setSettings({...settings, contact_email: e.target.value})} className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" /></div>
+                    <div><label className="text-sm font-bold text-gray-600">Currency Symbol</label><input disabled={!isLocal} value={settings.currency_symbol} onChange={e => setSettings({...settings, currency_symbol: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                    <div><label className="text-sm font-bold text-gray-600">Tax Rate</label><input type="number" step="0.01" disabled={!isLocal} value={settings.tax_rate} onChange={e => setSettings({...settings, tax_rate: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
                   </div>
-
-                  <div>
-                    <label className="text-sm font-bold text-gray-500">About Us Text</label>
-                    <textarea disabled={!isLocal} value={settings.about_text || ''} onChange={e => setSettings({...settings, about_text: e.target.value})} rows="3" className="w-full border-gray-200 border p-3 rounded-lg mt-2 bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" />
-                  </div>
-
-                  <button type="submit" disabled={!isLocal || isUploading} className="w-full bg-[#EA580C] text-white font-bold py-4 rounded-lg hover:bg-[#C2410C] transition disabled:opacity-50 shadow-lg mt-4 flex items-center justify-center gap-2">
-                    {isUploading ? 'Uploading Image...' : <><CheckCircle size={20} /> Save Settings</>}
-                  </button>
-                </form>
+                  <div><label className="text-sm font-bold text-gray-600">Promo Banner Text</label><input disabled={!isLocal} value={settings.promo_banner_text || ''} onChange={e => setSettings({...settings, promo_banner_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
+                  <button onClick={saveSettings} disabled={!isLocal || isUploading} className="w-full bg-[#EA580C] text-white font-bold py-4 rounded-xl hover:bg-[#C2410C] transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle size={20} /> Save Settings</button>
+                </div>
               </div>
             )}
+
           </div>
 
           <footer className="fixed bottom-0 right-0 h-8 bg-white border-t border-gray-200 flex items-center justify-between px-6 text-xs font-semibold text-gray-500 z-20" style={{ left: sidebarOpen ? '240px' : '64px', transition: 'all 0.3s' }}>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1"><Activity size={12} className="text-[#45C65A]" /> System Online</span>
-              <span className="hidden md:inline">Database: Connected</span>
-            </div>
+            <span className="flex items-center gap-1"><Activity size={12} className="text-[#45C65A]" /> {isLocal ? 'Local Mode' : 'Cloud Mode'} — System Online</span>
           </footer>
         </main>
       </div>
 
-      {/* GLOBAL MODAL (Menu Editor) */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalMode === 'delete' ? 'Confirm Deletion' : modalMode === 'edit' ? 'Edit Menu Item' : 'Add New Item'} variant={modalMode === 'delete' ? 'danger' : 'info'}>
         {modalMode === 'delete' ? (
           <div>
@@ -803,41 +884,20 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <form onSubmit={handleSaveItem} className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Item Name</label>
-              <input required value={selectedItem?.name || ''} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" />
-            </div>
+            <div><label className="text-xs font-bold text-gray-500 uppercase">Item Name</label><input required value={selectedItem?.name || ''} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Price (₱)</label>
-                <input required type="number" step="0.01" value={selectedItem?.price || ''} onChange={e => setSelectedItem({...selectedItem, price: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Cost (₱)</label>
-                <input required type="number" step="0.01" value={selectedItem?.cost || ''} onChange={e => setSelectedItem({...selectedItem, cost: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" />
-              </div>
+              <div><label className="text-xs font-bold text-gray-500 uppercase">Price (₱)</label><input required type="number" step="0.01" value={selectedItem?.price || ''} onChange={e => setSelectedItem({...selectedItem, price: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" /></div>
+              <div><label className="text-xs font-bold text-gray-500 uppercase">Cost (₱)</label><input required type="number" step="0.01" value={selectedItem?.cost || ''} onChange={e => setSelectedItem({...selectedItem, cost: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" /></div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Category</label>
-              <select value={selectedItem?.category || ''} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition">
-                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Image Upload</label>
-              <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20 transition" />
-              {selectedItem?.image_url && <img src={selectedItem.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg mt-3 shadow-sm" />}
-            </div>
+            <div><label className="text-xs font-bold text-gray-500 uppercase">Category</label><select value={selectedItem?.category || ''} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition">{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
+            <div><label className="text-xs font-bold text-gray-500 uppercase">Image Upload</label><input type="file" accept="image/*" onChange={e => handleUploadImage(e, 'image_url', 'menu')} className="w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20 transition" />{selectedItem?.image_url && <img src={selectedItem.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg mt-3 shadow-sm" />}</div>
             <div className="pt-4 flex gap-3">
               <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-gray-50 text-gray-600 font-bold rounded-lg hover:bg-gray-100 transition border border-gray-200">Cancel</button>
-              <button type="submit" disabled={isUploading} className="flex-1 py-3 bg-[#EA580C] text-white font-bold rounded-lg hover:bg-[#C2410C] transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
-                {isUploading ? 'Uploading...' : <><CheckCircle size={16} /> Save Item</>}
-              </button>
+              <button type="submit" disabled={isUploading} className="flex-1 py-3 bg-[#EA580C] text-white font-bold rounded-lg hover:bg-[#C2410C] transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2">{isUploading ? 'Uploading...' : <><CheckCircle size={16} /> Save Item</>}</button>
             </div>
           </form>
         )}
       </Modal>
-
     </div>
   );
 }
