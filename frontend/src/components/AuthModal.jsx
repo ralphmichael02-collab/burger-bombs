@@ -1,6 +1,7 @@
 // frontend/src/components/AuthModal.jsx
 import { useState } from 'react';
 import { useToast } from './ui/Toast';
+import { X, Eye, EyeOff } from 'lucide-react';
 
 export default function AuthModal({ onClose, onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -34,22 +35,20 @@ export default function AuthModal({ onClose, onLogin }) {
         addToast('Welcome back!', 'success');
         onLogin(data.user, data.token);
       } else {
-        addToast('Account created! Check your email to verify.', 'success');
+        addToast('Account created! Check your email.', 'success');
         setTimeout(() => { setIsLogin(true); setError(''); }, 3000);
       }
     } catch (err) {
       setError(err.message);
       addToast(err.message, 'error');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
         <div className="bg-slate-900 text-white p-6 text-center relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+          <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X size={20} /></button>
           <h2 className="text-2xl font-black">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
         </div>
 
@@ -67,8 +66,8 @@ export default function AuthModal({ onClose, onLogin }) {
           
           <div className="relative">
             <input required type={showPassword ? "text" : "password"} placeholder="Password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full border border-slate-200 p-3 rounded-xl bg-slate-50 focus:bg-white outline-none focus:ring-2 focus:ring-orange-500 transition pr-12" />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 text-lg">
-              {showPassword ? '👁️' : '🙈'}
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1">
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
 

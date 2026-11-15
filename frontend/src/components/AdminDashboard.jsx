@@ -2,6 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { 
+  LayoutDashboard, CreditCard, Users, Utensils, Package, ChefHat, Folder, Settings, 
+  LogOut, Plus, TrendingUp, DollarSign, ShoppingBag, AlertTriangle, CheckCircle,
+  Pencil, Trash2, Globe, Store, ScanLine, Beef, Edit3
+} from 'lucide-react';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 
@@ -72,7 +77,6 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // 👇 INSTANT THEME UPDATE HELPER
   const updateTheme = (newSettings) => {
     document.documentElement.style.setProperty('--theme-primary', newSettings.theme_primary_color);
     document.documentElement.style.setProperty('--theme-bg', newSettings.theme_bg_color);
@@ -209,13 +213,26 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-theme-main text-accent font-bold text-xl">Loading Enterprise Dashboard...</div>;
 
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
+    { id: 'customers', label: 'Customers & CRM', icon: Users },
+    { id: 'menu', label: 'Menu Editor', icon: Utensils },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'recipes', label: 'Recipes', icon: ChefHat },
+    { id: 'categories', label: 'Categories', icon: Folder },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
   return (
     <div className="min-h-screen flex bg-theme-main font-sans transition-colors duration-300">
       
       {/* SIDEBAR */}
       <aside className="w-64 bg-theme-card border-r border-theme flex flex-col fixed h-full z-20 transition-colors duration-300">
         <div className="p-6 flex items-center gap-3 border-b border-theme">
-          <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">🍔</div>
+          <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-md">
+            <Beef size={22} strokeWidth={2.5} />
+          </div>
           <div>
             <h1 className="font-black text-theme-primary leading-tight">{settings?.restaurant_name || 'Burger Bombs'}</h1>
             <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider">Admin Suite</p>
@@ -223,27 +240,26 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto">
-          {[
-            { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'payments', label: 'Payments', icon: '💳', badge: pendingPayments.length },
-            { id: 'customers', label: 'Customers & CRM', icon: '👥' },
-            { id: 'menu', label: 'Menu Editor', icon: '🍔' },
-            { id: 'inventory', label: 'Inventory', icon: '📦' },
-            { id: 'recipes', label: 'Recipes', icon: '👨‍🍳' },
-            { id: 'categories', label: 'Categories', icon: '📁' },
-            { id: 'settings', label: 'Settings', icon: '⚙️' },
-          ].map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all
-                ${activeTab === item.id ? 'bg-accent text-white shadow-sm' : 'text-theme-secondary hover:bg-theme-main hover:text-theme-primary'}`}>
-              <div className="flex items-center gap-3"><span>{item.icon}</span> {item.label}</div>
-              {item.badge > 0 && <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>}
-            </button>
-          ))}
+          {navItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <button key={item.id} onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all
+                  ${activeTab === item.id ? 'bg-accent text-white shadow-sm' : 'text-theme-secondary hover:bg-theme-main hover:text-theme-primary'}`}>
+                <div className="flex items-center gap-3">
+                  <Icon size={18} strokeWidth={2.5} />
+                  {item.label}
+                </div>
+                {item.badge > 0 && <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-theme">
-          <button onClick={handleLogout} className="w-full py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition text-sm">Logout</button>
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition text-sm">
+            <LogOut size={16} /> Logout
+          </button>
         </div>
       </aside>
 
@@ -251,7 +267,17 @@ export default function AdminDashboard() {
       <main className="flex-1 ml-64 p-8 transition-colors duration-300">
         <header className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-black text-theme-primary capitalize">{activeTab.replace('customers', 'Customers & CRM')}</h1>
+            <h1 className="text-3xl font-black text-theme-primary capitalize flex items-center gap-3">
+              {activeTab === 'overview' && <LayoutDashboard size={28} className="text-accent" />}
+              {activeTab === 'payments' && <CreditCard size={28} className="text-accent" />}
+              {activeTab === 'customers' && <Users size={28} className="text-accent" />}
+              {activeTab === 'menu' && <Utensils size={28} className="text-accent" />}
+              {activeTab === 'inventory' && <Package size={28} className="text-accent" />}
+              {activeTab === 'recipes' && <ChefHat size={28} className="text-accent" />}
+              {activeTab === 'categories' && <Folder size={28} className="text-accent" />}
+              {activeTab === 'settings' && <Settings size={28} className="text-accent" />}
+              {activeTab.replace('customers', 'Customers & CRM')}
+            </h1>
             <p className="text-theme-secondary font-medium mt-1">Manage your restaurant operations.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -264,20 +290,32 @@ export default function AdminDashboard() {
         {activeTab === 'overview' && data && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-theme-card p-6 rounded-2xl shadow-sm border border-theme">
-                <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider mb-2">Gross Revenue</p>
+              <div className="bg-theme-card p-6 rounded-2xl shadow-sm border border-theme flex flex-col justify-between">
+                <div className="flex justify-between items-start">
+                  <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider mb-2">Gross Revenue</p>
+                  <DollarSign size={20} className="text-theme-secondary opacity-50" />
+                </div>
                 <p className="text-3xl font-black text-theme-primary">₱{data.metrics.total_sales.toLocaleString()}</p>
               </div>
-              <div className="bg-theme-card p-6 rounded-2xl shadow-sm border border-theme">
-                <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider mb-2">Ingredient Cost</p>
+              <div className="bg-theme-card p-6 rounded-2xl shadow-sm border border-theme flex flex-col justify-between">
+                <div className="flex justify-between items-start">
+                  <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider mb-2">Ingredient Cost</p>
+                  <TrendingUp size={20} className="text-theme-secondary opacity-50" />
+                </div>
                 <p className="text-3xl font-black text-red-500">-₱{(data.metrics.total_cost || 0).toLocaleString()}</p>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg relative overflow-hidden text-white transform hover:scale-[1.02] transition cursor-default">
-                <p className="text-xs font-bold text-green-100 uppercase tracking-wider mb-2">Net Profit</p>
+                <div className="flex justify-between items-start">
+                  <p className="text-xs font-bold text-green-100 uppercase tracking-wider mb-2">Net Profit</p>
+                  <TrendingUp size={20} className="text-green-100 opacity-50" />
+                </div>
                 <p className="text-3xl font-black">₱{(data.metrics.net_profit || 0).toLocaleString()}</p>
               </div>
-              <div className="bg-theme-card p-6 rounded-2xl shadow-sm border border-theme">
-                <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider mb-2">Total Orders</p>
+              <div className="bg-theme-card p-6 rounded-2xl shadow-sm border border-theme flex flex-col justify-between">
+                <div className="flex justify-between items-start">
+                  <p className="text-xs font-bold text-theme-secondary uppercase tracking-wider mb-2">Total Orders</p>
+                  <ShoppingBag size={20} className="text-theme-secondary opacity-50" />
+                </div>
                 <p className="text-3xl font-black text-theme-primary">{data.metrics.total_orders}</p>
               </div>
             </div>
@@ -318,7 +356,10 @@ export default function AdminDashboard() {
                   {data.recentOrders.map(o => (
                     <div key={o.id} className="flex justify-between items-center p-3 border border-theme rounded-xl hover:bg-theme-main transition">
                       <div>
-                        <p className="font-bold text-theme-primary">#{o.id} <span className="text-[10px] font-bold text-theme-secondary ml-1 uppercase">{o.order_type}</span></p>
+                        <p className="font-bold text-theme-primary flex items-center gap-2">
+                          #{o.id} 
+                          {o.order_type === 'ONLINE' ? <Globe size={12} className="text-blue-500" /> : <Store size={12} className="text-orange-500" />}
+                        </p>
                         <p className="text-xs text-theme-secondary mt-0.5">{o.ip_address || 'Local'}</p>
                       </div>
                       <div className="text-right">
@@ -340,7 +381,7 @@ export default function AdminDashboard() {
         {activeTab === 'payments' && (
           <div className="bg-theme-card rounded-2xl shadow-sm border border-theme overflow-hidden animate-in fade-in duration-500">
             <div className="p-6 border-b border-theme bg-amber-50">
-              <h2 className="font-bold text-xl text-amber-800">Pending Payment Verifications</h2>
+              <h2 className="font-bold text-xl text-amber-800 flex items-center gap-2"><AlertTriangle size={20} /> Pending Payment Verifications</h2>
               <p className="text-sm text-amber-600 mt-1">Verify the GCash/Maya reference before sending to kitchen.</p>
             </div>
             <table className="w-full text-left">
@@ -357,7 +398,9 @@ export default function AdminDashboard() {
                     <td className="p-4 font-mono text-sm text-theme-secondary">{o.payment_reference || 'N/A'}</td>
                     <td className="p-4 font-black text-theme-primary">₱{o.total}</td>
                     <td className="p-4 text-right">
-                      <button onClick={() => handleVerifyPayment(o.id)} className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-green-700 transition shadow-sm">Verify Payment</button>
+                      <button onClick={() => handleVerifyPayment(o.id)} className="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-green-700 transition shadow-sm flex items-center gap-1 ml-auto">
+                        <CheckCircle size={16} /> Verify
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -433,8 +476,8 @@ export default function AdminDashboard() {
           <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-theme-primary">Menu Catalog</h2>
-              <button onClick={() => openModal('add')} className="bg-accent text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-accent-hover transition flex items-center gap-2">
-                <span>+</span> Add Menu Item
+              <button onClick={() => openModal('add')} className="bg-accent text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:opacity-90 transition flex items-center gap-2">
+                <Plus size={18} /> Add Menu Item
               </button>
             </div>
 
@@ -442,7 +485,7 @@ export default function AdminDashboard() {
               {menuItems.map(item => (
                 <div key={item.id} className="bg-theme-card rounded-2xl shadow-sm border border-theme overflow-hidden group hover:shadow-lg transition">
                   <div className="h-40 overflow-hidden relative">
-                    {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" /> : <div className="w-full h-full bg-theme-main" />}
+                    {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" /> : <div className="w-full h-full bg-theme-main flex items-center justify-center text-theme-secondary"><Utensils size={32} opacity={0.2} /></div>}
                     <span className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded-md text-[10px] font-black text-slate-800 uppercase shadow-sm">{item.category}</span>
                   </div>
                   <div className="p-5">
@@ -451,8 +494,8 @@ export default function AdminDashboard() {
                       <span className="font-black text-accent">₱{item.price}</span>
                     </div>
                     <div className="flex gap-2 mt-4">
-                      <button onClick={() => openModal('edit', item)} className="flex-1 bg-theme-main hover:bg-theme-bg text-theme-secondary font-bold py-2 rounded-lg text-sm transition border border-theme">Edit</button>
-                      <button onClick={() => openModal('delete', item)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 rounded-lg text-sm transition">Delete</button>
+                      <button onClick={() => openModal('edit', item)} className="flex-1 bg-theme-main hover:bg-theme-bg text-theme-secondary font-bold py-2 rounded-lg text-sm transition border border-theme flex items-center justify-center gap-2"><Pencil size={14} /> Edit</button>
+                      <button onClick={() => openModal('delete', item)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2"><Trash2 size={14} /> Delete</button>
                     </div>
                   </div>
                 </div>
@@ -472,9 +515,9 @@ export default function AdminDashboard() {
                 {ingredients.map(ing => (
                   <tr key={ing.id} className="border-b border-theme hover:bg-theme-main">
                     <td className="p-4 font-bold text-theme-primary">{ing.name}</td>
-                    <td className="p-4"><span className={`px-3 py-1 rounded-lg text-sm font-bold ${ing.stock <= ing.low_stock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{ing.stock} {ing.unit}</span></td>
+                    <td className="p-4"><span className={`px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-2 w-fit ${ing.stock <= ing.low_stock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{ing.stock} {ing.unit}</span></td>
                     <td className="p-4 text-right">
-                      {isLocal ? <button onClick={() => handleRestock(ing.id)} className="bg-accent text-white px-4 py-2 rounded-xl font-bold text-sm hover:opacity-90 transition">Restock</button> : <span className="text-theme-secondary text-sm italic">Cloud View Only</span>}
+                      {isLocal ? <button onClick={() => handleRestock(ing.id)} className="bg-accent text-white px-4 py-2 rounded-xl font-bold text-sm hover:opacity-90 transition inline-flex items-center gap-2"><Plus size={14} /> Restock</button> : <span className="text-theme-secondary text-sm italic">Cloud View Only</span>}
                     </td>
                   </tr>
                 ))}
@@ -497,17 +540,20 @@ export default function AdminDashboard() {
 
             <div className="lg:col-span-3 bg-theme-card p-8 rounded-2xl shadow-sm border border-theme">
               {!selectedRecipeItem ? (
-                <div className="text-center text-theme-secondary py-32 font-bold text-xl">Select a menu item to build its recipe.</div>
+                <div className="text-center text-theme-secondary py-32 font-bold text-xl flex flex-col items-center gap-4">
+                  <ChefHat size={48} opacity={0.2} />
+                  Select a menu item to build its recipe.
+                </div>
               ) : (
                 <>
                   <div className="flex justify-between items-center mb-8 pb-4 border-b border-theme">
                     <h2 className="font-black text-3xl text-theme-primary">Recipe: {selectedRecipeItem.name}</h2>
-                    <button onClick={saveRecipe} disabled={!isLocal} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-md">Save Recipe</button>
+                    <button onClick={saveRecipe} disabled={!isLocal} className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition shadow-md flex items-center gap-2"><CheckCircle size={18} /> Save Recipe</button>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                      <h3 className="font-bold text-lg mb-4 text-theme-primary flex items-center gap-2"><span>🥩</span> Raw Ingredients</h3>
+                      <h3 className="font-bold text-lg mb-4 text-theme-primary flex items-center gap-2"><Beef size={20} /> Raw Ingredients</h3>
                       <div className="space-y-3">
                         {ingredients.map(ing => (
                           <div key={`ing_${ing.id}`} className="flex items-center justify-between p-4 border border-theme rounded-xl bg-theme-main hover:bg-theme-bg transition">
@@ -519,7 +565,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <h3 className="font-bold text-lg mb-4 text-theme-primary flex items-center gap-2"><span>🍟</span> Combo Components</h3>
+                      <h3 className="font-bold text-lg mb-4 text-theme-primary flex items-center gap-2"><Utensils size={20} /> Combo Components</h3>
                       <div className="space-y-3">
                         {menuItems.filter(m => m.id !== selectedRecipeItem.id).map(comp => (
                           <div key={`comp_${comp.id}`} className="flex items-center justify-between p-4 border border-blue-500/30 rounded-xl bg-blue-500/10 transition">
@@ -543,7 +589,7 @@ export default function AdminDashboard() {
               <h2 className="font-bold text-2xl mb-6 text-theme-primary">Add New Category</h2>
               <form onSubmit={handleAddCategory} className="flex gap-4">
                 <input name="categoryName" required disabled={!isLocal} placeholder="e.g. Tacos, Pasta, Coffee" className="flex-1 border-theme border p-4 rounded-xl bg-theme-main text-theme-primary focus:bg-theme-card transition font-medium outline-none focus:ring-2 focus:ring-accent" />
-                <button type="submit" disabled={!isLocal} className="bg-accent text-white px-8 font-bold rounded-xl hover:opacity-90 transition shadow-md disabled:opacity-50">Add</button>
+                <button type="submit" disabled={!isLocal} className="bg-accent text-white px-8 font-bold rounded-xl hover:opacity-90 transition shadow-md disabled:opacity-50 flex items-center gap-2"><Plus size={18} /> Add</button>
               </form>
             </div>
 
@@ -552,8 +598,8 @@ export default function AdminDashboard() {
               <ul>
                 {categories.map(cat => (
                   <li key={cat.id} className="flex justify-between items-center p-5 border-b border-theme last:border-0 hover:bg-theme-main transition">
-                    <span className="font-bold text-theme-primary text-lg">{cat.name}</span>
-                    <button onClick={() => handleDeleteCategory(cat.id, cat.name)} disabled={!isLocal} className="text-red-500 bg-red-50 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition disabled:opacity-50">Delete</button>
+                    <span className="font-bold text-theme-primary text-lg flex items-center gap-3"><Folder size={18} className="text-theme-secondary" /> {cat.name}</span>
+                    <button onClick={() => handleDeleteCategory(cat.id, cat.name)} disabled={!isLocal} className="text-red-500 bg-red-50 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition disabled:opacity-50 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
                   </li>
                 ))}
               </ul>
@@ -566,7 +612,7 @@ export default function AdminDashboard() {
           <div className="bg-theme-card p-10 rounded-2xl shadow-sm border border-theme max-w-5xl mx-auto animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-8 pb-6 border-b border-theme">
               <div>
-                <h2 className="font-black text-3xl text-theme-primary">Store Customization</h2>
+                <h2 className="font-black text-3xl text-theme-primary flex items-center gap-3"><Settings size={28} className="text-accent" /> Store Customization</h2>
                 <p className="text-theme-secondary font-medium mt-1">White-label the app for your restaurant brand.</p>
               </div>
               {!isLocal && <span className="bg-amber-100 text-amber-800 px-4 py-2 rounded-xl text-sm font-bold">Cloud View Only</span>}
@@ -580,7 +626,7 @@ export default function AdminDashboard() {
               
               {/* THEME PRESETS */}
               <div>
-                <h3 className="text-xl font-bold text-theme-primary mb-4 flex items-center gap-2"><span>🎨</span> One-Click Themes</h3>
+                <h3 className="text-xl font-bold text-theme-primary mb-4 flex items-center gap-2"><Settings size={20} /> One-Click Themes</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {THEME_PRESETS.map((theme) => {
                     const isActive = settings.theme_primary_color === theme.primary && settings.theme_bg_color === theme.bg;
@@ -598,7 +644,7 @@ export default function AdminDashboard() {
                             theme_card_color: theme.card
                           };
                           setSettings(newSettings);
-                          updateTheme(newSettings); // 👈 Instantly applies
+                          updateTheme(newSettings); 
                         }}
                         className={`relative p-4 rounded-2xl border-2 transition-all text-left overflow-hidden ${isActive ? 'border-accent shadow-md transform scale-[1.02]' : 'border-theme hover:border-theme hover:opacity-80'}`}
                       >
@@ -679,7 +725,7 @@ export default function AdminDashboard() {
                   {settings.logo_url && (
                     <div className="mt-3 relative w-20 h-20 group">
                       <img src={settings.logo_url} alt="Logo Preview" className="w-full h-full object-cover rounded-xl shadow-sm border-2 border-theme" />
-                      <button type="button" onClick={() => setSettings({...settings, logo_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow-md">✕</button>
+                      <button type="button" onClick={() => setSettings({...settings, logo_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow-md"><X size={12} /></button>
                     </div>
                   )}
                 </div>
@@ -689,7 +735,7 @@ export default function AdminDashboard() {
                   {settings.hero_image_url && (
                     <div className="mt-3 relative w-full h-24 group">
                       <img src={settings.hero_image_url} alt="Hero Preview" className="w-full h-full object-cover rounded-xl shadow-sm border-2 border-theme" />
-                      <button type="button" onClick={() => setSettings({...settings, hero_image_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow-md">✕</button>
+                      <button type="button" onClick={() => setSettings({...settings, hero_image_url: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition shadow-md"><X size={12} /></button>
                     </div>
                   )}
                 </div>
@@ -710,8 +756,8 @@ export default function AdminDashboard() {
                 <textarea disabled={!isLocal} value={settings.about_text || ''} onChange={e => setSettings({...settings, about_text: e.target.value})} rows="3" className="w-full border-theme border p-3 rounded-xl mt-2 bg-theme-main text-theme-primary focus:bg-theme-card transition font-medium outline-none focus:ring-2 focus:ring-accent" />
               </div>
 
-              <button type="submit" disabled={!isLocal || isUploading} className="w-full bg-accent text-white font-bold py-4 rounded-xl hover:opacity-90 transition disabled:opacity-50 shadow-lg mt-4">
-                {isUploading ? 'Uploading Image...' : 'Save Settings'}
+              <button type="submit" disabled={!isLocal || isUploading} className="w-full bg-accent text-white font-bold py-4 rounded-xl hover:opacity-90 transition disabled:opacity-50 shadow-lg mt-4 flex items-center justify-center gap-2">
+                {isUploading ? 'Uploading Image...' : <><CheckCircle size={20} /> Save Settings</>}
               </button>
             </form>
           </div>
@@ -731,7 +777,7 @@ export default function AdminDashboard() {
             <p className="text-theme-secondary mb-6">Are you sure you want to delete <b>{selectedItem?.name}</b>? This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-theme-main text-theme-secondary font-bold rounded-xl hover:bg-theme-bg transition border border-theme">Cancel</button>
-              <button onClick={handleDeleteItem} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-md">Yes, Delete</button>
+              <button onClick={handleDeleteItem} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-md flex items-center justify-center gap-2"><Trash2 size={16} /> Yes, Delete</button>
             </div>
           </div>
         ) : (
@@ -763,8 +809,8 @@ export default function AdminDashboard() {
             </div>
             <div className="pt-4 flex gap-3">
               <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-theme-main text-theme-secondary font-bold rounded-xl hover:bg-theme-bg transition border border-theme">Cancel</button>
-              <button type="submit" disabled={isUploading} className="flex-1 py-3 bg-accent text-white font-bold rounded-xl hover:opacity-90 transition shadow-md disabled:opacity-50">
-                {isUploading ? 'Uploading...' : 'Save Item'}
+              <button type="submit" disabled={isUploading} className="flex-1 py-3 bg-accent text-white font-bold rounded-xl hover:opacity-90 transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
+                {isUploading ? 'Uploading...' : <><CheckCircle size={16} /> Save Item</>}
               </button>
             </div>
           </form>

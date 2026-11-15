@@ -1,5 +1,6 @@
 // frontend/src/components/ui/Toast.jsx
 import { createContext, useContext, useState } from 'react';
+import { CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 
 const ToastContext = createContext();
 
@@ -14,26 +15,30 @@ export function ToastProvider({ children }) {
     }, 3500);
   };
 
-  const colors = {
-    info: 'bg-slate-800 text-white',
-    success: 'bg-green-500 text-white',
-    error: 'bg-red-500 text-white',
-    warning: 'bg-amber-500 text-black',
+  const styles = {
+    info: { bg: 'bg-slate-800', text: 'text-white', icon: <Info size={18} /> },
+    success: { bg: 'bg-green-500', text: 'text-white', icon: <CheckCircle size={18} /> },
+    error: { bg: 'bg-red-500', text: 'text-white', icon: <AlertCircle size={18} /> },
+    warning: { bg: 'bg-amber-500', text: 'text-black', icon: <AlertTriangle size={18} /> },
   };
 
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
       <div className="fixed top-6 right-6 z-[999] flex flex-col gap-3 pointer-events-none">
-        {toasts.map(toast => (
-          <div 
-            key={toast.id} 
-            className={`px-6 py-4 rounded-xl shadow-2xl font-bold text-sm min-w-[280px] ${colors[toast.type]}`}
-            style={{ animation: 'slideIn 0.3s ease-out' }}
-          >
-            {toast.message}
-          </div>
-        ))}
+        {toasts.map(toast => {
+          const style = styles[toast.type] || styles.info;
+          return (
+            <div 
+              key={toast.id} 
+              className={`px-5 py-4 rounded-xl shadow-2xl font-bold text-sm min-w-[280px] flex items-center gap-3 ${style.bg} ${style.text}`}
+              style={{ animation: 'slideIn 0.3s ease-out' }}
+            >
+              {style.icon}
+              {toast.message}
+            </div>
+          );
+        })}
       </div>
       <style>{`
         @keyframes slideIn {

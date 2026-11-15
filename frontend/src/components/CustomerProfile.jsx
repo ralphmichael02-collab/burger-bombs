@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from './ui/Modal';
+import { ShoppingBag, Star, LogOut, ArrowLeft } from 'lucide-react';
 
 export default function CustomerProfile() {
   const navigate = useNavigate();
@@ -15,10 +16,8 @@ export default function CustomerProfile() {
   useEffect(() => {
     const savedUser = localStorage.getItem('burger_user');
     if (!savedUser) return navigate('/store');
-    
     const parsedUser = JSON.parse(savedUser);
     setUser(parsedUser);
-
     fetch(`${import.meta.env.VITE_API_BASE}/api/auth/orders/${parsedUser.id}`)
       .then(res => res.json())
       .then(data => setOrders(Array.isArray(data) ? data : []))
@@ -50,12 +49,12 @@ export default function CustomerProfile() {
           <h1 className="text-3xl font-black tracking-tight">My Profile</h1>
           <p className="text-sm text-slate-400 mt-1">{user.email}</p>
         </div>
-        <button onClick={() => navigate('/store')} className="text-sm bg-slate-800 px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition">Back to Store</button>
+        <button onClick={() => navigate('/store')} className="text-sm bg-slate-800 px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition flex items-center gap-2">
+          <ArrowLeft size={16} /> Back to Store
+        </button>
       </header>
 
       <div className="max-w-3xl mx-auto p-6 mt-4 space-y-6">
-        
-        {/* Account Info Card */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-2xl font-black">
@@ -66,15 +65,14 @@ export default function CustomerProfile() {
               <p className="text-sm text-slate-500">{user.email}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="text-red-500 font-bold text-sm bg-red-50 px-4 py-2 rounded-lg hover:bg-red-100 transition">Logout</button>
+          <button onClick={handleLogout} className="text-red-500 font-bold text-sm bg-red-50 px-4 py-2 rounded-lg hover:bg-red-100 transition flex items-center gap-2"><LogOut size={16} /> Logout</button>
         </div>
 
-        {/* Order History */}
         <div>
           <h2 className="text-2xl font-black text-slate-900 mb-4">Order History</h2>
           {orders.length === 0 ? (
             <div className="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 text-center">
-              <span className="text-5xl mb-4 block">🍔</span>
+              <ShoppingBag size={48} className="mx-auto mb-4 text-slate-300" />
               <p className="text-slate-500 font-bold">You haven't placed any orders yet.</p>
             </div>
           ) : (
@@ -105,14 +103,15 @@ export default function CustomerProfile() {
         </div>
       </div>
 
-      {/* Review Modal */}
       <Modal isOpen={isReviewOpen} onClose={() => setIsReviewOpen(false)} title={`Review Order #${selectedOrder?.id}`}>
         <div className="space-y-4">
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Rating</label>
-            <div className="flex gap-2 text-4xl">
+            <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map(star => (
-                <button key={star} onClick={() => setRating(star)} className={`${star <= rating ? 'text-yellow-400' : 'text-slate-200'} transition transform hover:scale-110`}>★</button>
+                <button key={star} onClick={() => setRating(star)} className={`transition transform hover:scale-110 ${star <= rating ? 'text-yellow-400' : 'text-slate-200'}`}>
+                  <Star size={32} fill={star <= rating ? "currentColor" : "none"} />
+                </button>
               ))}
             </div>
           </div>
