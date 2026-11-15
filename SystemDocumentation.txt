@@ -81,8 +81,6 @@ Burger Bombs proves that a solo developer with zero budget can build an enterpri
 
 
 
-
-
 📘 Burger Bombs — System Documentation
 1. System Architecture
 The Burger Bombs system is built on a Hybrid-Cloud, Offline-First architecture. It is designed to operate at 100% capacity even when the restaurant loses internet connectivity, while seamlessly syncing to the cloud when a connection is available.

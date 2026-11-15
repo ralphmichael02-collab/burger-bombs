@@ -2113,3 +2113,204 @@ You do not need to build all five phases to have a compelling demo. Phases 0–3
 Phase 4 (GPS) is a "wow" feature that closes deals. Phase 5 (Kiosk + BOM) is what you build after a restaurant says "yes."
 
 Build in this order. Demo early. Let the restaurant owner tell you which phase matters most to them — then build that one deeper.
+
+
+UPDATE Documents
+
+🍔 Burger Bombs: Enterprise Hybrid-Cloud Restaurant Management System
+📖 Overview
+Burger Bombs is a modular, offline-first restaurant management system designed for small-to-medium enterprises (SMEs) in the Philippines. It solves the critical problem of unreliable internet by allowing the restaurant to operate 100% locally on a LAN network, while seamlessly syncing data to the cloud for online orders, customer tracking, and remote analytics.
+
+The system acts as a SaaS prototype: everything from the restaurant name, themes, menu, and landing page content can be customized dynamically from the Admin Dashboard without touching a single line of code.
+
+🚀 Key Features
+Offline-First POS & Kiosk: Orders are saved to the browser's IndexedDB first. If the internet drops, the restaurant keeps running. A background sync worker pushes orders to the database when the connection returns.
+
+Real-Time Kitchen Display (KDS): Orders appear instantly via WebSockets (Socket.IO). Features separate tabs for Local and Online orders, and flags orders red if they exceed 10 minutes.
+
+Hybrid Cloud Sync: Local orders are pushed to a cloud database (Neon) for the Online Store. Online orders are pulled down to the local database every 10 seconds.
+
+Mobile QR Scanner: Cashiers can pair their personal smartphones to the POS via a secure 6-character code. The phone acts as a wireless barcode scanner (using camera photo capture to bypass HTTPS requirements).
+
+Rider Portal & GPS Tracking: Riders can view ready orders, mark them as delivered, and broadcast their live GPS location. Customers can watch the rider on a live OpenStreetMap.
+
+Dynamic Admin Dashboard: Role-Based Access Control (RBAC) for Admin, Manager, Supervisor, Cashier, Kitchen, and Inventory staff. Features 8 One-Click Themes, dynamic website content editing, and real-time sales analytics.
+
+Read-Only Cloud Mode: When accessed via Vercel (Cloud), the Admin Dashboard allows staff to view sales and inventory, but strictly disables all editing, image uploads, and local settings to prevent cloud/local database conflicts.
+
+🛠️ Technology Stack
+Frontend: React (Vite), Tailwind CSS, Dexie.js (IndexedDB), React Router, Socket.IO Client, Leaflet (Maps), Recharts (Analytics), html5-qrcode, jsQR.
+
+Backend: Node.js, Express.js, Socket.IO, PostgreSQL (pg pool).
+
+Databases:
+
+Local: PostgreSQL (Docker) for zero-latency in-store operations.
+
+Cloud: Neon (Serverless PostgreSQL) for cloud sync and online store.
+
+Caching/Broker: Redis (Upstash) for Socket.IO scaling.
+
+Deployment: Vercel (Frontend), Render (Backend), Neon (Cloud DB).
+
+📂 Architecture Flow
+text
+[ LOCAL ENVIRONMENT (LAN / Offline) ]
+       │
+  [ POS / Kiosk / KDS ] <───────┐
+       │                        │
+  [ Dexie.js (Browser) ]        │ (Real-time Socket.IO)
+       │                        │
+  [ Local Express Backend ] ────┘
+       │
+  [ Local Docker PostgreSQL ]
+       │
+       │ (cloudSync.js pulls up) 
+       │ (cloudPullSync.js pulls down)
+       ▼
+[ CLOUD ENVIRONMENT (Internet) ]
+       │
+  [ Render Backend ]
+       │
+  [ Neon Cloud PostgreSQL ]
+       │
+  [ Vercel Online Store / Rider Portal / Mobile Scanner ]
+⚙️ Local Development Setup
+1. Prerequisites
+Node.js (v20+)
+
+Docker Desktop
+
+Git
+
+2. Start the Databases
+In the root of the project, run:
+
+bash
+docker-compose up -d
+(This starts local PostgreSQL on port 5432 and Redis on 6379).
+
+3. Backend Setup
+bash
+cd backend
+npm install
+Create a .env file in the backend folder:
+
+env
+PORT=5174
+DATABASE_URL=postgres://burger_user:local_password@localhost:5432/burger_bombs_local
+CLOUD_DATABASE_URL=postgresql://your-neon-url-here
+REDIS_URL=redis://127.0.0.1:6379
+JWT_SECRET=burger-bombs-secret-key-123
+# Add Cloudinary credentials here for image uploads
+Run the backend:
+
+bash
+npm run dev
+4. Frontend Setup
+bash
+cd frontend
+npm install
+Create a .env file in the frontend folder:
+
+env
+VITE_API_PORT=5174
+# Leave VITE_API_BASE empty for local development!
+Run the frontend (ensure you use --host so phones on the WiFi can connect):
+
+bash
+npm run dev -- --host
+5. Access the Apps
+POS: http://localhost:5175/pos
+
+Kiosk: http://localhost:5175/kiosk
+
+Kitchen: http://localhost:5175/kitchen
+
+Admin Dashboard: http://localhost:5175/admin
+
+☁️ Production Deployment (Hybrid Cloud)
+1. Database (Neon)
+Create a project on Neon.tech.
+
+Run your schema.sql in the Neon SQL Editor.
+
+Copy the Pooled Connection String.
+
+2. Backend (Render)
+Connect your GitHub repo to Render as a Web Service.
+
+Set Root Directory to backend.
+
+Add Environment Variables:
+
+DATABASE_URL: (Your Neon URL)
+
+JWT_SECRET: (A random string)
+
+CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+
+(Do NOT set CLOUD_DATABASE_URL or REDIS_URL on Render).
+
+3. Frontend (Vercel)
+Connect your GitHub repo to Vercel.
+
+Set Root Directory to frontend.
+
+Add Environment Variable:
+
+VITE_API_BASE: https://your-render-backend-url.onrender.com
+
+Ensure your frontend/vercel.json has the rewrite rule:
+
+json
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+🎬 The Ultimate Demo Script (For Restaurant Owners)
+Here is how to demonstrate the system to a restaurant owner to close the deal:
+
+The Offline Test:
+
+Turn off your laptop's Wi-Fi.
+
+Go to the POS, add a burger, and click Charge.
+
+Show the owner that the order is saved locally (shows "Pending Sync: 1").
+
+Turn the Wi-Fi back on. Watch the sync counter drop to 0.
+
+The Kiosk & QR Scanner:
+
+Open the Kiosk on a tablet, add food, and get the QR code.
+
+Open the POS, click the Mobile Phone icon to pair your phone.
+
+Use your phone's camera to snap a photo of the Kiosk QR code.
+
+The order magically appears on the POS. Click "Confirm Payment".
+
+The Kitchen & Rider:
+
+Watch the order instantly appear on the Kitchen Display.
+
+Click "DONE".
+
+Open the Rider Portal on your phone, hit "Start Delivery", and allow GPS.
+
+Open the Customer Tracking page (/track/order-id) on another device to show the rider moving on the map.
+
+The SaaS Power:
+
+Go to the Admin Dashboard on the Cloud (Vercel). Log in.
+
+Show that they can view sales and inventory, but editing is disabled.
+
+Log in locally and change the theme to "Midnight Slate", upload a new logo, and change the hero text. Refresh the Vercel store to show the changes applied instantly.
+
+🔒 Security & Edge Cases Handled
+Render Cold Starts: safeFetch utility prevents the frontend from crashing with Unexpected token '<' if Render is asleep.
+
+Vite Proxy Bugs: WebSockets are configured to bypass Vite's proxy locally via SOCKET_URL.
+
+Offline Sync Conflicts: Uses an Outbox pattern with UUID idempotency (processed_mutations table) to ensure duplicate orders are never created.
+
+Mobile Camera HTTPS: Uses <input capture> for HTTP local networks to bypass the browser's strict HTTPS camera requirements.
