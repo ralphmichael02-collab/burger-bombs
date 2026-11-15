@@ -6,12 +6,18 @@ export default function Kiosk() {
   const [menu, setMenu] = useState([]);
   const [cart, setCart] = useState([]);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [settings, setSettings] = useState({ restaurant_name: 'Burger Bombs', tagline: '' });
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
       .then(res => res.json())
       .then(data => setMenu(data))
       .catch(err => console.error('Failed to load menu', err));
+      
+    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`)
+      .then(res => res.json())
+      .then(data => setSettings(data))
+      .catch(err => console.error('Failed to load settings', err));
   }, []);
 
   const addToCart = (item) => {
@@ -27,8 +33,6 @@ export default function Kiosk() {
   };
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
-  
-  // Encode the cart into a JSON string for the QR code
   const qrData = JSON.stringify({ items: cart, total });
 
   if (showReceipt) {
@@ -60,13 +64,15 @@ export default function Kiosk() {
 
   return (
     <div className="min-h-screen bg-yellow-50 flex flex-col">
-      <header className="bg-yellow-500 text-black p-6 text-center shadow-md flex justify-between items-center">
-        <h1 className="text-4xl font-black tracking-widest uppercase">Burger Bombs</h1>
-        <span className="text-lg font-bold bg-white px-4 py-1 rounded-full">Self-Service</span>
+      <header className="bg-yellow-500 text-black p-6 shadow-md flex justify-between items-center">
+        <div>
+          <h1 className="text-4xl font-black tracking-widest uppercase">{settings.restaurant_name}</h1>
+          <p className="text-sm font-bold text-yellow-800">{settings.tagline}</p>
+        </div>
+        <span className="text-lg font-bold bg-white px-4 py-1 rounded-full shadow-sm">Self-Service</span>
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
-        {/* Menu Grid */}
         <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-6">
           {menu.map(item => (
             <button
@@ -83,7 +89,6 @@ export default function Kiosk() {
           ))}
         </div>
 
-        {/* Cart Sidebar */}
         <div className="w-full md:w-96 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
           <div className="bg-black text-white p-4">
             <h2 className="text-xl font-bold">Your Order</h2>

@@ -1,10 +1,41 @@
 // backend/src/routes/sync.js
 import { Router } from 'express';
-import { pool } from '../db.js'; // Local Docker
-import { queueCloudSync } from '../services/cloudSync.js'; // Cloud Bridge
+import { pool, cloudPool } from '../db.js';
+import { queueCloudSync } from '../services/cloudSync.js';
 
 const router = Router();
 
+// Helper function to recursively deduct stock (handles Combos within Combos)
+async function deductStock(client, menuItemId, quantityOrdered) {
+  const recipeRes = await client.query(
+    `SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`,
+    [menuItemId]
+  );
+
+  for (const recipe of recipeRes.rows) {
+    const amountToDeduct = recipe.quantity * quantityOrdered;
+
+    // 1. If it's a raw ingredient, deduct directly
+    if (recipe.ingredient_id) {
+      const updateStock = await client.query(
+        `UPDATE ingredients SET stock = stock - $1 WHERE id = $2 AND stock >= $1 RETURNING stock`,
+        [amountToDeduct, recipe.ingredient_id]
+      );
+      if (updateStock.rowCount === 0) {
+        throw new Error(`OUT_OF_STOCK: Not enough ingredients to fulfill this order.`);
+      }
+    }
+
+    // 2. If it's a Combo Component, recursively deduct its ingredients
+    if (recipe.component_menu_item_id) {
+      await deductStock(client, recipe.component_menu_item_id, amountToDeduct);
+    }
+  }
+}
+
+// ==========================================
+// 1. CREATE ORDER (POS & Online Store)
+// ==========================================
 router.post('/sync', async (req, res) => {
   const { mutationId, type, payload } = req.body;
 
@@ -16,7 +47,7 @@ router.post('/sync', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Save to LOCAL Docker Database
+    // Idempotency Guard
     const claim = await client.query(
       `INSERT INTO processed_mutations (mutation_id, type)
        VALUES ($1, $2) ON CONFLICT (mutation_id) DO NOTHING RETURNING mutation_id`,
@@ -31,41 +62,99 @@ router.post('/sync', async (req, res) => {
     let newOrderId = null;
 
     if (type === 'CREATE_ORDER') {
-      // (Keep your existing inventory deduction logic here!)
-      
+      // Deduct Inventory (Recursive for Combos)
+      for (const item of payload.items) {
+        await deductStock(client, item.id, item.qty);
+      }
+
+      // Insert the Order
       const result = await client.query(
         `INSERT INTO orders (sync_id, status, total, items, created_at, order_type)
          VALUES ($1, 'PENDING', $2, $3, $4, $5) RETURNING id`,
         [mutationId, payload.total, JSON.stringify(payload.items), payload.createdAt, payload.orderType || 'POS']
       );
-      
+
       newOrderId = result.rows[0].id;
 
-      // 2. Send to Kitchen Display (Local EnvKit Redis)
+      // Broadcast to Kitchen Display
       const io = req.app.get('io');
       if (io) {
-        io.emit('new_order', { id: newOrderId, items: payload.items, total: payload.total, createdAt: payload.createdAt, orderType: payload.orderType || 'POS' });
+        io.emit('new_order', {
+          id: newOrderId,
+          items: payload.items,
+          total: payload.total,
+          createdAt: payload.createdAt,
+          orderType: payload.orderType || 'POS'
+        });
       }
 
-      // 3. QUEUE FOR CLOUD SYNC
+      // Queue for Cloud Sync
       queueCloudSync({
-        mutationId,
-        total: payload.total,
-        items: payload.items,
-        createdAt: payload.createdAt,
-        orderType: payload.orderType || 'POS'
+        mutationId, total: payload.total, items: payload.items, 
+        createdAt: payload.createdAt, orderType: payload.orderType || 'POS'
       });
     }
 
     await client.query('COMMIT');
-    res.json({ ok: true, orderId: newOrderId });
+    res.json({ ok: true, orderId: newOrderId }); 
 
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[sync] error', err.message);
-    res.status(500).json({ error: err.message });
+    
+    if (err.message.startsWith('OUT_OF_STOCK')) {
+      res.status(409).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
   } finally {
     client.release();
+  }
+});
+
+// ==========================================
+// 2. KITCHEN & RIDER ROUTES
+// ==========================================
+router.post('/orders/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE orders SET status = 'COMPLETED' WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/orders/ready-for-delivery', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, total::float, items, created_at FROM orders WHERE status = 'COMPLETED' ORDER BY created_at ASC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/orders/:id/deliver', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE orders SET status = 'DELIVERED' WHERE id = $1`, [id]);
+    const io = req.app.get('io');
+    if (io) io.emit('delivery_completed', { orderId: id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/orders/:id/confirm-receipt', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE orders SET status = 'RECEIVED' WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
