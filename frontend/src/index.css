@@ -4,45 +4,37 @@
 @tailwind utilities;
 
 :root {
-  /* Enterprise Warm Neutral Palette (Light Mode) */
-  --bg-main: #f8fafc;       /* Slate 50 */
-  --bg-card: #ffffff;
-  --bg-sidebar: #f1f5f9;    /* Slate 100 */
-  --bg-muted: #e2e8f0;
-  
-  /* Text Hierarchy */
-  --text-primary: #0f172a;  /* Slate 900 */
-  --text-secondary: #64748b;/* Slate 500 */
-  --text-inverse: #ffffff;
-
-  /* Accent Colors (Dynamic) */
-  --accent-primary: #ea580c;   /* Vibrant Orange */
-  --accent-primary-hover: #c2410c;
-  --accent-success: #10b981;
-  --accent-danger: #ef4444;
-
-  /* POS Specific Dark Theme */
-  --pos-bg: #0f172a;
-  --pos-panel: #1e293b;
-  --pos-border: #334155;
+  /* Default Theme */
+  --theme-primary: #ea580c; 
+  --theme-bg: #f8fafc;      
+  --theme-text: #0f172a;    
+  --theme-card: #ffffff;    
 }
 
 body {
-  background-color: var(--bg-main);
-  color: var(--text-primary);
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Utilities */
-.bg-theme-main { background-color: var(--bg-main); }
-.bg-theme-card { background-color: var(--bg-card); }
-.text-theme-primary { color: var(--text-primary); }
-.text-theme-secondary { color: var(--text-secondary); }
-.bg-accent { background-color: var(--accent-primary); }
-.text-accent { color: var(--accent-primary); }
+/* Global Theme Utilities */
+.bg-theme-main { background-color: var(--theme-bg); }
+.bg-theme-card { background-color: var(--theme-card); }
 
-/* Custom Scrollbar for Enterprise feel */
+/* Text */
+.text-theme-primary { color: var(--theme-text); }
+.text-theme-secondary { color: var(--theme-text); opacity: 0.6; }
+
+/* Accent Colors */
+.bg-accent { background-color: var(--theme-primary); }
+.text-accent { color: var(--theme-primary); }
+
+/* Fixed border class to prevent the "white ghost" effect */
+.border-theme { border-color: color-mix(in srgb, var(--theme-text) 15%, transparent); }
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
