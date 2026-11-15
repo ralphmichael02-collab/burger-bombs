@@ -25,9 +25,7 @@ const upload = multer({ storage: storage });
 
 const router = Router();
 
-// ==========================================
-// 1. STATS (Overview Tab)
-// ==========================================
+// 1. STATS
 router.get('/admin/stats', async (_req, res) => {
   try {
     const totalsRes = await pool.query(`
@@ -47,9 +45,8 @@ router.get('/admin/stats', async (_req, res) => {
       WHERE status IN ('PENDING', 'COMPLETED', 'DELIVERED', 'RECEIVED')
     `);
 
-        // Change the recentOrdersRes query to:
     const recentOrdersRes = await pool.query(`
-      SELECT id, total::float, order_type, status, ip_address, delivery_address, created_at 
+      SELECT id, total::float, order_type, status, ip_address, created_at 
       FROM orders ORDER BY created_at DESC LIMIT 10
     `);
 
@@ -73,9 +70,7 @@ router.get('/admin/stats', async (_req, res) => {
   }
 });
 
-// ==========================================
 // 2. CHART DATA
-// ==========================================
 router.get('/admin/chart-data', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -93,9 +88,7 @@ router.get('/admin/chart-data', async (_req, res) => {
   }
 });
 
-// ==========================================
 // 3. MENU MANAGEMENT
-// ==========================================
 router.get('/admin/menu', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM menu_items ORDER BY category, name`);
@@ -113,7 +106,6 @@ router.post('/admin/menu', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [name, price, category, image_url, cost]
     );
-    
     if (cloudPool) {
       await cloudPool.query(
         `INSERT INTO menu_items (id, name, price, category, image_url, cost) 
@@ -130,20 +122,15 @@ router.post('/admin/menu', async (req, res) => {
 router.put('/admin/menu/:id', async (req, res) => {
   const { id } = req.params;
   const { name, price, category, image_url, cost } = req.body;
-  
   try {
     const { rows } = await pool.query(
-      `UPDATE menu_items 
-       SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 
+      `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 
        WHERE id = $6 RETURNING *`,
       [name, price, category, image_url, cost, id]
     );
-    
     if (cloudPool) {
       await cloudPool.query(
-        `UPDATE menu_items 
-         SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 
-         WHERE id = $6`,
+        `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 WHERE id = $6`,
         [name, price, category, image_url, cost, id]
       );
     }
@@ -164,21 +151,15 @@ router.delete('/admin/menu/:id', async (req, res) => {
   }
 });
 
-// ==========================================
-// 4. LOCAL IMAGE UPLOAD FALLBACK
-// ==========================================
+// 4. LOCAL IMAGE UPLOAD
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  
   const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
   const localUrl = `${protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  
   res.json({ url: localUrl });
 });
 
-// ==========================================
 // 5. INVENTORY MANAGEMENT
-// ==========================================
 router.get('/ingredients', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM ingredients ORDER BY name ASC`);
@@ -191,35 +172,20 @@ router.get('/ingredients', async (_req, res) => {
 router.post('/ingredients/:id/restock', async (req, res) => {
   const { id } = req.params;
   const { amount } = req.body; 
-  
   try {
-    const { rows } = await pool.query(
-      `UPDATE ingredients SET stock = stock + $1 WHERE id = $2 RETURNING *`, 
-      [amount, id]
-    );
-    
-    if (cloudPool) {
-      await cloudPool.query(
-        `UPDATE ingredients SET stock = $1 WHERE id = $2`, 
-        [rows[0].stock, id]
-      );
-    }
+    const { rows } = await pool.query(`UPDATE ingredients SET stock = stock + $1 WHERE id = $2 RETURNING *`, [amount, id]);
+    if (cloudPool) await cloudPool.query(`UPDATE ingredients SET stock = $1 WHERE id = $2`, [rows[0].stock, id]);
     res.json({ ok: true, ingredient: rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ==========================================
-// 6. RECIPE / BOM MANAGEMENT
-// ==========================================
+// 6. RECIPES
 router.get('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
   try {
-    const { rows } = await pool.query(
-      `SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`,
-      [id]
-    );
+    const { rows } = await pool.query(`SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`, [id]);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -229,12 +195,10 @@ router.get('/admin/menu/:id/recipe', async (req, res) => {
 router.post('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
   const { ingredients } = req.body;
-
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query(`DELETE FROM recipes WHERE menu_item_id = $1`, [id]);
-
     for (const ing of ingredients) {
       if (ing.quantity > 0) {
         await client.query(
@@ -253,9 +217,7 @@ router.post('/admin/menu/:id/recipe', async (req, res) => {
   }
 });
 
-// ==========================================
-// 7. CATEGORY MANAGEMENT
-// ==========================================
+// 7. CATEGORIES
 router.get('/admin/categories', async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories ORDER BY name ASC');
@@ -268,14 +230,8 @@ router.get('/admin/categories', async (_req, res) => {
 router.post('/admin/categories', async (req, res) => {
   const { name } = req.body;
   try {
-    const { rows } = await pool.query(
-      'INSERT INTO categories (name) VALUES ($1) RETURNING *',
-      [name]
-    );
-    
-    if (cloudPool) {
-      await cloudPool.query('INSERT INTO categories (name) VALUES ($1)', [name]);
-    }
+    const { rows } = await pool.query('INSERT INTO categories (name) VALUES ($1) RETURNING *', [name]);
+    if (cloudPool) await cloudPool.query('INSERT INTO categories (name) VALUES ($1)', [name]);
     res.json({ ok: true, category: rows[0] });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Category already exists' });
@@ -288,31 +244,23 @@ router.delete('/admin/categories/:id', async (req, res) => {
   try {
     const catRes = await pool.query('SELECT name FROM categories WHERE id = $1', [id]);
     if (catRes.rowCount === 0) return res.status(404).json({ error: 'Category not found' });
-    
     const catName = catRes.rows[0].name;
     const itemsRes = await pool.query('SELECT id FROM menu_items WHERE category = $1', [catName]);
-    
-    if (itemsRes.rowCount > 0) {
-      return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
-    }
-
+    if (itemsRes.rowCount > 0) return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
     await pool.query('DELETE FROM categories WHERE id = $1', [id]);
     if (cloudPool) await cloudPool.query('DELETE FROM categories WHERE id = $1', [id]);
-    
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Add to admin.js
+// 8. PENDING PAYMENTS & CRM
 router.get('/admin/pending-payments', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT id, total::float, payment_method, payment_reference, created_at 
-      FROM orders 
-      WHERE status = 'PENDING_PAYMENT' 
-      ORDER BY created_at ASC
+      FROM orders WHERE status = 'PENDING_PAYMENT' ORDER BY created_at ASC
     `);
     res.json(rows);
   } catch (err) {
@@ -320,12 +268,33 @@ router.get('/admin/pending-payments', async (_req, res) => {
   }
 });
 
-// backend/src/routes/admin.js
-// ... (Keep existing imports and routes)
+router.get('/admin/customers', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT c.id, c.name, c.email, c.phone, c.created_at, COUNT(o.id)::int as total_orders, COALESCE(SUM(o.total), 0)::float as total_spent, MAX(o.created_at) as last_order
+      FROM customers c LEFT JOIN orders o ON c.id = o.customer_id
+      GROUP BY c.id ORDER BY c.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-// ==========================================
-// 8. REPORTS: SALES TRANSACTIONS
-// ==========================================
+router.get('/admin/reviews', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.*, c.name as customer_name, o.total::float as order_total
+      FROM reviews r LEFT JOIN customers c ON r.customer_id = c.id LEFT JOIN orders o ON r.order_id = o.id
+      ORDER BY r.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. REPORTS
 router.get('/admin/reports/sales', async (req, res) => {
   const { startDate, endDate } = req.query;
   try {
@@ -342,19 +311,10 @@ router.get('/admin/reports/sales', async (req, res) => {
   }
 });
 
-// ==========================================
-// 9. REPORTS: INVENTORY AUDIT
-// ==========================================
 router.get('/admin/reports/inventory', async (_req, res) => {
   try {
-    // This query compares the current stock against the theoretical stock
-    // (Total Purchased - Total Used in Recipes)
     const { rows } = await pool.query(`
-      SELECT 
-        i.id, 
-        i.name, 
-        i.unit, 
-        i.stock::float as actual_stock,
+      SELECT i.id, i.name, i.unit, i.stock::float as actual_stock,
         COALESCE(
           (SELECT SUM(r.quantity * (item->>'qty')::int) 
            FROM orders o, jsonb_array_elements(o.items::jsonb) item
@@ -362,15 +322,12 @@ router.get('/admin/reports/inventory', async (_req, res) => {
            WHERE r.ingredient_id = i.id AND o.status != 'VOIDED'), 
           0
         )::float as theoretical_usage
-      FROM ingredients i
-      ORDER BY i.name ASC
+      FROM ingredients i ORDER BY i.name ASC
     `);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
-export default router;
 
 export default router;

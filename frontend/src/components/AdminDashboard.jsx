@@ -1,337 +1,333 @@
-// frontend/src/components/AdminDashboard.jsx
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { 
-  LayoutDashboard, CreditCard, Users, Utensils, Package, ChefHat, Folder, Settings, 
-  LogOut, Menu, Bell, TrendingUp, DollarSign, ShoppingBag, AlertTriangle, 
-  CheckCircle, Pencil, Trash2, Globe, Store, Beef, FileText, Printer, Calendar,
-  ArrowUpRight, ArrowDownRight, Search, Filter, Download
-} from 'lucide-react';
-import Modal from './ui/Modal';
-import { useToast } from './ui/Toast';
+// backend/src/routes/admin.js
+import { Router } from 'express';
+import { pool, cloudPool } from '../db.js';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// ... (Keep DEFAULT_CATEGORIES and THEME_PRESETS)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadDir = path.join(__dirname, '../../public/uploads');
 
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const { addToast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [staffUser, setStaffUser] = useState(null);
-  
-  // Data States
-  const [data, setData] = useState(null);
-  const [chartData, setChartData] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [ingredients, setIngredients] = useState([]);
-  const [pendingPayments, setPendingPayments] = useState([]);
-  const [settings, setSettings] = useState(null);
-  const [customers, setCustomers] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [liveFeed, setLiveFeed] = useState([]);
-  
-  // Reports States
-  const [salesReport, setSalesReport] = useState([]);
-  const [inventoryReport, setInventoryReport] = useState([]);
-  const [reportDateRange, setReportDateRange] = useState({ start: '', end: '' });
-
-  // ... (Keep existing useEffect and fetchData)
-
-  // Fetch Reports Data
-  const fetchReports = () => {
-    const { start, end } = reportDateRange;
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reports/sales?startDate=${start}&endDate=${end}`)
-      .then(r => r.json()).then(setSalesReport);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reports/inventory`)
-      .then(r => r.json()).then(setInventoryReport);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'reports') fetchReports();
-  }, [activeTab, reportDateRange]);
-
-  const handlePrint = (type) => {
-    const printWindow = window.open('', '_blank');
-    const style = `
-      <style>
-        body { font-family: 'Source Sans Pro', sans-serif; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; }
-        th { background-color: #F7F7F7; font-weight: bold; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .kpi { display: flex; gap: 20px; margin-bottom: 20px; }
-        .kpi-card { border: 1px solid #E5E7EB; padding: 15px; border-radius: 8px; flex: 1; }
-      </style>
-    `;
-
-    let content = '';
-    if (type === 'sales') {
-      content = `
-        <div class="header">
-          <h1>Sales Transaction Report</h1>
-          <p>Date Range: ${reportDateRange.start || 'All Time'} to ${reportDateRange.end || 'Present'}</p>
-        </div>
-        <table>
-          <thead><tr><th>Order ID</th><th>Date</th><th>Type</th><th>Method</th><th>Status</th><th>Total</th></tr></thead>
-          <tbody>
-            ${salesReport.map(o => `<tr><td>#${o.id}</td><td>${new Date(o.created_at).toLocaleDateString()}</td><td>${o.order_type}</td><td>${o.payment_method}</td><td>${o.status}</td><td>₱${o.total.toFixed(2)}</td></tr>`).join('')}
-          </tbody>
-        </table>
-      `;
-    } else {
-      content = `
-        <div class="header">
-          <h1>Inventory Audit Report</h1>
-          <p>Generated on: ${new Date().toLocaleDateString()}</p>
-        </div>
-        <table>
-          <thead><tr><th>Ingredient</th><th>Unit</th><th>Actual Stock</th><th>Theoretical Usage</th><th>Variance</th></tr></thead>
-          <tbody>
-            ${inventoryReport.map(i => {
-              const variance = i.actual_stock - i.theoretical_usage;
-              return `<tr><td>${i.name}</td><td>${i.unit}</td><td>${i.actual_stock.toFixed(2)}</td><td>${i.theoretical_usage.toFixed(2)}</td><td style="color: ${variance < 0 ? 'red' : 'green'}">${variance.toFixed(2)}</td></tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-    }
-
-    printWindow.document.write(`<html><head><title>Print Report</title>${style}</head><body>${content}</body></html>`);
-    printWindow.document.close();
-    printWindow.print();
-  };
-
-  // ... (Keep navItems array)
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'reports', label: 'Reports', icon: FileText }, // NEW TAB
-    { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
-    { id: 'customers', label: 'Customers & CRM', icon: Users },
-    { id: 'menu', label: 'Menu Editor', icon: Utensils },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'recipes', label: 'Recipes', icon: ChefHat },
-    { id: 'categories', label: 'Categories', icon: Folder },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
-
-  return (
-    <div className="min-h-screen bg-[#F7F7F7] flex font-['Source_Sans_Pro',sans-serif]">
-      
-      {/* SIDEBAR - Same as before */}
-      <aside className={`bg-white border-r border-[#E5E7EB] flex flex-col fixed h-full z-20 transition-all duration-300 ${sidebarOpen ? 'w-60' : 'w-16'}`}>
-        <div className="p-4 flex items-center gap-3 border-b border-[#E5E7EB] h-16">
-          <div className="w-8 h-8 bg-[#2B4FB9] rounded-lg flex items-center justify-center text-white shrink-0"><Beef size={18} strokeWidth={2.5} /></div>
-          {sidebarOpen && <span className="font-bold text-[#1A1C23] truncate">{settings?.restaurant_name || 'Burger Bombs'}</span>}
-        </div>
-
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(item => {
-            const Icon = item.icon;
-            return (
-              <button key={item.id} onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-semibold text-sm transition-all
-                  ${activeTab === item.id ? 'bg-[#2B4FB9]/10 text-[#2B4FB9]' : 'text-[#6B7280] hover:bg-[#F7F7F7] hover:text-[#1A1C23]'}`}>
-                <div className="flex items-center gap-3">
-                  <Icon size={20} /> {sidebarOpen && <span>{item.label}</span>}
-                </div>
-                {sidebarOpen && item.badge > 0 && <span className="bg-[#EA001E] text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-3 border-t border-[#E5E7EB]">
-          <button onClick={() => { localStorage.clear(); navigate('/admin/login'); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-50 text-[#EA001E] font-bold rounded-lg hover:bg-red-100 transition text-sm">
-            <LogOut size={16} /> {sidebarOpen && 'Logout'}
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>
-        
-        {/* TOP HEADER */}
-        <header className="bg-white h-16 border-b border-[#E5E7EB] flex items-center justify-between px-6 sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg text-[#6B7280] hover:bg-[#F7F7F7] hover:text-[#1A1C23] transition"><Menu size={22} /></button>
-            <h1 className="text-lg font-bold text-[#1A1C23] capitalize">{activeTab}</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button className="p-2 relative rounded-full hover:bg-[#F7F7F7] transition"><Bell size={20} className="text-[#6B7280]" /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EA001E] rounded-full"></span></button>
-            <div className="flex items-center gap-3 pl-4 border-l border-[#E5E7EB]">
-              <div className="w-9 h-9 bg-[#2B4FB9] text-white rounded-full flex items-center justify-center font-bold text-sm">{staffUser?.name?.charAt(0) || 'A'}</div>
-              <div className="hidden md:block">
-                <p className="text-sm font-bold text-[#1A1C23] leading-tight">{staffUser?.name || 'Admin'}</p>
-                <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">{staffUser?.role || 'Administrator'}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* PAGE CONTENT */}
-        <div className="p-6 max-w-[1440px] mx-auto">
-          
-          {/* --- OVERVIEW TAB (KPI + Chart + Live Feed) --- */}
-          {activeTab === 'overview' && data && (
-            <div className="space-y-6">
-              
-              {/* KPI HERO ROW */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-semibold text-[#6B7280] uppercase tracking-wider">Gross Revenue</span>
-                    <DollarSign size={20} className="text-[#2B4FB9] opacity-50" />
-                  </div>
-                  <div className="text-3xl font-black text-[#1A1C23]">₱{data.metrics.total_sales.toLocaleString()}</div>
-                  <div className="flex items-center gap-1 mt-2 text-sm font-semibold text-[#45C65A]"><ArrowUpRight size={16} /> +12.5% vs last week</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-semibold text-[#6B7280] uppercase tracking-wider">Total Orders</span>
-                    <ShoppingBag size={20} className="text-[#FE9339] opacity-50" />
-                  </div>
-                  <div className="text-3xl font-black text-[#1A1C23]">{data.metrics.total_orders}</div>
-                  <div className="flex items-center gap-1 mt-2 text-sm font-semibold text-[#45C65A]"><ArrowUpRight size={16} /> +8.2% vs last week</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-semibold text-[#6B7280] uppercase tracking-wider">Avg. Order Value</span>
-                    <TrendingUp size={20} className="text-[#2B4FB9] opacity-50" />
-                  </div>
-                  <div className="text-3xl font-black text-[#1A1C23]">₱{(data.metrics.total_sales / data.metrics.total_orders || 0).toFixed(2)}</div>
-                  <div className="flex items-center gap-1 mt-2 text-sm font-semibold text-[#EA001E]"><ArrowDownRight size={16} /> -2.1% vs last week</div>
-                </div>
-                <div className="bg-gradient-to-br from-[#45C65A] to-[#34A853] p-5 rounded-xl shadow-md text-white">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-semibold text-white/80 uppercase tracking-wider">Net Profit</span>
-                    <DollarSign size={20} className="text-white/50" />
-                  </div>
-                  <div className="text-3xl font-black">₱{(data.metrics.net_profit || 0).toLocaleString()}</div>
-                  <div className="flex items-center gap-1 mt-2 text-sm font-semibold text-white/90"><ArrowUpRight size={16} /> +15.3% vs last week</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-[#E5E7EB] shadow-sm">
-                  <h2 className="font-bold text-lg text-[#1A1C23] mb-6">Revenue Trend (7 Days)</h2>
-                  <div className="h-72 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12, fontWeight: 600}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12, fontWeight: 600}} tickFormatter={(v) => `₱${v}`} />
-                        <Tooltip cursor={{fill: '#F7F7F7'}} contentStyle={{borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                        <Bar dataKey="daily_sales" fill="#2B4FB9" radius={[4, 4, 0, 0]} barSize={40} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Live Feed */}
-                <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col">
-                  <div className="p-5 border-b border-[#E5E7EB]"><h2 className="font-bold text-lg text-[#1A1C23]">Live Activity</h2></div>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {liveFeed.map(log => (
-                      <div key={log.id} className="flex justify-between items-center p-3 bg-[#F7F7F7] border border-[#E5E7EB] rounded-lg text-sm">
-                        <p className="font-medium text-[#1A1C23]"><b>{log.user_name}</b>: {log.details}</p>
-                        <span className="text-xs text-[#6B7280]">{new Date(log.created_at).toLocaleTimeString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* --- REPORTS TAB (Sales & Inventory) --- */}
-          {activeTab === 'reports' && (
-            <div className="space-y-6">
-              
-              {/* Report Header & Filters */}
-              <div className="bg-white p-5 rounded-xl border border-[#E5E7EB] shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#2B4FB9]/10 rounded-lg text-[#2B4FB9]"><FileText size={20} /></div>
-                  <h2 className="text-lg font-bold text-[#1A1C23]">Business Reports</h2>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 bg-[#F7F7F7] border border-[#E5E7EB] p-2 rounded-lg">
-                    <Calendar size={16} className="text-[#6B7280]" />
-                    <input type="date" onChange={(e) => setReportDateRange({...reportDateRange, start: e.target.value})} className="bg-transparent text-sm font-semibold outline-none text-[#1A1C23]" />
-                    <span className="text-[#6B7280]">to</span>
-                    <input type="date" onChange={(e) => setReportDateRange({...reportDateRange, end: e.target.value})} className="bg-transparent text-sm font-semibold outline-none text-[#1A1C23]" />
-                  </div>
-                  <button onClick={fetchReports} className="bg-[#F7F7F7] border border-[#E5E7EB] text-[#1A1C23] p-2.5 rounded-lg hover:bg-[#E5E7EB] transition"><Search size={18} /></button>
-                </div>
-              </div>
-
-              {/* Sales Report */}
-              <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-[#E5E7EB] flex justify-between items-center bg-[#F7F7F7]/50">
-                  <h3 className="font-bold text-[#1A1C23]">Sales Transactions</h3>
-                  <button onClick={() => handlePrint('sales')} className="bg-[#2B4FB9] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#1E3A8A] transition flex items-center gap-2"><Printer size={16} /> Print Report</button>
-                </div>
-                <div className="overflow-x-auto max-h-[500px]">
-                  <table className="w-full text-left">
-                    <thead className="bg-[#F7F7F7] sticky top-0 border-b border-[#E5E7EB]">
-                      <tr><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Order ID</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Date</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Type</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Method</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Status</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase text-right">Total</th></tr>
-                    </thead>
-                    <tbody>
-                      {salesReport.map(o => (
-                        <tr key={o.id} className="border-b border-[#F3F4F6] hover:bg-[#F7F7F7]">
-                          <td className="p-4 font-bold text-[#1A1C23]">#{o.id}</td>
-                          <td className="p-4 text-sm text-[#6B7280]">{new Date(o.created_at).toLocaleDateString()}</td>
-                          <td className="p-4"><span className="bg-[#2B4FB9]/10 text-[#2B4FB9] px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
-                          <td className="p-4 text-sm font-medium text-[#1A1C23]">{o.payment_method}</td>
-                          <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${o.status === 'RECEIVED' ? 'bg-[#45C65A]/10 text-[#45C65A]' : 'bg-[#FE9339]/10 text-[#FE9339]'}`}>{o.status}</span></td>
-                          <td className="p-4 text-right font-black text-[#1A1C23]">₱{o.total.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Inventory Audit Report */}
-              <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-[#E5E7EB] flex justify-between items-center bg-[#F7F7F7]/50">
-                  <h3 className="font-bold text-[#1A1C23]">Inventory Audit (Stock vs. Theoretical Usage)</h3>
-                  <button onClick={() => handlePrint('inventory')} className="bg-[#2B4FB9] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#1E3A8A] transition flex items-center gap-2"><Printer size={16} /> Print Audit</button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-[#F7F7F7] border-b border-[#E5E7EB]">
-                      <tr><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Ingredient</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase">Unit</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase text-right">Actual Stock</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase text-right">Theoretical Usage</th><th className="p-4 text-xs font-bold text-[#6B7280] uppercase text-right">Variance</th></tr>
-                    </thead>
-                    <tbody>
-                      {inventoryReport.map(i => {
-                        const variance = i.actual_stock - i.theoretical_usage;
-                        return (
-                          <tr key={i.id} className="border-b border-[#F3F4F6] hover:bg-[#F7F7F7]">
-                            <td className="p-4 font-bold text-[#1A1C23]">{i.name}</td>
-                            <td className="p-4 text-sm text-[#6B7280]">{i.unit}</td>
-                            <td className="p-4 text-right font-bold text-[#1A1C23]">{i.actual_stock.toFixed(2)}</td>
-                            <td className="p-4 text-right text-sm text-[#6B7280]">{i.theoretical_usage.toFixed(2)}</td>
-                            <td className={`p-4 text-right font-bold ${variance < 0 ? 'text-[#EA001E]' : 'text-[#45C65A]'}`}>{variance.toFixed(2)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* --- OTHER TABS (Menu, Inventory, CRM, etc.) --- */}
-          {/* ... (Keep these tabs as they were, just ensure they use the new design tokens: bg-white, rounded-xl, border-[#E5E7EB], shadow-sm) */}
-
-        </div>
-      </main>
-    </div>
-  );
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
+
+const router = Router();
+
+// 1. STATS
+router.get('/admin/stats', async (_req, res) => {
+  try {
+    const totalsRes = await pool.query(`
+      SELECT 
+        COALESCE(SUM(total), 0)::float as total_sales,
+        COUNT(id)::int as total_orders,
+        COUNT(CASE WHEN order_type = 'ONLINE' THEN 1 END)::int as online_orders,
+        COUNT(CASE WHEN order_type = 'POS' THEN 1 END)::int as pos_orders
+      FROM orders WHERE status != 'VOIDED'
+    `);
+
+    const cogsRes = await pool.query(`
+      SELECT COALESCE(SUM(
+        (item->>'qty')::int * COALESCE((SELECT cost FROM menu_items WHERE id = (item->>'id')::int), 0)
+      ), 0)::float as total_cost
+      FROM orders, jsonb_array_elements(items::jsonb) as item
+      WHERE status IN ('PENDING', 'COMPLETED', 'DELIVERED', 'RECEIVED')
+    `);
+
+    const recentOrdersRes = await pool.query(`
+      SELECT id, total::float, order_type, status, ip_address, created_at 
+      FROM orders ORDER BY created_at DESC LIMIT 10
+    `);
+
+    const lowStockRes = await pool.query(`
+      SELECT name, stock::float, unit, low_stock::float 
+      FROM ingredients WHERE stock <= low_stock
+    `);
+
+    res.json({
+      metrics: {
+        ...totalsRes.rows[0],
+        total_cost: cogsRes.rows[0].total_cost,
+        net_profit: totalsRes.rows[0].total_sales - cogsRes.rows[0].total_cost
+      },
+      recentOrders: recentOrdersRes.rows,
+      lowStock: lowStockRes.rows
+    });
+  } catch (err) {
+    console.error('[admin-stats] error', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. CHART DATA
+router.get('/admin/chart-data', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT 
+        TO_CHAR(created_at, 'Mon DD') as date,
+        SUM(total)::float as daily_sales
+      FROM orders
+      WHERE created_at >= NOW() - INTERVAL '7 days' AND status != 'VOIDED'
+      GROUP BY TO_CHAR(created_at, 'Mon DD'), DATE_TRUNC('day', created_at)
+      ORDER BY DATE_TRUNC('day', created_at) ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. MENU MANAGEMENT
+router.get('/admin/menu', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM menu_items ORDER BY category, name`);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/menu', async (req, res) => {
+  const { name, price, category, image_url, cost } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO menu_items (name, price, category, image_url, cost) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, price, category, image_url, cost]
+    );
+    if (cloudPool) {
+      await cloudPool.query(
+        `INSERT INTO menu_items (id, name, price, category, image_url, cost) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [rows[0].id, name, price, category, image_url, cost]
+      );
+    }
+    res.json({ ok: true, item: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/admin/menu/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, price, category, image_url, cost } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 
+       WHERE id = $6 RETURNING *`,
+      [name, price, category, image_url, cost, id]
+    );
+    if (cloudPool) {
+      await cloudPool.query(
+        `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 WHERE id = $6`,
+        [name, price, category, image_url, cost, id]
+      );
+    }
+    res.json({ ok: true, item: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/menu/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query(`DELETE FROM menu_items WHERE id = $1`, [id]);
+    if (cloudPool) await cloudPool.query(`DELETE FROM menu_items WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. LOCAL IMAGE UPLOAD
+router.post('/admin/upload-local', upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
+  const localUrl = `${protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  res.json({ url: localUrl });
+});
+
+// 5. INVENTORY MANAGEMENT
+router.get('/ingredients', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM ingredients ORDER BY name ASC`);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/ingredients/:id/restock', async (req, res) => {
+  const { id } = req.params;
+  const { amount } = req.body; 
+  try {
+    const { rows } = await pool.query(`UPDATE ingredients SET stock = stock + $1 WHERE id = $2 RETURNING *`, [amount, id]);
+    if (cloudPool) await cloudPool.query(`UPDATE ingredients SET stock = $1 WHERE id = $2`, [rows[0].stock, id]);
+    res.json({ ok: true, ingredient: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. RECIPES
+router.get('/admin/menu/:id/recipe', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(`SELECT ingredient_id, component_menu_item_id, quantity FROM recipes WHERE menu_item_id = $1`, [id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/menu/:id/recipe', async (req, res) => {
+  const { id } = req.params;
+  const { ingredients } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM recipes WHERE menu_item_id = $1`, [id]);
+    for (const ing of ingredients) {
+      if (ing.quantity > 0) {
+        await client.query(
+          `INSERT INTO recipes (menu_item_id, ingredient_id, component_menu_item_id, quantity) VALUES ($1, $2, $3, $4)`,
+          [id, ing.ingredient_id, ing.component_menu_item_id, ing.quantity]
+        );
+      }
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// 7. CATEGORIES
+router.get('/admin/categories', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM categories ORDER BY name ASC');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/admin/categories', async (req, res) => {
+  const { name } = req.body;
+  try {
+    const { rows } = await pool.query('INSERT INTO categories (name) VALUES ($1) RETURNING *', [name]);
+    if (cloudPool) await cloudPool.query('INSERT INTO categories (name) VALUES ($1)', [name]);
+    res.json({ ok: true, category: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Category already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/categories/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const catRes = await pool.query('SELECT name FROM categories WHERE id = $1', [id]);
+    if (catRes.rowCount === 0) return res.status(404).json({ error: 'Category not found' });
+    const catName = catRes.rows[0].name;
+    const itemsRes = await pool.query('SELECT id FROM menu_items WHERE category = $1', [catName]);
+    if (itemsRes.rowCount > 0) return res.status(400).json({ error: `Cannot delete. ${itemsRes.rowCount} items are using this category.` });
+    await pool.query('DELETE FROM categories WHERE id = $1', [id]);
+    if (cloudPool) await cloudPool.query('DELETE FROM categories WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 8. PENDING PAYMENTS & CRM
+router.get('/admin/pending-payments', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, total::float, payment_method, payment_reference, created_at 
+      FROM orders WHERE status = 'PENDING_PAYMENT' ORDER BY created_at ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/admin/customers', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT c.id, c.name, c.email, c.phone, c.created_at, COUNT(o.id)::int as total_orders, COALESCE(SUM(o.total), 0)::float as total_spent, MAX(o.created_at) as last_order
+      FROM customers c LEFT JOIN orders o ON c.id = o.customer_id
+      GROUP BY c.id ORDER BY c.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/admin/reviews', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.*, c.name as customer_name, o.total::float as order_total
+      FROM reviews r LEFT JOIN customers c ON r.customer_id = c.id LEFT JOIN orders o ON r.order_id = o.id
+      ORDER BY r.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. REPORTS
+router.get('/admin/reports/sales', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, total::float, order_type, payment_method, status, created_at 
+       FROM orders 
+       WHERE created_at >= $1 AND created_at <= $2 
+       ORDER BY created_at DESC`,
+      [startDate || '2000-01-01', endDate || new Date()]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/admin/reports/inventory', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT i.id, i.name, i.unit, i.stock::float as actual_stock,
+        COALESCE(
+          (SELECT SUM(r.quantity * (item->>'qty')::int) 
+           FROM orders o, jsonb_array_elements(o.items::jsonb) item
+           JOIN recipes r ON r.menu_item_id = (item->>'id')::int
+           WHERE r.ingredient_id = i.id AND o.status != 'VOIDED'), 
+          0
+        )::float as theoretical_usage
+      FROM ingredients i ORDER BY i.name ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;
