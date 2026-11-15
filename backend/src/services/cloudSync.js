@@ -34,7 +34,7 @@ export function startCloudSyncWorker() {
         syncQueue.splice(i, 1);
         console.log(`[cloud-sync] Successfully synced order ${order.mutationId} to Neon.`);
       } catch (err) {
-        console.error(`[cloud-sync] Failed to sync to Neon. Will retry.`);
+        console.error(`[cloud-sync] Failed to sync to Neon. Error: ${err.message}`);
       }
     }
   }, 5000);

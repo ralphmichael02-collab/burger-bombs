@@ -2,33 +2,46 @@
 import { useState, useEffect } from 'react';
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState('overview');
   const [data, setData] = useState(null);
+  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Detect if we are running on Localhost/EnvKit or Vercel Cloud
+  const isLocal = window.location.hostname.includes('.test') || window.location.hostname.includes('localhost');
 
-  const fetchStats = () => {
+  const fetchData = () => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/stats`)
       .then(res => res.json())
       .then(resData => {
         setData(resData);
         setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to load stats", err);
-        setLoading(false);
       });
+      
+    fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`)
+      .then(res => res.json())
+      .then(resData => setIngredients(Array.isArray(resData) ? resData : []));
   };
 
   useEffect(() => {
-    fetchStats();
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchStats, 10000);
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) return <div className="p-10 text-center text-xl text-gray-500">Loading Dashboard...</div>;
-  if (!data) return <div className="p-10 text-center text-red-500">Failed to load data. Is the backend running?</div>;
+  const handleRestock = async (id, currentStock) => {
+    const amount = prompt("How many units are you adding?");
+    if (!amount || isNaN(amount)) return;
+    
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients/${id}/restock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: parseInt(amount) })
+    });
+    fetchData();
+  };
 
-  const { metrics, recentOrders, lowStock } = data;
+  if (loading) return <div className="p-10 text-center text-xl">Loading Dashboard...</div>;
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -36,97 +49,89 @@ export default function AdminDashboard() {
         
         <header className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-black text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-500">Burger Bombs Management System</p>
+            <h1 className="text-3xl font-black text-gray-900">Admin Management</h1>
+            <p className="text-gray-500">{isLocal ? 'Local Store (Master Control)' : 'Cloud Store (Read Only)'}</p>
           </div>
-          <button onClick={fetchStats} className="bg-black text-white px-4 py-2 rounded-lg font-bold">
-            Refresh Data
-          </button>
+          <div className="flex bg-white rounded-lg shadow-sm p-1">
+            {['overview', 'inventory', 'menu'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-2 rounded-md font-bold capitalize transition ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </header>
 
-        {/* METRIC CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Total Revenue</p>
-            <p className="text-4xl font-black text-green-600">₱{metrics.total_sales.toLocaleString()}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Total Orders</p>
-            <p className="text-4xl font-black text-gray-900">{metrics.total_orders}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">POS Orders</p>
-            <p className="text-4xl font-black text-blue-600">{metrics.pos_orders}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Online Orders</p>
-            <p className="text-4xl font-black text-purple-600">{metrics.online_orders}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* RECENT ORDERS TABLE */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">Recent Transactions</h2>
+        {/* OVERVIEW TAB */}
+        {activeTab === 'overview' && data && (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <p className="text-sm font-bold text-gray-400 uppercase">Total Revenue</p>
+                <p className="text-4xl font-black text-green-600">₱{data.metrics.total_sales.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <p className="text-sm font-bold text-gray-400 uppercase">Total Orders</p>
+                <p className="text-4xl font-black text-gray-900">{data.metrics.total_orders}</p>
+              </div>
             </div>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-gray-500 text-sm uppercase tracking-wider">
-                  <th className="p-4 font-bold">Order ID</th>
-                  <th className="p-4 font-bold">Type</th>
-                  <th className="p-4 font-bold">Status</th>
-                  <th className="p-4 font-bold text-right">Total</th>
-                </tr>
+            
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b"><h2 className="font-bold text-xl">Recent Orders</h2></div>
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-sm text-gray-500">
+                  <tr><th className="p-4">ID</th><th className="p-4">Type</th><th className="p-4">Status</th><th className="p-4 text-right">Total</th></tr>
+                </thead>
+                <tbody>
+                  {data.recentOrders.map(o => (
+                    <tr key={o.id} className="border-b">
+                      <td className="p-4">#{o.id}</td>
+                      <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
+                      <td className="p-4">{o.status}</td>
+                      <td className="p-4 text-right font-bold">₱{o.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* INVENTORY TAB */}
+        {activeTab === 'inventory' && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b flex justify-between items-center">
+              <div>
+                <h2 className="font-bold text-xl">Inventory Management</h2>
+                <p className="text-sm text-gray-500">Only the Local Store can restock ingredients.</p>
+              </div>
+            </div>
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-sm text-gray-500">
+                <tr><th className="p-4">Ingredient</th><th className="p-4">Stock</th><th className="p-4 text-right">Actions</th></tr>
               </thead>
               <tbody>
-                {recentOrders.map(order => (
-                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="p-4 font-medium">#{order.id}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        order.order_type === 'ONLINE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {order.order_type}
-                      </span>
+                {ingredients.map(ing => (
+                  <tr key={ing.id} className="border-b">
+                    <td className="p-4 font-bold">{ing.name}</td>
+                    <td className="p-4">{ing.stock} {ing.unit}</td>
+                    <td className="p-4 text-right">
+                      {isLocal ? (
+                        <button onClick={() => handleRestock(ing.id, ing.stock)} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm">Restock</button>
+                      ) : (
+                        <span className="text-gray-400 text-sm italic">Cloud View Only</span>
+                      )}
                     </td>
-                    <td className="p-4 text-gray-600">{order.status}</td>
-                    <td className="p-4 text-right font-bold text-gray-800">₱{order.total}</td>
                   </tr>
                 ))}
-                {recentOrders.length === 0 && (
-                  <tr><td colSpan="4" className="p-8 text-center text-gray-500">No orders yet.</td></tr>
-                )}
               </tbody>
             </table>
           </div>
+        )}
 
-          {/* LOW STOCK ALERTS */}
-          <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-            <div className="p-6 border-b border-red-200 bg-red-50">
-              <h2 className="text-xl font-bold text-red-700">Low Stock Alerts</h2>
-              <p className="text-sm text-red-500 mt-1">Restock required soon.</p>
-            </div>
-            <ul className="p-4 space-y-4">
-              {lowStock.map((item, idx) => (
-                <li key={idx} className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded-lg">
-                  <div>
-                    <p className="font-bold text-gray-800">{item.name}</p>
-                    <p className="text-xs text-gray-500">Warning Level: {item.low_stock} {item.unit}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-black text-red-600 text-lg">{item.stock} {item.unit}</p>
-                  </div>
-                </li>
-              ))}
-              {lowStock.length === 0 && (
-                <li className="text-center text-gray-500 py-6">All ingredients are well stocked!</li>
-              )}
-            </ul>
-          </div>
-
-        </div>
       </div>
     </div>
   );

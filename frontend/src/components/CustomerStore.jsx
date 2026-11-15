@@ -105,18 +105,25 @@ export default function CustomerStore() {
         <h2 className="text-xl font-bold mb-4 text-gray-800">Our Menu</h2>
         <div className="space-y-3">
           {menu.map(item => (
-            <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border border-gray-100">
-              <div>
-                <div className="font-bold text-lg text-gray-900">{item.name}</div>
-                <div className="text-gray-500 font-medium">₱{item.price}</div>
+            // Inside CustomerStore.jsx render logic:
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+              {item.image_url && (
+                <img src={item.image_url} alt={item.name} className="w-full h-40 object-cover" />
+              )}
+              <div className="p-4 flex justify-between items-center">
+                <div>
+                  <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">{item.category}</div>
+                  <div className="font-bold text-lg text-gray-900">{item.name}</div>
+                  <div className="text-gray-500 font-medium">₱{item.price}</div>
+                </div>
+                <button 
+                  disabled={!item.available}
+                  onClick={() => addToCart(item)}
+                  className="bg-black text-white px-5 py-2 rounded-lg font-bold disabled:bg-gray-300 hover:bg-gray-800 transition"
+                >
+                  {item.available ? 'Add' : 'Sold Out'}
+                </button>
               </div>
-              <button 
-                disabled={!item.available}
-                onClick={() => addToCart(item)}
-                className="bg-black text-white px-5 py-2 rounded-lg font-bold disabled:bg-gray-300 disabled:text-gray-500 hover:bg-gray-800 transition"
-              >
-                {item.available ? 'Add' : 'Sold Out'}
-              </button>
             </div>
           ))}
         </div>
