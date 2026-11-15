@@ -7,6 +7,7 @@ export default function Kiosk() {
   const [cart, setCart] = useState([]);
   const [showReceipt, setShowReceipt] = useState(false);
   const [settings, setSettings] = useState({ restaurant_name: 'Burger Bombs', tagline: '' });
+  const [filterCategory, setFilterCategory] = useState('All'); // 👈 Category Filter State
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
@@ -34,6 +35,7 @@ export default function Kiosk() {
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
   const qrData = JSON.stringify({ items: cart, total });
+  const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (showReceipt) {
     return (
@@ -73,20 +75,33 @@ export default function Kiosk() {
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
-        <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-6">
-          {menu.map(item => (
-            <button
-              key={item.id}
-              disabled={!item.available}
-              onClick={() => addToCart(item)}
-              className={`p-6 rounded-2xl shadow-lg flex flex-col items-center justify-center h-48 transition transform active:scale-95
-                ${item.available ? 'bg-white hover:bg-gray-50' : 'bg-gray-200 opacity-50 cursor-not-allowed'}`}
-            >
-              <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">{item.name}</h3>
-              <p className="text-xl font-black text-green-600">₱{item.price}</p>
-              {!item.available && <p className="text-red-500 font-bold mt-2">SOLD OUT</p>}
-            </button>
-          ))}
+        <div className="flex-1 flex flex-col">
+          
+          {/* Category Filter Buttons */}
+          <div className="flex gap-2 overflow-x-auto pb-4">
+            {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+              <button key={cat} onClick={() => setFilterCategory(cat)} 
+                className={`px-6 py-3 text-lg font-bold rounded-xl whitespace-nowrap shadow-sm transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMenu.map(item => (
+              <button
+                key={item.id}
+                disabled={!item.available}
+                onClick={() => addToCart(item)}
+                className={`p-6 rounded-2xl shadow-lg flex flex-col items-center justify-center h-48 transition transform active:scale-95
+                  ${item.available ? 'bg-white hover:bg-gray-50' : 'bg-gray-200 opacity-50 cursor-not-allowed'}`}
+              >
+                <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">{item.name}</h3>
+                <p className="text-xl font-black text-green-600">₱{item.price}</p>
+                {!item.available && <p className="text-red-500 font-bold mt-2">SOLD OUT</p>}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="w-full md:w-96 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
@@ -104,12 +119,7 @@ export default function Kiosk() {
                     <div className="font-bold text-gray-800">{c.name}</div>
                     <div className="text-sm text-gray-500">₱{c.price} x {c.qty}</div>
                   </div>
-                  <button 
-                    onClick={() => removeFromCart(c.id)}
-                    className="text-red-500 p-2 font-bold hover:bg-red-50 rounded"
-                  >
-                    ✕
-                  </button>
+                  <button onClick={() => removeFromCart(c.id)} className="text-red-500 p-2 font-bold hover:bg-red-50 rounded">✕</button>
                 </div>
               ))
             )}

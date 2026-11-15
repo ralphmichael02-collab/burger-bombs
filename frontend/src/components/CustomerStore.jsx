@@ -9,9 +9,9 @@ export default function CustomerStore() {
   const [checkoutStatus, setCheckoutStatus] = useState('idle'); 
   const [errorMsg, setErrorMsg] = useState('');
   
-  // State for past orders and ingredient modal
   const [pastOrders, setPastOrders] = useState([]);
   const [viewingIngredients, setViewingIngredients] = useState(null); 
+  const [filterCategory, setFilterCategory] = useState('All'); // 👈 Category Filter State
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
@@ -44,12 +44,7 @@ export default function CustomerStore() {
         body: JSON.stringify({
           mutationId,
           type: 'CREATE_ORDER',
-          payload: {
-            items: cart,
-            total,
-            createdAt: new Date().toISOString(),
-            orderType: 'ONLINE'
-          }
+          payload: { items: cart, total, createdAt: new Date().toISOString(), orderType: 'ONLINE' }
         })
       });
 
@@ -68,12 +63,8 @@ export default function CustomerStore() {
       }
 
       setTimeout(() => {
-        if (data.orderId) {
-          navigate(`/track/${data.orderId}`);
-        } else {
-          setErrorMsg('Order placed, but no ID was returned.');
-          setCheckoutStatus('error');
-        }
+        if (data.orderId) navigate(`/track/${data.orderId}`);
+        else { setErrorMsg('Order placed, but no ID was returned.'); setCheckoutStatus('error'); }
       }, 3000);
 
     } catch (err) {
@@ -83,6 +74,7 @@ export default function CustomerStore() {
   };
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (checkoutStatus === 'loading') {
     return (
@@ -127,8 +119,18 @@ export default function CustomerStore() {
 
         <h2 className="text-xl font-bold mb-4 text-gray-800">Our Menu</h2>
         
+        {/* Category Filter Buttons */}
+        <div className="flex gap-2 overflow-x-auto pb-4 mb-2">
+          {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+            <button key={cat} onClick={() => setFilterCategory(cat)} 
+              className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap shadow-sm transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-4">
-          {menu.map(item => (
+          {filteredMenu.map(item => (
             <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
               {item.image_url ? (
                 <img src={item.image_url} alt={item.name} className="w-full h-40 object-cover" loading="lazy" />
@@ -138,16 +140,12 @@ export default function CustomerStore() {
               
               <div className="p-4 flex justify-between items-center flex-1">
                 <div>
-                  <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">{item.category || 'Burgers'}</div>
+                  <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">{item.category}</div>
                   <div className="font-bold text-lg text-gray-900">{item.name}</div>
                   <div className="text-gray-500 font-medium">₱{item.price}</div>
                   
-                  {/* View Ingredients Button */}
                   {item.ingredients && item.ingredients.length > 0 && (
-                    <button 
-                      onClick={() => setViewingIngredients(item)} 
-                      className="text-xs text-blue-500 font-bold mt-2 hover:underline flex items-center gap-1"
-                    >
+                    <button onClick={() => setViewingIngredients(item)} className="text-xs text-blue-500 font-bold mt-2 hover:underline flex items-center gap-1">
                       👁️ View Ingredients
                     </button>
                   )}
@@ -172,26 +170,17 @@ export default function CustomerStore() {
               <div className="font-bold text-xl text-gray-900">₱{total}</div>
               <div className="text-sm text-gray-500 font-medium">{cart.reduce((s,c) => s + c.qty, 0)} items</div>
             </div>
-            <button 
-              onClick={checkout}
-              className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition"
-            >
-              Checkout
-            </button>
+            <button onClick={checkout} className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition">Checkout</button>
           </div>
-          {checkoutStatus === 'error' && (
-            <div className="text-red-500 text-sm text-center mt-2 font-bold">{errorMsg}</div>
-          )}
+          {checkoutStatus === 'error' && <div className="text-red-500 text-sm text-center mt-2 font-bold">{errorMsg}</div>}
         </div>
       )}
 
-      {/* INGREDIENTS MODAL */}
       {viewingIngredients && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-2xl font-black mb-2">{viewingIngredients.name}</h3>
             <p className="text-gray-500 mb-6 text-sm">Here is exactly what goes into this item:</p>
-            
             <ul className="space-y-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
               {viewingIngredients.ingredients.map((ing, idx) => (
                 <li key={idx} className="flex justify-between text-sm">
@@ -200,13 +189,7 @@ export default function CustomerStore() {
                 </li>
               ))}
             </ul>
-
-            <button 
-              onClick={() => setViewingIngredients(null)}
-              className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800"
-            >
-              Close
-            </button>
+            <button onClick={() => setViewingIngredients(null)} className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800">Close</button>
           </div>
         </div>
       )}

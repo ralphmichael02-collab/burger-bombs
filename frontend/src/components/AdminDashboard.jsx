@@ -8,13 +8,14 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
-  const [settings, setSettings] = useState(null); // 👈 Added Settings State
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Menu Form State
   const [newItem, setNewItem] = useState({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
   const [editingId, setEditingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [menuFilter, setMenuFilter] = useState('All'); // 👈 Category Filter State
 
   // Recipe / BOM State
   const [selectedRecipeItem, setSelectedRecipeItem] = useState(null);
@@ -27,7 +28,7 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : []));
-    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)); // 👈 Fetch Settings
+    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d));
   };
 
   useEffect(() => {
@@ -67,9 +68,7 @@ export default function AdminDashboard() {
     }).filter(p => p.quantity > 0);
 
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ingredients: payload })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: payload })
     });
     
     alert("Recipe saved successfully!");
@@ -156,6 +155,8 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="p-10 text-center text-xl">Loading Dashboard...</div>;
 
+  const filteredMenuItems = menuItems.filter(item => menuFilter === 'All' || item.category === menuFilter);
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -165,12 +166,10 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-black text-gray-900">Admin Management</h1>
             <p className="text-gray-500">{isLocal ? 'Local Store (Master Control)' : 'Cloud Store (Read Only)'}</p>
           </div>
-          
-          {/* 👇 THIS IS WHERE WE ADD THE SETTINGS TAB */}
-          <div className="flex bg-white rounded-lg shadow-sm p-1">
+          <div className="flex bg-white rounded-lg shadow-sm p-1 overflow-x-auto">
             {['overview', 'inventory', 'menu', 'recipes', 'settings'].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-6 py-2 rounded-md font-bold capitalize transition ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                className={`px-6 py-2 rounded-md font-bold capitalize transition whitespace-nowrap ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {tab}
               </button>
             ))}
@@ -264,6 +263,7 @@ export default function AdminDashboard() {
         {/* MENU TAB */}
         {activeTab === 'menu' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit sticky top-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-xl">{editingId ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
@@ -271,7 +271,9 @@ export default function AdminDashboard() {
                   <button onClick={() => { setEditingId(null); setNewItem({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' }); }} className="text-sm text-red-500 font-bold hover:underline">Cancel Edit</button>
                 )}
               </div>
+              
               {!isLocal && <p className="text-red-500 text-sm mb-4 font-bold">Only local store can modify items.</p>}
+              
               <form onSubmit={handleSubmitMenu} className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-gray-500">Name</label>
@@ -289,7 +291,13 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-500">Category</label>
-                  <input required disabled={!isLocal} value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full border p-2 rounded mt-1" />
+                  <select disabled={!isLocal} value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full border p-2 rounded mt-1 bg-white">
+                    <option value="Burgers">Burgers</option>
+                    <option value="Combos">Combos</option>
+                    <option value="Sides">Sides</option>
+                    <option value="Drinks">Drinks</option>
+                    <option value="Desserts">Desserts</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-500">Image (Cloudinary / Local Fallback)</label>
@@ -303,9 +311,19 @@ export default function AdminDashboard() {
             </div>
 
             <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b"><h2 className="font-bold text-xl">Current Menu</h2></div>
+              <div className="p-6 border-b flex flex-col gap-4">
+                <h2 className="font-bold text-xl">Current Menu</h2>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {['All', 'Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'].map(cat => (
+                    <button key={cat} onClick={() => setMenuFilter(cat)} 
+                      className={`px-3 py-1 text-sm font-bold rounded-lg border whitespace-nowrap transition ${menuFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                {menuItems.map(item => (
+                {filteredMenuItems.map(item => (
                   <div key={item.id} className={`border rounded-xl p-4 flex gap-4 ${editingId === item.id ? 'border-yellow-500 bg-yellow-50' : ''}`}>
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} className="w-20 h-20 object-cover rounded-lg" loading="lazy" />
