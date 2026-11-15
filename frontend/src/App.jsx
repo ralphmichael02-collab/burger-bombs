@@ -10,14 +10,26 @@ import RiderSimulator from './components/RiderSimulator';
 import CustomerTracker from './components/CustomerTracker';
 import Kiosk from './components/Kiosk';
 import AdminLogin from './components/AdminLogin';
+import VerifyEmail from './components/VerifyEmail';
+import CustomerProfile from './components/CustomerProfile'; // 👈 New Import
 import { refreshMenuFromBackend } from './db';
 
 export default function App() {
   useEffect(() => { 
     refreshMenuFromBackend(); 
+    
+    // Fetch and apply Theme & Settings globally
+    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          document.documentElement.style.setProperty('--theme-primary', data.theme_primary_color || '#ea580c');
+          document.documentElement.style.setProperty('--theme-bg', data.theme_bg_color || '#f8fafc');
+        }
+      })
+      .catch(err => console.error("Could not load theme settings", err));
   }, []);
 
-  // Check auth status on every render
   const isAdminAuthenticated = localStorage.getItem('burger_admin_auth') === 'true';
 
   return (
@@ -27,6 +39,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/track/:orderId" element={<CustomerTracker />} />
+        <Route path="/verify" element={<VerifyEmail />} />
+        <Route path="/profile" element={<CustomerProfile />} /> {/* 👈 New Route */}
         
         {/* Local Store Apps */}
         <Route path="/pos" element={<POS />} />

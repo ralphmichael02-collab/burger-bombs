@@ -1,23 +1,18 @@
-// frontend/src/components/POS.jsx
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, refreshMenuFromBackend } from '../db';
 import { createOrder } from '../services/orderService';
 import { startSyncWorker } from '../services/syncService';
-import QRCode from 'react-qr-code';
 import MenuList from './MenuList';
 import Cart from './Cart';
+import Modal from './ui/Modal';
 
 export default function POS() {
   const [cart, setCart] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  
+  const [showRecentOrders, setShowRecentOrders] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanInput, setScanInput] = useState('');
-  const [completedOrder, setCompletedOrder] = useState(null);
-  
-  // Void Order State
-  const [showRecentOrders, setShowRecentOrders] = useState(false);
 
   useEffect(() => {
     startSyncWorker();
@@ -27,25 +22,6 @@ export default function POS() {
 
   const pendingSync = useLiveQuery(() => db.syncOutbox.where('status').equals('pending').count(), []);
   const recentOrders = useLiveQuery(() => db.orders.reverse().limit(10).toArray(), []);
-
-  const rejectedOrders = useLiveQuery(() => db.orders.where('_syncStatus').equals('rejected').toArray(), []);
-  useEffect(() => {
-    if (rejectedOrders && rejectedOrders.length > 0) {
-      alert(`⚠️ Order Failed: Out of Stock!\nThe system rejected the latest order because ingredients ran out.`);
-      db.orders.where('_syncStatus').equals('rejected').modify({ _syncStatus: 'cleared' });
-    }
-  }, [rejectedOrders]);
-
-  const handleScan = () => {
-    try {
-      const parsed = JSON.parse(scanInput);
-      if (parsed.items && Array.isArray(parsed.items)) {
-        setCart(parsed.items);
-        setShowScanner(false);
-        setScanInput('');
-      } else { alert("Invalid QR Format."); }
-    } catch (e) { alert("Could not read QR code."); }
-  };
 
   const addToCart = (item) => {
     setCart((prev) => {
@@ -59,8 +35,7 @@ export default function POS() {
     setSubmitting(true);
     const orderTotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
     try {
-      const localId = await createOrder({ items: cart, total: orderTotal });
-      setCompletedOrder({ id: localId, items: cart, total: orderTotal });
+      await createOrder({ items: cart, total: orderTotal });
       setCart([]);
     } finally {
       setSubmitting(false);
@@ -68,125 +43,61 @@ export default function POS() {
   };
 
   const handleVoidOrder = async (orderId) => {
-    if (!window.confirm("Are you sure you want to VOID this order? Ingredients will be refunded to inventory.")) return;
-    
+    if (!window.confirm("Void this order and refund ingredients?")) return;
     try {
-      // 1. Send to backend
-      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${orderId}/void`, { method: 'POST' });
-      if (!res.ok) throw new Error("Failed to void on backend");
-      
-      // 2. Update local Dexie status
+      await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${orderId}/void`, { method: 'POST' });
       await db.orders.update(orderId, { status: 'VOIDED' });
-      alert("Order voided and ingredients refunded.");
-      setShowRecentOrders(false);
-    } catch (err) {
-      alert("Error: " + err.message);
-    }
+      alert("Order voided.");
+    } catch (err) { alert(err.message); }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-yellow-500 text-white p-3 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-bold">🍔 Burger Bombs POS</h1>
-        
+    <div className="h-screen flex flex-col bg-slate-900 font-sans">
+      {/* POS Header */}
+      <header className="bg-slate-950 text-white h-16 px-6 flex justify-between items-center shrink-0 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center font-black">🍔</div>
+          <h1 className="text-xl font-bold tracking-tight">Terminal</h1>
+        </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setShowRecentOrders(true)} className="bg-gray-800 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-900 transition shadow-sm">
-            📋 Recent Orders
-          </button>
-          <button onClick={() => setShowScanner(true)} className="bg-black text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-800 transition shadow-sm">
-            📷 Scan QR
-          </button>
-          
-          <div className="text-sm flex gap-4 bg-yellow-600 px-4 py-1.5 rounded-full font-medium">
-            <span>Pending sync: <b>{pendingSync ?? '–'}</b></span>
+          <button onClick={() => setShowRecentOrders(true)} className="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition">📋 Orders</button>
+          <button onClick={() => setShowScanner(true)} className="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition">📷 Scan</button>
+          <div className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+            <div className={`w-2 h-2 rounded-full ${pendingSync > 0 ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></div>
+            <span className="text-sm font-medium text-slate-300">Queue: {pendingSync ?? '0'}</span>
           </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 max-w-7xl mx-auto">
-        <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200">
-          <MenuList onAdd={addToCart} />
-        </div>
-        <div className="h-[calc(100vh-120px)] sticky top-4">
+      {/* POS 2-Panel Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-[35%] bg-slate-50 flex flex-col border-r border-slate-200 z-10">
           <Cart cart={cart} setCart={setCart} onSubmit={placeOrder} submitting={submitting} />
+        </div>
+        <div className="flex-1 bg-slate-100 overflow-y-auto">
+          <MenuList onAdd={addToCart} />
         </div>
       </div>
 
-      {/* RECENT ORDERS MODAL */}
-      {showRecentOrders && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
-            <h2 className="text-2xl font-bold mb-4">Recent Local Orders</h2>
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {recentOrders.map(o => (
-                <div key={o.id} className="flex justify-between items-center p-3 border rounded-lg bg-gray-50">
-                  <div>
-                    <div className="font-bold">Order #{o.id}</div>
-                    <div className="text-xs text-gray-500">{new Date(o.createdAt).toLocaleTimeString()} • ₱{o.total}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${o.status === 'VOIDED' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                      {o.status || 'PENDING'}
-                    </span>
-                    {o.status !== 'VOIDED' && (
-                      <button onClick={() => handleVoidOrder(o.id)} className="text-red-500 font-bold text-sm hover:underline">Void</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setShowRecentOrders(false)} className="mt-4 w-full py-3 bg-gray-200 font-bold rounded-lg hover:bg-gray-300">Close</button>
-          </div>
-        </div>
-      )}
-
-      {/* KIOSK SCANNER MODAL */}
-      {showScanner && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-2xl font-bold mb-2">Scan Kiosk QR</h2>
-            <textarea value={scanInput} onChange={(e) => setScanInput(e.target.value)} placeholder='{"items":[{"id":1...' className="w-full h-32 p-3 border border-gray-300 rounded-lg mb-4 font-mono text-sm" />
-            <div className="flex gap-2">
-              <button onClick={() => setShowScanner(false)} className="flex-1 py-3 bg-gray-200 font-bold rounded-lg hover:bg-gray-300">Cancel</button>
-              <button onClick={handleScan} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">Load Order</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* RECEIPT MODAL */}
-      {completedOrder && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
-            <h2 className="text-2xl font-black mb-1">Payment Successful</h2>
-            <p className="text-gray-500 mb-6">Order #{completedOrder.id}</p>
-            
-            <div className="bg-gray-50 p-4 rounded-xl mb-6">
-              <ul className="text-left mb-4 space-y-2">
-                {completedOrder.items.map((item, idx) => (
-                  <li key={idx} className="flex justify-between text-sm">
-                    <span>{item.qty}x {item.name}</span>
-                    <span>₱{item.price * item.qty}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>₱{completedOrder.total}</span>
+      {/* Modals (Using Enterprise Modal) */}
+      <Modal isOpen={showRecentOrders} onClose={() => setShowRecentOrders(false)} title="Recent Orders">
+        <div className="space-y-2">
+          {recentOrders.map(o => (
+            <div key={o.id} className="flex justify-between items-center p-3 border rounded-xl bg-slate-50">
+              <div>
+                <p className="font-bold">#{o.id}</p>
+                <p className="text-xs text-slate-500">₱{o.total}</p>
               </div>
+              <button onClick={() => handleVoidOrder(o.id)} className="text-red-500 font-bold text-sm">Void</button>
             </div>
-
-            <div className="flex flex-col items-center mb-6">
-              <p className="text-xs text-gray-500 mb-2 font-bold uppercase tracking-wider">Scan to Track Order</p>
-              <div className="bg-white p-2 border-2 border-gray-200 rounded-xl">
-                <QRCode value={`${window.location.origin}/track/${completedOrder.id}`} size={120} />
-              </div>
-            </div>
-
-            <button onClick={() => setCompletedOrder(null)} className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800">Done</button>
-          </div>
+          ))}
         </div>
-      )}
+      </Modal>
+
+      <Modal isOpen={showScanner} onClose={() => setShowScanner(false)} title="Scan QR">
+        <textarea value={scanInput} onChange={(e) => setScanInput(e.target.value)} className="w-full h-32 p-3 border rounded-xl font-mono text-sm mb-4" placeholder='{"items":[...]}' />
+        <button onClick={() => { setScanInput(''); setShowScanner(false); }} className="w-full bg-orange-500 text-white font-bold py-3 rounded-xl">Load Order</button>
+      </Modal>
     </div>
   );
 }

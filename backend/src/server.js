@@ -11,7 +11,9 @@ import { fileURLToPath } from 'url';
 import syncRouter from './routes/sync.js';
 import menuRouter from './routes/menu.js';
 import adminRouter from './routes/admin.js';
-import settingsRouter from './routes/settings.js'; // 👈 Import
+import settingsRouter from './routes/settings.js';
+import authRouter from './routes/auth.js';
+import crmRouter from './routes/crm.js';
 import { startCloudSyncWorker } from './services/cloudSync.js';
 import { startImageSyncWorker } from './services/imageSync.js';
 
@@ -50,7 +52,9 @@ io.on('connection', (socket) => {
 app.use('/api', syncRouter);
 app.use('/api', menuRouter);
 app.use('/api', adminRouter);
-app.use('/api', settingsRouter); // 👈 Mount
+app.use('/api', settingsRouter);
+app.use('/api/auth', authRouter);       // 👈 New
+app.use('/api', crmRouter);             // 👈 New
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 startCloudSyncWorker();

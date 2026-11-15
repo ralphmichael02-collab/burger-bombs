@@ -1,9 +1,6 @@
-// frontend/src/components/MenuList.jsx
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-
-const DEFAULT_CATS = ['Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'];
 
 export default function MenuList({ onAdd }) {
   const [filterCategory, setFilterCategory] = useState('All');
@@ -11,60 +8,44 @@ export default function MenuList({ onAdd }) {
   const items = useLiveQuery(() => db.menuItems.toArray(), []);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) setCategories(data);
-      })
-      .catch(err => console.error('Failed to load categories', err));
+    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`).then(r => r.json()).then(setCategories);
   }, []);
 
-  if (!items) return <p className="p-4">Loading menu…</p>;
-  if (items.length === 0) return <p className="p-4 text-gray-500">No menu items. Is the backend running?</p>;
-
-  const displayCategories = categories.length > 0 ? categories : DEFAULT_CATS;
-  const filteredItems = items.filter(item => filterCategory === 'All' || item.category === filterCategory);
+  const filteredItems = items?.filter(item => filterCategory === 'All' || item.category === filterCategory) || [];
 
   return (
-    <div>
-      {/* Category Filter Buttons with Fallback */}
-      <div className="flex gap-2 overflow-x-auto p-4 pb-0">
-        {['All', ...displayCategories].map(cat => (
-          <button key={cat} onClick={() => setFilterCategory(cat)} 
-            className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-            {cat}
-          </button>
-        ))}
+    <div className="h-full flex flex-col">
+      <div className="sticky top-0 bg-slate-100/90 backdrop-blur-md z-20 px-6 py-4 border-b border-slate-200">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {['All', ...categories].map(cat => (
+            <button key={cat} onClick={() => setFilterCategory(cat)} 
+              className={`px-5 py-2.5 text-sm font-bold rounded-full transition-all ${filterCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Menu Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4">
-        {filteredItems.map((item) => (
+      <div className="p-6 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredItems.map(item => (
           <button
             key={item.id}
             onClick={() => item.available && onAdd(item)}
             disabled={!item.available}
-            className={`relative rounded-lg text-left shadow transition overflow-hidden flex flex-col
-              ${item.available
-                ? 'bg-white hover:bg-yellow-50 cursor-pointer border border-gray-200'
-                : 'bg-gray-200 cursor-not-allowed opacity-70 border border-gray-300'}`}
+            className={`relative rounded-2xl text-left shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col h-64 ${item.available ? 'bg-white' : 'bg-slate-200 opacity-80'}`}
           >
-            {item.image_url ? (
-              <img src={item.image_url} alt={item.name} className="w-full h-24 object-cover" loading="lazy" />
-            ) : (
-              <div className="w-full h-24 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">No Image</div>
-            )}
-            
-            <div className="p-3 flex-1">
-              <div className="text-xs font-bold text-yellow-600 mb-1">{item.category}</div>
-              <div className="font-bold text-gray-800">{item.name}</div>
-              <div className="text-sm text-gray-600">₱{item.price}</div>
+            <div className="h-32 w-full relative">
+              {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-100" />}
+              <span className="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded text-[10px] font-black uppercase">{item.category}</span>
             </div>
-
+            <div className="p-3 flex-1 flex flex-col justify-between">
+              <div className="font-bold text-slate-800 leading-tight">{item.name}</div>
+              <div className="text-lg font-black text-slate-900">₱{item.price}</div>
+            </div>
             {!item.available && (
-              <span className="absolute top-2 right-2 text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded shadow-sm">
-                UNAVAILABLE
-              </span>
+              <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+                <span className="bg-red-600 text-white font-black text-sm px-4 py-1.5 rounded-lg -rotate-12">SOLD OUT</span>
+              </div>
             )}
           </button>
         ))}
