@@ -48,13 +48,11 @@ router.get('/orders/by-id/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT id, sync_id, status, total::float, items, created_at, payment_method, payment_reference
+      `SELECT id, sync_id, status, total::float, items, created_at, payment_method, payment_reference, customer_id
        FROM orders WHERE id = $1`,
       [id]
     );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     res.json(rows[0]);
   } catch (err) {
     console.error('[orders] by-id lookup failed', err);
@@ -104,7 +102,7 @@ router.get('/orders/by-ref/:ref', async (req, res) => {
 
     if (rows.length === 0) {
       return res.status(404).json({ 
-        error: 'No matching order found. Check the code and try again, or ask the customer to refresh their QR.' 
+        error: 'No matching order found. Check the code and try again.' 
       });
     }
 
@@ -121,7 +119,7 @@ router.get('/orders/by-ref/:ref', async (req, res) => {
   }
 });
 
-// ─── PENDING KIOSK QUEUE (cashier notifications) ─────────────
+// ─── PENDING KIOSK QUEUE ─────────────────────────────────────
 router.get('/orders/pending-kiosk', async (_req, res) => {
   try {
     const { rows } = await pool.query(
@@ -136,7 +134,7 @@ router.get('/orders/pending-kiosk', async (_req, res) => {
   }
 });
 
-// ─── MARK PAID (verify kiosk order) ──────────────────────────
+// ─── MARK PAID (verify kiosk/online order) ───────────────────
 router.post('/orders/:id/mark-paid', async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
@@ -162,7 +160,6 @@ router.post('/orders/:id/mark-paid', async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      // Send to kitchen
       io.to('kitchen').emit('order:new', {
         id: result.rows[0].id,
         items: result.rows[0].items,
@@ -171,7 +168,6 @@ router.post('/orders/:id/mark-paid', async (req, res) => {
         orderType: result.rows[0].order_type,
         paymentMethod: result.rows[0].payment_method
       });
-      // Remove from cashier pending queue
       io.to('cashier').emit('kiosk:pending-removed', { id: parseInt(id) });
     }
 
@@ -197,7 +193,6 @@ router.put('/orders/:id/items', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Lock the order to prevent concurrent edits
     const orderRes = await client.query(
       `SELECT items, status, sync_id FROM orders WHERE id = $1 FOR UPDATE`,
       [id]
@@ -206,20 +201,16 @@ router.put('/orders/:id/items', async (req, res) => {
 
     const currentStatus = orderRes.rows[0].status;
     if (!['PENDING_PAYMENT', 'PENDING'].includes(currentStatus)) {
-      throw new Error(`Cannot edit order with status "${currentStatus}". Only pending orders can be modified.`);
+      throw new Error(`Cannot edit order with status "${currentStatus}".`);
     }
 
-    // Refund old items
     for (const item of orderRes.rows[0].items) {
       await refundStock(client, item.id, item.qty);
     }
-
-    // Deduct new items (throws OUT_OF_STOCK if insufficient)
     for (const item of items) {
       await deductStock(client, item.id, item.qty);
     }
 
-    // Update order
     await client.query(
       `UPDATE orders SET items = $1, total = $2 WHERE id = $3`,
       [JSON.stringify(items), total, id]
@@ -254,6 +245,50 @@ router.put('/orders/:id/items', async (req, res) => {
     }
   } finally {
     client.release();
+  }
+});
+
+// ─── RIDER: MARK AS DELIVERED ────────────────────────────────
+router.post('/orders/:id/deliver', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE orders SET status = 'DELIVERED' WHERE id = $1 RETURNING *`, 
+      [id]
+    );
+    if (result.rowCount === 0) throw new Error("Order not found");
+
+    if (cloudPool) {
+      await cloudPool.query(`UPDATE orders SET status = 'DELIVERED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      // Notify the customer tracking map to show the confirmation modal
+      io.to(`order:${id}`).emit('order:delivered', { orderId: id });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── CUSTOMER: CONFIRM RECEIPT ───────────────────────────────
+router.post('/orders/:id/confirm-receipt', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE orders SET status = 'RECEIVED' WHERE id = $1 RETURNING *`, 
+      [id]
+    );
+    if (result.rowCount === 0) throw new Error("Order not found");
+
+    if (cloudPool) {
+      await cloudPool.query(`UPDATE orders SET status = 'RECEIVED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

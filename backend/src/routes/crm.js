@@ -4,16 +4,20 @@ import { pool, cloudPool } from '../db.js';
 
 const router = Router();
 
+// ─── SUBMIT REVIEW ───────────────────────────────────────────
 router.post('/reviews', async (req, res) => {
   const { orderId, customerId, rating, comment } = req.body;
   try {
-    const result = await pool.query(
-      `INSERT INTO reviews (order_id, customer_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING id`,
+    // Insert locally
+    await pool.query(
+      `INSERT INTO reviews (order_id, customer_id, rating, comment) 
+       VALUES ($1, $2, $3, $4)`,
       [orderId, customerId, rating, comment]
     );
 
+    // Sync to Cloud if in dual-mode
     if (cloudPool) {
-      // FIXED: Look up the sync_id so we can map to the cloud order ID
+      // Need to map the local orderId to the cloud sync_id
       const orderRes = await pool.query('SELECT sync_id FROM orders WHERE id = $1', [orderId]);
       if (orderRes.rowCount > 0) {
         const syncId = orderRes.rows[0].sync_id;
@@ -24,12 +28,14 @@ router.post('/reviews', async (req, res) => {
         );
       }
     }
+    
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ─── ADMIN: GET ALL REVIEWS ──────────────────────────────────
 router.get('/admin/reviews', async (_req, res) => {
   try {
     const { rows } = await pool.query(`

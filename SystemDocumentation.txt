@@ -1,0 +1,253 @@
+🍔 Burger Bombs: Hybrid-Cloud Restaurant Management System
+📖 Introduction
+In the Philippines, small-to-medium restaurant owners face a daily operational nightmare: unreliable internet connectivity. Traditional Point-of-Sale (POS) systems rely entirely on the cloud, meaning a single dropped connection can halt sales, lose orders, and frustrate customers during the busiest hours.
+
+Burger Bombs is built to solve this problem. It is a highly resilient, Offline-First, Hybrid-Cloud restaurant operating system. It guarantees that your business never stops running, even if the Wi-Fi goes down.
+
+By utilizing a local network-first architecture, the system processes all in-store operations (POS, Kitchen Display, Kiosk) on a local machine with zero latency. Meanwhile, a background sync engine bridges the gap to the cloud, allowing customers to order online, riders to track deliveries, and owners to view analytics from anywhere in the world.
+
+It is not just a POS; it is a complete, modular SaaS prototype that can be fully customized—from color themes to website content—without writing a single line of code.
+
+📑 Project Summary
+The Burger Bombs system is a solo-developer prototype designed to demonstrate how enterprise-grade architecture can be built on a zero-dollar budget using free tiers and open-source tools.
+
+The Core Philosophy: Offline-First
+When a cashier creates an order, the system writes it to the browser's local database (IndexedDB) first. The UI updates instantly. A background worker then pushes the order to the local backend. If the internet drops, the order is never lost; it simply queues in an "Outbox" until the connection returns.
+
+Hybrid-Cloud Architecture
+The system operates in two distinct environments:
+
+The Local LAN (The Restaurant): Runs on a local laptop using Docker (PostgreSQL/Redis). It handles the POS, Kitchen Display, Kiosk, and Mobile Scanner. It works without internet.
+
+The Cloud (The Internet): Runs on Vercel, Render, and Neon. It hosts the Online Store, Customer GPS Tracking, and Cloud Analytics.
+
+A Bi-Directional Sync Engine connects them. Local orders are pushed UP to the cloud, and online orders are pulled DOWN to the local kitchen every 10 seconds.
+
+Standout Features
+Zero-Hardware Mobile Scanner: Cashiers can pair their personal smartphones to the POS via a 6-digit code. The phone acts as a wireless barcode scanner (using an HTTP photo-capture workaround to bypass local HTTPS camera restrictions).
+
+Real-Time Kitchen Display (KDS): Socket.IO pushes orders to the kitchen instantly. Features separate tabs for Local (In-store) and Online orders.
+
+Rider GPS Tracking: Riders broadcast their live location, which customers can view on a real-time Leaflet/OpenStreetMap.
+
+Idempotent Sync Engine: Uses UUIDs and ON CONFLICT DO NOTHING database constraints to ensure network retries never create duplicate orders.
+
+SaaS Modular Admin: The owner can change the restaurant name, upload logos, edit the landing page, and switch between 8 UI themes. The Cloud Admin is strictly "Read-Only" to prevent database conflicts.
+
+🛠️ Technology Stack
+Layer	Technology	Purpose
+Frontend	React (Vite), Tailwind CSS	Fast, responsive UI across devices (Desktop, Tablet, Phone).
+Local Database	Dexie.js (IndexedDB)	Stores orders and menu items locally in the browser for offline resilience.
+Backend (API)	Node.js, Express	Handles business logic, database queries, and REST endpoints.
+Real-Time	Socket.IO + Redis	Powers the Kitchen Display, Mobile Scanner pairing, and Rider GPS.
+Maps	Leaflet + OpenStreetMap	100% free, no API key required for live delivery tracking.
+Local DB Server	PostgreSQL (Docker)	Zero-latency local storage for in-store operations.
+Cloud DB	Neon (Serverless PostgreSQL)	Cloud storage for the online store and cloud sync.
+QR Scanning	html5-qrcode, jsQR	Hybrid scanning (Live camera for HTTPS, Photo-capture for HTTP).
+Deployment	Vercel (Frontend), Render (Backend)	Free-tier cloud hosting.
+🏗️ Architecture Overview
+text
+[ LOCAL RESTAURANT NETWORK ] (Works completely offline)
+       │
+  [ POS / Kiosk / Kitchen Display ]
+       │
+  [ Dexie.js (Offline Storage) ]
+       │
+  [ Local Express Backend ]
+       │
+  [ Local Docker PostgreSQL ]
+       │
+       │ ▲ (cloudPullSync: Pulls online orders down)
+       │ ▼ (cloudSync: Pushes local orders up)
+       ▼
+[ CLOUD NETWORK ] (Requires internet)
+       │
+  [ Render Backend ]
+       │
+  [ Neon Cloud PostgreSQL ]
+       │
+  [ Vercel (Online Store / Rider / Admin) ]
+📊 Feasibility Assessment (Summary)
+Technical Feasibility: ✅ High. The system uses proven, well-documented technologies. The complex offline-sync problem was solved using the Outbox pattern and strict database idempotency.
+
+Economic Feasibility: ✅ Extremely Viable. Built with $0 capital using free tiers. A real restaurant loses thousands of pesos per hour during an internet outage; this system pays for itself in saved revenue within the first week.
+
+Operational Feasibility: ✅ High. The UI mimics standard POS flows, requiring minimal staff training. The mobile scanner eliminates the need to buy physical barcode scanners.
+
+Schedule Feasibility: ✅ Achievable. Developed solo in roughly 8–10 weeks using an incremental, phase-by-phase approach (Docker ➔ Offline POS ➔ Cloud Sync ➔ KDS ➔ SaaS Admin).
+
+🚀 Conclusion
+Burger Bombs proves that a solo developer with zero budget can build an enterprise-grade, fault-tolerant, hybrid-cloud system. It is not just a theoretical concept; it is a fully functional prototype ready to be demonstrated to restaurant owners as a solution to their internet reliability nightmare.
+
+
+
+
+
+📘 Burger Bombs — System Documentation
+1. System Architecture
+The Burger Bombs system is built on a Hybrid-Cloud, Offline-First architecture. It is designed to operate at 100% capacity even when the restaurant loses internet connectivity, while seamlessly syncing to the cloud when a connection is available.
+
+High-Level Architecture Flow
+text
+[ LOCAL LAN NETWORK (Restaurant) ]
+       │
+  [ POS / Kiosk / KDS / Mobile Scanner ]
+       │
+  [ Dexie.js (IndexedDB) ] ── (Local Persistence & Outbox Pattern)
+       │
+  [ Local Express Backend ]
+       │
+  [ Local Docker PostgreSQL ] ── (Zero-latency operations)
+       │
+       │ (cloudSync.js: Pushes new local orders UP to Neon)
+       │ (cloudPullSync.js: Pulls online orders DOWN to Docker)
+       ▼
+[ CLOUD NETWORK (Internet) ]
+       │
+  [ Render Backend (Express) ]
+       │
+  [ Neon Cloud PostgreSQL ]
+       │
+  [ Vercel Frontend (Online Store / Rider / Admin) ]
+1.1 The Offline-First Data Flow
+Local Writes: When a cashier taps "Charge", the React app writes the order to IndexedDB and an Outbox table inside the browser. The UI updates instantly.
+
+Background Sync: A background worker (syncService.js) polls the Outbox every 5 seconds. If online, it POSTs the order to the local Express backend.
+
+Idempotency: Every order has a mutationId (UUID). The backend saves this in a processed_mutations table. If the network drops mid-request and the frontend retries, the backend ignores the duplicate UUID.
+
+Cloud Bridge: The local backend saves the order to Docker Postgres. A background worker (cloudSync.js) detects the new order and pushes it to the Cloud (Neon).
+
+Reverse Sync: The local backend (cloudPullSync.js) polls Neon every 10 seconds for new online orders or status changes (like payment verification) and pulls them down to the local Docker DB.
+
+2. Technology Stack
+Frontend
+React (Vite): Fast, modern UI rendering.
+
+Tailwind CSS: Utility-first styling with full dark-mode/custom theme support via CSS variables.
+
+Dexie.js: A wrapper for IndexedDB, acting as the local offline database.
+
+React Router: Client-side routing for POS, Kiosk, KDS, Admin, and Customer portals.
+
+Socket.IO Client: Real-time WebSocket connections for instant kitchen updates and GPS tracking.
+
+Leaflet & OpenStreetMap: Free, open-source mapping for delivery tracking and address picking.
+
+Recharts: Dynamic sales and revenue charts in the Admin Dashboard.
+
+html5-qrcode & jsQR: Hybrid QR scanning (live camera for HTTPS, photo-capture for HTTP).
+
+Backend & Database
+Node.js & Express: REST API and Socket.IO server.
+
+PostgreSQL (pg): Relational database for structured data.
+
+Redis (Upstash): Pub/Sub adapter for scaling Socket.IO connections.
+
+Docker: Runs the local Postgres and Redis containers for offline operations.
+
+Neon (Serverless Postgres): Cloud database for the online portal.
+
+Infrastructure
+Vercel: Hosts the cloud frontend (Online Store, Cloud Admin, Rider Portal).
+
+Render: Hosts the cloud backend (API).
+
+Cloudinary: Cloud image hosting for menu items and branding.
+
+EnvKit: Local development environment (manages ports 5174 and 5175).
+
+3. Key Features
+3.1 Point of Sale (POS)
+Offline Resilience: Orders are never lost. If internet drops, the POS keeps charging.
+
+Mobile Pairing: Cashiers can use their personal smartphones as wireless barcode scanners.
+
+Manual Entry: If a QR fails, the cashier can type a 4-8 character reference code.
+
+Pending Queue: A "Bell" notification shows all unpaid Kiosk/Online orders waiting for verification.
+
+3.2 Kitchen Display System (KDS)
+Real-Time Updates: Orders appear instantly via WebSockets.
+
+Local vs. Online Tabs: Staff can separate orders coming from the in-store POS/Kiosk (orange) vs. the Vercel Online Store (blue).
+
+Time Tracking: Orders turn red after 10 minutes to prioritize urgent cooking.
+
+3.3 Kiosk
+Self-Service: Customers can order without staff interaction.
+
+QR Receipt: Generates a unique QR code (UUID) for the customer to show the cashier.
+
+Cashier Verification: Kiosk orders are held as PENDING_PAYMENT until the cashier verifies the customer.
+
+3.4 Mobile Scanner (Wireless)
+Zero-Config Pairing: The POS generates a 6-character code and QR. The phone scans it, logs in, and joins a Socket.IO room.
+
+HTTP Workaround: Because local LAN lacks HTTPS, live camera feeds are blocked. The scanner uses a <input capture> trick to snap a photo, then jsQR decodes it.
+
+3.5 Rider & Delivery Tracking
+Rider Portal: Shows completed orders ready for delivery.
+
+Live GPS: Broadcasts the rider's navigator.geolocation to the customer's map.
+
+Customer Tracking: A Leaflet map showing the rider moving in real-time.
+
+3.6 Admin Dashboard (SaaS Modular)
+Role-Based Access Control (RBAC): Admin, Manager, Supervisor, Cashier, Kitchen, Inventory.
+
+Dynamic Branding: Change the restaurant name, tagline, hero image, and social links. These instantly update the Cloud Landing Page.
+
+8 One-Click Themes: Change the entire UI color palette (primary, background, surface, text) instantly.
+
+Cloud Read-Only Mode: When accessed via Vercel, all editing buttons are disabled. Staff can view analytics but cannot modify the database.
+
+4. Core Functions (How it works under the hood)
+4.1 The Sync Engine (Idempotency)
+When the frontend saves an order, it generates a mutationId (UUID v4).
+
+The backend uses INSERT INTO processed_mutations (mutation_id) ON CONFLICT DO NOTHING.
+
+If rowCount === 0, the backend returns { ok: true, duplicate: true }. This guarantees that network retries never create double orders.
+
+4.2 The "safeFetch" Utility
+Render's free tier spins down after 15 minutes of inactivity. If a user opens Vercel while Render is waking up, the server returns an HTML wake-up page. safeFetch checks the Content-Type header. If it's not JSON, it throws a clean error message instead of crashing the React app with Unexpected token '<'.
+
+4.3 Vite Proxy Bypass
+By default, Vite proxies WebSockets, but its proxy is unstable and causes ECONNABORTED spam. The api.js config forces local WebSockets to connect directly to http://192.168.x.x:5174, bypassing Vite completely.
+
+4.4 Reverse Cloud Sync
+If a customer orders on Vercel, the order lands in Neon. A local backend worker (cloudPullSync.js) polls Neon every 10 seconds. If it finds a PENDING order, it inserts it into Docker and emits order:new via Socket.IO to the Kitchen Display.
+
+5. Feasibility Analysis
+5.1 Technical Feasibility
+Verdict: Highly Feasible.
+
+Why: The system uses battle-tested technologies (React, Postgres, Socket.IO). The most complex challenge—offline syncing and wireless mobile scanning—has been solved using the Outbox Pattern and HTTP Photo-Capture respectively.
+
+5.2 Economic Feasibility
+Verdict: Extremely Viable (High ROI).
+
+Costs: $0/month for the prototype (Free tiers: Vercel, Render, Neon, Upstash). Total infrastructure cost for production is ~$1,500 PHP/month.
+
+Benefits: A restaurant losing ₱5,000 per hour due to an internet outage will save hundreds of thousands of pesos per year. The system pays for itself in less than a month.
+
+5.3 Operational Feasibility
+Verdict: Feasible.
+
+Why: The UI is designed for touch screens (large buttons, clear tabs). The "Mobile Scanner" eliminates the need to buy expensive hardware barcode scanners. The system requires minimal training because it mimics standard POS flows.
+
+5.4 Schedule Feasibility
+Verdict: Tight but Achievable.
+
+Why: Built by a solo developer, Phases 0-3 (Local POS, Cloud Sync, KDS) took roughly 4-6 weeks. Phases 4-5 (GPS, Admin SaaS, Mobile Scanner) took an additional 4 weeks. The phased approach allowed for a working demo at the end of every sprint.
+
+6. Deployment Summary
+Component	Platform	Environment Variables Needed
+Cloud Frontend	Vercel	VITE_API_BASE=https://your-backend.onrender.com
+Cloud Backend	Render	DATABASE_URL (Neon), JWT_SECRET, CLOUDINARY_*
+Cloud Database	Neon	N/A (Copy connection string to Render)
+Local Frontend	Vite (Terminal)	VITE_API_PORT=5174 (Leave VITE_API_BASE empty)
+Local Backend	Docker / Node	DATABASE_URL (Docker), CLOUD_DATABASE_URL (Neon), REDIS_URL
+Local Database	Docker	N/A (Runs via docker-compose.yml)

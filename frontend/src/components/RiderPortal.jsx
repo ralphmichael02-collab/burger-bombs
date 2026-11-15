@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { Truck, MapPin, CheckCircle, Navigation, LogOut } from 'lucide-react';
+import { Truck, MapPin, CheckCircle, Navigation, LogOut, ArrowLeft } from 'lucide-react';
 import { API_BASE, SOCKET_URL } from '../config/api';
 
-const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+const socket = io(SOCKET_URL, { transports: ['polling', 'websocket'] });
 
 export default function RiderPortal() {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ export default function RiderPortal() {
   const [activeOrder, setActiveOrder] = useState(null);
   const [tracking, setTracking] = useState(false);
   const [lastSent, setLastSent] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -50,12 +51,20 @@ export default function RiderPortal() {
   }, [tracking, activeOrder]);
 
   const markDelivered = async () => {
+    setLoading(true);
     try {
-      await fetch(`${API_BASE}/api/orders/${activeOrder.id}/deliver`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/orders/${activeOrder.id}/deliver`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to mark delivered');
+      
+      alert('Order marked as delivered! Waiting for customer confirmation.');
       setActiveOrder(null);
       setTracking(false);
       fetchOrders();
-    } catch (err) { alert('Failed to mark delivered'); }
+    } catch (err) { 
+      alert(err.message); 
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,7 +76,7 @@ export default function RiderPortal() {
           </h1>
           <p className="text-sm text-text-muted">Deliver orders to customers</p>
         </div>
-        <button onClick={() => navigate('/mobile')} className="p-2 text-danger bg-danger/10 rounded-lg hover:bg-danger/20">
+        <button onClick={() => navigate('/mobile')} className="p-2 text-danger bg-danger/10 rounded-lg hover:bg-danger/20 transition">
           <LogOut size={20} />
         </button>
       </header>
@@ -90,7 +99,7 @@ export default function RiderPortal() {
                   </div>
                   <div className="flex items-start gap-2 text-sm text-text-muted mb-3">
                     <MapPin size={16} className="mt-0.5 shrink-0 text-primary" />
-                    <span>{order.delivery_address || 'No address provided'}</span>
+                    <span className="line-clamp-2">{order.delivery_address || 'No address provided'}</span>
                   </div>
                   <button onClick={() => setActiveOrder(order)} className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover">
                     Start Delivery
@@ -102,33 +111,44 @@ export default function RiderPortal() {
         </>
       ) : (
         <div className="bg-surface p-6 rounded-2xl border border-border shadow-lg max-w-md mx-auto">
-          <h2 className="text-xl font-black mb-4">Delivering Order #{activeOrder.id}</h2>
-          <div className="flex items-start gap-2 text-text-muted mb-4 p-3 bg-background rounded-lg">
+          <div className="flex items-center gap-3 mb-4">
+            <button onClick={() => { setActiveOrder(null); setTracking(false); }} className="p-2 bg-background rounded-lg hover:bg-gray-100">
+              <ArrowLeft size={20} />
+            </button>
+            <h2 className="text-xl font-black">Delivering Order #{activeOrder.id}</h2>
+          </div>
+          
+          <div className="flex items-start gap-2 text-text-muted mb-4 p-3 bg-background rounded-lg border border-border">
             <MapPin size={18} className="mt-0.5 shrink-0 text-primary" />
             <span>{activeOrder.delivery_address || 'No address'}</span>
           </div>
+          
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-background p-3 rounded-lg text-center">
-              <p className="text-xs text-text-muted uppercase">Total</p>
-              <p className="text-xl font-black">₱{activeOrder.total}</p>
+            <div className="bg-background p-3 rounded-lg text-center border border-border">
+              <p className="text-xs text-text-muted uppercase font-bold">Total</p>
+              <p className="text-xl font-black text-primary">₱{activeOrder.total}</p>
             </div>
-            <div className="bg-background p-3 rounded-lg text-center">
-              <p className="text-xs text-text-muted uppercase">Items</p>
+            <div className="bg-background p-3 rounded-lg text-center border border-border">
+              <p className="text-xs text-text-muted uppercase font-bold">Items</p>
               <p className="text-xl font-black">{activeOrder.items.length}</p>
             </div>
           </div>
 
           <button
             onClick={() => setTracking(!tracking)}
-            className={`w-full py-3 font-bold rounded-xl mb-3 ${tracking ? 'bg-danger text-white' : 'bg-success text-white'}`}
+            className={`w-full py-3 font-bold rounded-xl mb-3 flex items-center justify-center gap-2 transition ${tracking ? 'bg-danger text-white' : 'bg-success text-white'}`}
           >
-            <Navigation size={18} className="inline mr-2" />
+            <Navigation size={18} />
             {tracking ? 'Stop GPS Tracking' : 'Start GPS Tracking'}
           </button>
-          {lastSent && <p className="text-xs text-center text-text-muted mb-3">Location sent: {lastSent}</p>}
+          {lastSent && <p className="text-xs text-center text-text-muted mb-4">Location sent: {lastSent}</p>}
 
-          <button onClick={markDelivered} className="w-full py-4 bg-primary text-white font-black rounded-xl hover:bg-primary-hover flex items-center justify-center gap-2">
-            <CheckCircle size={20} /> Mark as Delivered
+          <button 
+            onClick={markDelivered} 
+            disabled={loading}
+            className="w-full py-4 bg-primary text-white font-black rounded-xl hover:bg-primary-hover flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <CheckCircle size={20} /> {loading ? 'Processing...' : 'Mark as Delivered'}
           </button>
         </div>
       )}

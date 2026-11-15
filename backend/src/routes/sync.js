@@ -43,6 +43,7 @@ async function refundStock(client, menuItemId, quantityRefunded) {
   }
 }
 
+// ─── CREATE ORDER (POS, Kiosk, Online Store) ─────────────────
 router.post('/sync', async (req, res) => {
   const { mutationId, type, payload } = req.body;
   if (!mutationId || !type || !payload) {
@@ -95,7 +96,6 @@ router.post('/sync', async (req, res) => {
       const io = req.app.get('io');
       if (io) {
         if (initialStatus === 'PENDING_PAYMENT') {
-          // Notify cashier of new pending order
           io.to('cashier').emit('kiosk:new-pending', {
             id: newOrderId,
             sync_id: mutationId,
@@ -107,7 +107,6 @@ router.post('/sync', async (req, res) => {
             payment_reference: payload.paymentReference || null
           });
         } else {
-          // Send directly to kitchen
           io.to('kitchen').emit('order:new', {
             id: newOrderId,
             items: payload.items,
@@ -137,7 +136,7 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-// ─── VOID ORDER (cashier or admin) ──────────────────────────
+// ─── VOID ORDER ──────────────────────────────────────────────
 router.post('/orders/:id/void', async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
@@ -179,6 +178,7 @@ router.post('/orders/:id/void', async (req, res) => {
   }
 });
 
+// ─── VERIFY PAYMENT (Cloud/Cashier) ──────────────────────────
 router.post('/orders/:id/verify-payment', async (req, res) => {
   const { id } = req.params;
   try {
@@ -212,10 +212,14 @@ router.post('/orders/:id/verify-payment', async (req, res) => {
   }
 });
 
+// ─── GET ACTIVE ORDERS (Kitchen) ─────────────────────────────
 router.get('/orders/active', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, total::float, items, created_at, order_type, payment_method FROM orders WHERE status = 'PENDING' ORDER BY created_at ASC`
+      `SELECT id, total::float, items, created_at, order_type, payment_method 
+       FROM orders 
+       WHERE status = 'PENDING' 
+       ORDER BY created_at ASC`
     );
     res.json(rows);
   } catch (err) {
@@ -223,10 +227,14 @@ router.get('/orders/active', async (_req, res) => {
   }
 });
 
+// ─── COMPLETE ORDER (Kitchen Done) ───────────────────────────
 router.post('/orders/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`UPDATE orders SET status = 'COMPLETED' WHERE id = $1 RETURNING sync_id`, [id]);
+    const result = await pool.query(
+      `UPDATE orders SET status = 'COMPLETED' WHERE id = $1 RETURNING sync_id`, 
+      [id]
+    );
     
     if (cloudPool && result.rowCount > 0) {
       await cloudPool.query(`UPDATE orders SET status = 'COMPLETED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
@@ -237,10 +245,14 @@ router.post('/orders/:id/complete', async (req, res) => {
   }
 });
 
+// ─── GET READY FOR DELIVERY (Rider) ──────────────────────────
 router.get('/orders/ready-for-delivery', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, total::float, items, delivery_address, created_at FROM orders WHERE status = 'COMPLETED' ORDER BY created_at ASC`
+      `SELECT id, total::float, items, delivery_address, created_at 
+       FROM orders 
+       WHERE status = 'COMPLETED' 
+       ORDER BY created_at ASC`
     );
     res.json(rows);
   } catch (err) {
@@ -248,27 +260,38 @@ router.get('/orders/ready-for-delivery', async (_req, res) => {
   }
 });
 
+// ─── MARK AS DELIVERED (Rider) ───────────────────────────────
 router.post('/orders/:id/deliver', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`UPDATE orders SET status = 'DELIVERED' WHERE id = $1 RETURNING sync_id`, [id]);
+    const result = await pool.query(
+      `UPDATE orders SET status = 'DELIVERED' WHERE id = $1 RETURNING sync_id`, 
+      [id]
+    );
     
     if (cloudPool && result.rowCount > 0) {
       await cloudPool.query(`UPDATE orders SET status = 'DELIVERED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
     }
     
     const io = req.app.get('io');
-    if (io) io.emit('delivery_completed', { orderId: id });
+    if (io) {
+      // 👇 THIS IS WHAT TRIGGERS THE CUSTOMER MODAL
+      io.to(`order:${id}`).emit('order:delivered', { orderId: id });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ─── CONFIRM RECEIPT (Customer) ──────────────────────────────
 router.post('/orders/:id/confirm-receipt', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`UPDATE orders SET status = 'RECEIVED' WHERE id = $1 RETURNING sync_id`, [id]);
+    const result = await pool.query(
+      `UPDATE orders SET status = 'RECEIVED' WHERE id = $1 RETURNING sync_id`, 
+      [id]
+    );
     
     if (cloudPool && result.rowCount > 0) {
       await cloudPool.query(`UPDATE orders SET status = 'RECEIVED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
