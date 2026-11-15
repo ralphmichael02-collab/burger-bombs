@@ -87,13 +87,26 @@ router.post('/sync', async (req, res) => {
       }
 
       // Capture Client IP and Payment Method
+      // Inside the router.post('/sync') -> if (type === 'CREATE_ORDER') block:
+
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
       const paymentMethod = payload.paymentMethod || 'Cash';
+      
+      // NEW: Extract delivery and customer info from payload
+      const customerId = payload.customerId || null;
+      const deliveryAddress = payload.deliveryAddress || null;
+      const deliveryLat = payload.deliveryLat || null;
+      const deliveryLng = payload.deliveryLng || null;
 
       const result = await client.query(
-        `INSERT INTO orders (sync_id, status, total, items, created_at, order_type, ip_address, payment_method)
-         VALUES ($1, 'PENDING', $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [mutationId, payload.total, JSON.stringify(payload.items), payload.createdAt, payload.orderType || 'POS', clientIp, paymentMethod]
+        `INSERT INTO orders (
+          sync_id, status, total, items, created_at, order_type, ip_address, payment_method, 
+          customer_id, delivery_address, delivery_lat, delivery_lng
+         ) VALUES ($1, 'PENDING', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+        [
+          mutationId, payload.total, JSON.stringify(payload.items), payload.createdAt, payload.orderType || 'POS', 
+          clientIp, paymentMethod, customerId, deliveryAddress, deliveryLat, deliveryLng
+        ]
       );
 
       newOrderId = result.rows[0].id;

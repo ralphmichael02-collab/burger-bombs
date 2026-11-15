@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 
+const DEFAULT_CATS = ['Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'];
+
 export default function Kiosk() {
   const [menu, setMenu] = useState([]);
   const [cart, setCart] = useState([]);
@@ -23,7 +25,9 @@ export default function Kiosk() {
 
     fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
       .then(res => res.json())
-      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setCategories(data);
+      })
       .catch(err => console.error('Failed to load categories', err));
   }, []);
 
@@ -41,6 +45,9 @@ export default function Kiosk() {
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
   const qrData = JSON.stringify({ items: cart, total });
+  
+  // Fallback to default categories if API returns empty
+  const displayCategories = categories.length > 0 ? categories : DEFAULT_CATS;
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   if (showReceipt) {
@@ -86,9 +93,9 @@ export default function Kiosk() {
       <div className="flex-1 flex flex-col md:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
         <div className="flex-1 flex flex-col">
           
-          {/* Dynamic Category Filter */}
+          {/* Dynamic Category Filter (with Fallback) */}
           <div className="flex gap-2 overflow-x-auto pb-4">
-            {['All', ...categories].map(cat => (
+            {['All', ...displayCategories].map(cat => (
               <button key={cat} onClick={() => setFilterCategory(cat)} 
                 className={`px-6 py-3 text-lg font-bold rounded-xl whitespace-nowrap shadow-sm transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
                 {cat}
@@ -106,14 +113,12 @@ export default function Kiosk() {
                 className={`relative rounded-2xl shadow-lg flex flex-col overflow-hidden h-72 transition transform active:scale-95 text-left
                   ${item.available ? 'bg-white hover:bg-gray-50 cursor-pointer' : 'bg-gray-200 opacity-80 cursor-not-allowed'}`}
               >
-                {/* Image Rendering */}
                 {item.image_url ? (
                   <img src={item.image_url} alt={item.name} className="w-full h-32 object-cover" loading="lazy" />
                 ) : (
                   <div className="w-full h-32 bg-gray-300 flex items-center justify-center text-gray-500 font-bold">No Image</div>
                 )}
 
-                {/* Item Info */}
                 <div className="p-4 flex flex-col flex-1 justify-between">
                   <div>
                     <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">{item.category}</div>
@@ -122,7 +127,6 @@ export default function Kiosk() {
                   <p className="text-2xl font-black text-green-600">₱{item.price}</p>
                 </div>
 
-                {/* Sold Out Watermark */}
                 {!item.available && (
                   <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center">
                     <span className="bg-red-600 text-white font-black text-xl px-6 py-2 rounded-lg transform -rotate-12 shadow-2xl border-2 border-white">

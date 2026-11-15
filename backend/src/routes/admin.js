@@ -47,8 +47,9 @@ router.get('/admin/stats', async (_req, res) => {
       WHERE status IN ('PENDING', 'COMPLETED', 'DELIVERED', 'RECEIVED')
     `);
 
+        // Change the recentOrdersRes query to:
     const recentOrdersRes = await pool.query(`
-      SELECT id, total::float, order_type, status, ip_address, created_at 
+      SELECT id, total::float, order_type, status, ip_address, delivery_address, created_at 
       FROM orders ORDER BY created_at DESC LIMIT 10
     `);
 

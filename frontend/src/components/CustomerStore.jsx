@@ -1,6 +1,10 @@
 // frontend/src/components/CustomerStore.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AuthModal from './AuthModal';
+import AddressPicker from './AddressPicker';
+
+const DEFAULT_CATS = ['Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'];
 
 export default function CustomerStore() {
   const navigate = useNavigate();
@@ -9,25 +13,26 @@ export default function CustomerStore() {
   const [checkoutStatus, setCheckoutStatus] = useState('idle'); 
   const [errorMsg, setErrorMsg] = useState('');
   
-  const [pastOrders, setPastOrders] = useState([]);
-  const [viewingIngredients, setViewingIngredients] = useState(null); 
   const [filterCategory, setFilterCategory] = useState('All'); 
   const [categories, setCategories] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState('GCash'); // 👈 Payment State
+  const [paymentMethod, setPaymentMethod] = useState('GCash');
+
+  // Auth & Address State
+  const [user, setUser] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [deliveryData, setDeliveryData] = useState(null);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE}/api/menu`)
-      .then(res => res.json())
-      .then(data => setMenu(data))
-      .catch(err => console.error('Failed to load menu', err));
+    // Check for existing login
+    const savedUser = localStorage.getItem('burger_user');
+    const savedToken = localStorage.getItem('burger_token');
+    if (savedUser && savedToken) setUser(JSON.parse(savedUser));
 
-    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
-      .then(res => res.json())
-      .then(data => setCategories(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Failed to load categories', err));
-
-    const saved = JSON.parse(localStorage.getItem('burger_bombs_orders') || '[]');
-    setPastOrders(saved);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/menu`).then(res => res.json()).then(setMenu);
+    fetch(`${import.meta.env.VITE_API_BASE}/api/categories`).then(res => res.json()).then(data => {
+      if (Array.isArray(data) && data.length > 0) setCategories(data);
+    });
   }, []);
 
   const addToCart = (item) => {
@@ -38,9 +43,36 @@ export default function CustomerStore() {
     });
   };
 
-  const checkout = async () => {
+  const handleAuthSuccess = (userData, token) => {
+    setUser(userData);
+    localStorage.setItem('burger_user', JSON.stringify(userData));
+    localStorage.setItem('burger_token', token);
+    setShowAuth(false);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('burger_user');
+    localStorage.removeItem('burger_token');
+  };
+
+  // When clicking Checkout, force login, then force address
+  const initiateCheckout = () => {
+    if (!user) {
+      setShowAuth(true);
+    } else {
+      setShowAddressPicker(true);
+    }
+  };
+
+  const handleAddressConfirm = (addressText, lat, lng) => {
+    setDeliveryData({ address: addressText, lat, lng });
+    setShowAddressPicker(false);
+    processOrder(addressText, lat, lng);
+  };
+
+  const processOrder = async (address, lat, lng) => {
     setCheckoutStatus('loading');
-    setErrorMsg('');
     const mutationId = crypto.randomUUID();
     const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
 
@@ -56,28 +88,20 @@ export default function CustomerStore() {
             total, 
             createdAt: new Date().toISOString(), 
             orderType: 'ONLINE',
-            paymentMethod: paymentMethod // 👈 Pass to backend (optional for now)
+            paymentMethod: paymentMethod,
+            customerId: user.id,
+            deliveryAddress: address,
+            deliveryLat: lat,
+            deliveryLng: lng
           }
         })
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Checkout failed');
-      }
-
+      if (!res.ok) throw new Error('Checkout failed');
       const data = await res.json();
       
-      if (data.orderId) {
-        const newOrder = { id: data.orderId, date: new Date().toLocaleDateString(), total };
-        const updatedOrders = [newOrder, ...pastOrders];
-        localStorage.setItem('burger_bombs_orders', JSON.stringify(updatedOrders));
-        setPastOrders(updatedOrders);
-      }
-
       setTimeout(() => {
-        if (data.orderId) navigate(`/track/${data.orderId}`);
-        else { setErrorMsg('Order placed, but no ID was returned.'); setCheckoutStatus('error'); }
+        navigate(`/track/${data.orderId}`);
       }, 3000);
 
     } catch (err) {
@@ -87,53 +111,43 @@ export default function CustomerStore() {
   };
 
   const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const displayCategories = categories.length > 0 ? categories : DEFAULT_CATS;
   const filteredMenu = menu.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
+  // --- RENDER LOADING SCREEN ---
   if (checkoutStatus === 'loading') {
     return (
-      <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-6 text-white text-center">
+      <div className="fixed inset-0 bg-gray-900 z-[100] flex flex-col items-center justify-center p-6 text-white text-center">
         <div className="relative w-40 h-40 flex items-center justify-center mb-8">
           <div className="absolute inset-0 border-[6px] border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
           <div className="text-6xl animate-bounce mt-2">🛵</div>
         </div>
         <h2 className="text-3xl font-black mb-3 text-yellow-500 animate-pulse">Processing your order...</h2>
+        <p className="text-gray-400">Sending address to kitchen.</p>
       </div>
     );
   }
 
+  // --- RENDER STORE ---
   return (
     <div className="min-h-screen bg-gray-50 pb-48">
       <header className="bg-black text-white p-6 shadow-md flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-black tracking-widest uppercase">Burger Bombs</h1>
-          <p className="text-sm text-gray-400 mt-1">Blowing diets since day one</p>
+          <p className="text-sm text-gray-400 mt-1">Welcome, {user ? user.name : 'Guest'}</p>
         </div>
-        <button onClick={() => navigate('/')} className="text-sm bg-gray-800 px-4 py-2 rounded-lg font-bold hover:bg-gray-700">Home</button>
+        {user ? (
+          <button onClick={handleLogout} className="text-sm bg-gray-800 px-4 py-2 rounded-lg font-bold hover:bg-gray-700">Logout</button>
+        ) : (
+          <button onClick={() => setShowAuth(true)} className="text-sm bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-yellow-400">Login / Sign Up</button>
+        )}
       </header>
 
       <div className="max-w-md mx-auto p-4 mt-2">
-        
-        {pastOrders.length > 0 && (
-          <div className="mb-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-bold text-gray-800 mb-3">Your Recent Orders</h2>
-            <div className="space-y-2">
-              {pastOrders.slice(0, 3).map(order => (
-                <div key={order.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                  <div>
-                    <p className="font-bold text-gray-800">Order #{order.id}</p>
-                    <p className="text-xs text-gray-500">{order.date} • ₱{order.total}</p>
-                  </div>
-                  <button onClick={() => navigate(`/track/${order.id}`)} className="text-sm font-bold text-blue-600 hover:underline">Track</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <h2 className="text-xl font-bold mb-4 text-gray-800">Our Menu</h2>
         
         <div className="flex gap-2 overflow-x-auto pb-4 mb-2">
-          {['All', ...categories].map(cat => (
+          {['All', ...displayCategories].map(cat => (
             <button key={cat} onClick={() => setFilterCategory(cat)} 
               className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap shadow-sm transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'}`}>
               {cat}
@@ -155,12 +169,6 @@ export default function CustomerStore() {
                   <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">{item.category}</div>
                   <div className="font-bold text-lg text-gray-900">{item.name}</div>
                   <div className="text-gray-500 font-medium">₱{item.price}</div>
-                  
-                  {item.ingredients && item.ingredients.length > 0 && (
-                    <button onClick={() => setViewingIngredients(item)} className="text-xs text-blue-500 font-bold mt-2 hover:underline flex items-center gap-1">
-                      👁️ View Ingredients
-                    </button>
-                  )}
                 </div>
                 <button 
                   disabled={!item.available}
@@ -175,22 +183,16 @@ export default function CustomerStore() {
         </div>
       </div>
 
-      {/* Checkout Bar with Payment Methods */}
+      {/* Checkout Bar */}
       {cart.length > 0 && (
         <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 p-4 shadow-2xl z-40 rounded-t-3xl">
           <div className="max-w-md mx-auto">
-            
             <div className="mb-4">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Payment Method</p>
               <div className="grid grid-cols-3 gap-2">
                 {['GCash', 'Maya', 'Cash'].map(method => (
-                  <button
-                    key={method}
-                    onClick={() => setPaymentMethod(method)}
-                    className={`py-2 rounded-lg font-bold text-sm border transition ${
-                      paymentMethod === method ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-200 text-gray-500'
-                    }`}
-                  >
+                  <button key={method} onClick={() => setPaymentMethod(method)}
+                    className={`py-2 rounded-lg font-bold text-sm border transition ${paymentMethod === method ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-200 text-gray-500'}`}>
                     {method}
                   </button>
                 ))}
@@ -202,33 +204,18 @@ export default function CustomerStore() {
                 <div className="font-bold text-xl text-gray-900">₱{total}</div>
                 <div className="text-sm text-gray-500 font-medium">{cart.reduce((s,c) => s + c.qty, 0)} items</div>
               </div>
-              <button onClick={checkout} className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition shadow-lg">
-                Pay with {paymentMethod}
+              <button onClick={initiateCheckout} className="bg-yellow-500 text-black font-bold px-8 py-3 rounded-xl hover:bg-yellow-400 transition shadow-lg">
+                {user ? 'Proceed to Address' : 'Login to Checkout'}
               </button>
             </div>
-            
             {checkoutStatus === 'error' && <div className="text-red-500 text-sm text-center mt-2 font-bold">{errorMsg}</div>}
           </div>
         </div>
       )}
 
-      {viewingIngredients && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 className="text-2xl font-black mb-2">{viewingIngredients.name}</h3>
-            <p className="text-gray-500 mb-6 text-sm">Here is exactly what goes into this item:</p>
-            <ul className="space-y-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
-              {viewingIngredients.ingredients.map((ing, idx) => (
-                <li key={idx} className="flex justify-between text-sm">
-                  <span className="font-medium text-gray-700">{ing.name}</span>
-                  <span className="font-bold text-gray-900">{ing.quantity} {ing.unit}</span>
-                </li>
-              ))}
-            </ul>
-            <button onClick={() => setViewingIngredients(null)} className="w-full py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800">Close</button>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} onLogin={handleAuthSuccess} />}
+      {showAddressPicker && <AddressPicker onClose={() => setShowAddressPicker(false)} onConfirm={handleAddressConfirm} />}
     </div>
   );
 }

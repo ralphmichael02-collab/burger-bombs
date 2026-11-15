@@ -3,29 +3,33 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 
+const DEFAULT_CATS = ['Burgers', 'Combos', 'Sides', 'Drinks', 'Desserts'];
+
 export default function MenuList({ onAdd }) {
   const [filterCategory, setFilterCategory] = useState('All');
   const [categories, setCategories] = useState([]);
   const items = useLiveQuery(() => db.menuItems.toArray(), []);
 
-  // Fetch dynamic categories
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE}/api/categories`)
       .then(res => res.json())
-      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setCategories(data);
+      })
       .catch(err => console.error('Failed to load categories', err));
   }, []);
 
   if (!items) return <p className="p-4">Loading menu…</p>;
   if (items.length === 0) return <p className="p-4 text-gray-500">No menu items. Is the backend running?</p>;
 
+  const displayCategories = categories.length > 0 ? categories : DEFAULT_CATS;
   const filteredItems = items.filter(item => filterCategory === 'All' || item.category === filterCategory);
 
   return (
     <div>
-      {/* Category Filter Buttons */}
+      {/* Category Filter Buttons with Fallback */}
       <div className="flex gap-2 overflow-x-auto p-4 pb-0">
-        {['All', ...categories].map(cat => (
+        {['All', ...displayCategories].map(cat => (
           <button key={cat} onClick={() => setFilterCategory(cat)} 
             className={`px-4 py-2 text-sm font-bold rounded-full whitespace-nowrap transition ${filterCategory === cat ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
             {cat}
