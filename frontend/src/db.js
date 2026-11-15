@@ -1,3 +1,4 @@
+// frontend/src/db.js
 import Dexie from 'dexie';
 
 export const db = new Dexie('BurgerBombsDB');
@@ -10,7 +11,7 @@ db.version(1).stores({
 
 export async function refreshMenuFromBackend() {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/menu`);
+    const res = await fetch('/api/menu');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const items = await res.json();
     await db.menuItems.clear();

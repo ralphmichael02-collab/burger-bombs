@@ -1,3 +1,4 @@
+// frontend/src/services/orderService.js
 import { db } from '../db';
 
 export async function createOrder(orderData) {
@@ -22,6 +23,6 @@ export async function createOrder(orderData) {
       createdAt: now,
     });
 
-    return localId;
+    return { localId, mutationId };
   });
 }

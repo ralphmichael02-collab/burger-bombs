@@ -1,24 +1,35 @@
 // backend/src/routes/crm.js
 import { Router } from 'express';
-import { pool } from '../db.js';
+import { pool, cloudPool } from '../db.js';
 
 const router = Router();
 
-// SUBMIT REVIEW
 router.post('/reviews', async (req, res) => {
   const { orderId, customerId, rating, comment } = req.body;
   try {
-    await pool.query(
-      `INSERT INTO reviews (order_id, customer_id, rating, comment) VALUES ($1, $2, $3, $4)`,
+    const result = await pool.query(
+      `INSERT INTO reviews (order_id, customer_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING id`,
       [orderId, customerId, rating, comment]
     );
+
+    if (cloudPool) {
+      // FIXED: Look up the sync_id so we can map to the cloud order ID
+      const orderRes = await pool.query('SELECT sync_id FROM orders WHERE id = $1', [orderId]);
+      if (orderRes.rowCount > 0) {
+        const syncId = orderRes.rows[0].sync_id;
+        await cloudPool.query(
+          `INSERT INTO reviews (order_id, customer_id, rating, comment) 
+           SELECT id, $2, $3, $4 FROM orders WHERE sync_id = $1`,
+          [syncId, customerId, rating, comment]
+        );
+      }
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ADMIN: Get All Reviews
 router.get('/admin/reviews', async (_req, res) => {
   try {
     const { rows } = await pool.query(`

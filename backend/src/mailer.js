@@ -2,8 +2,6 @@
 import nodemailer from 'nodemailer';
 import 'dotenv/config';
 
-// For demo purposes, we use Ethereal (fake SMTP)
-// In production, replace with Resend, SendGrid, or AWS SES
 export const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
   port: process.env.SMTP_PORT || 587,
@@ -34,7 +32,6 @@ export async function sendVerificationEmail(email, name, token) {
     console.log(`[mailer] Verification Link: ${verifyLink}`);
   } catch (err) {
     console.error('[mailer] Failed to send email:', err.message);
-    // Log the link so you can still verify manually if SMTP fails
     console.log(`[mailer] Manual verification link: ${verifyLink}`);
   }
 }

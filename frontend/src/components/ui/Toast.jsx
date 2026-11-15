@@ -1,38 +1,58 @@
-import { createContext, useContext, useState } from 'react';
-import { CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+// frontend/src/components/ui/Toast.jsx
+import { createContext, useContext, useState, useCallback } from 'react';
+import { CheckCircle, AlertTriangle, X } from 'lucide-react';
 
-const ToastContext = createContext();
+const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = (message, type = 'info') => {
-    const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  };
+  const addToast = useCallback((message, type = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
 
-  const styles = {
-    info: { bg: 'bg-[#1A1C23]', text: 'text-white', icon: <Info size={18} /> },
-    success: { bg: 'bg-[#45C65A]', text: 'text-white', icon: <CheckCircle size={18} /> },
-    error: { bg: 'bg-[#EA001E]', text: 'text-white', icon: <AlertCircle size={18} /> },
-    warning: { bg: 'bg-[#FE9339]', text: 'text-black', icon: <AlertTriangle size={18} /> },
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }, []);
+
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className="fixed top-6 right-6 z-[999] flex flex-col gap-3 pointer-events-none">
-        {toasts.map(toast => {
-          const style = styles[toast.type] || styles.info;
-          return (
-            <div key={toast.id} className={`px-5 py-4 rounded-xl shadow-2xl font-bold text-sm min-w-[280px] flex items-center gap-3 ${style.bg} ${style.text}`} style={{ animation: 'slideIn 0.3s ease-out' }}>
-              {style.icon} {toast.message}
-            </div>
-          );
-        })}
+      {/* Toast Render Container */}
+      <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white font-bold transition-all animate-slide-in
+              ${toast.type === 'success' ? 'bg-success' : 
+                toast.type === 'error' ? 'bg-danger' : 
+                toast.type === 'warning' ? 'bg-orange-500' : 'bg-primary'}`}
+          >
+            {toast.type === 'success' ? <CheckCircle size={20} /> : 
+             toast.type === 'error' ? <AlertTriangle size={20} /> : null}
+            <span>{toast.message}</span>
+            <button onClick={() => removeToast(toast.id)} className="ml-4 opacity-70 hover:opacity-100">
+              <X size={16} />
+            </button>
+          </div>
+        ))}
       </div>
     </ToastContext.Provider>
   );
 }
-export const useToast = () => useContext(ToastContext);
+
+export function useToast() {
+  const context = useContext(ToastContext);
+  if (!context) {
+    // This prevents the crash if the provider is missing, but logs a warning
+    console.warn('useToast must be used within a ToastProvider');
+    return { addToast: () => console.warn('ToastProvider missing!') };
+  }
+  return context;
+}

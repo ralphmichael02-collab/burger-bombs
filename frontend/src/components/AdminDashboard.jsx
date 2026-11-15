@@ -6,7 +6,7 @@ import {
   LayoutDashboard, CreditCard, Users, Utensils, Package, ChefHat, Folder, Settings, 
   LogOut, Menu, Bell, TrendingUp, DollarSign, ShoppingBag, AlertTriangle, 
   CheckCircle, Pencil, Trash2, Beef, FileText, Printer, Calendar,
-  Search, Plus, X, User, Lock, Activity, RefreshCw, Globe, Image, Store
+  Search, Plus, X, User, Lock, Activity, Globe, Image, Store, Palette
 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
@@ -17,30 +17,33 @@ const DEFAULT_CATEGORIES = [
   { id: 1, name: 'Burgers' }, { id: 2, name: 'Combos' }, { id: 3, name: 'Sides' }, { id: 4, name: 'Drinks' }, { id: 5, name: 'Desserts' }
 ];
 
-const THEME_PRESETS = [
-  { name: 'Enterprise Orange', primary: '#EA580C', bg: '#FDFBF7', text: '#1A1C23', card: '#FFFFFF' },
-  { name: 'Midnight Slate', primary: '#3b82f6', bg: '#0f172a', text: '#f8fafc', card: '#1e293b' },
-  { name: 'Fresh Bistro', primary: '#10b981', bg: '#f0fdf4', text: '#064e3b', card: '#ffffff' },
-  { name: 'Classic Burger', primary: '#ea580c', bg: '#f8fafc', text: '#0f172a', card: '#ffffff' },
+const PRESET_THEMES = [
+  { name: 'Enterprise Orange', colors: { primary: '#EA580C', primaryHover: '#C2410C', background: '#FDFBF7', surface: '#FFFFFF', text: '#1A1C23', textMuted: '#6B7280', border: '#E5E7EB', success: '#45C65A', danger: '#EA001E' } },
+  { name: 'Midnight Slate', colors: { primary: '#3b82f6', primaryHover: '#2563eb', background: '#0f172a', surface: '#1e293b', text: '#f8fafc', textMuted: '#94a3b8', border: '#334155', success: '#22C55E', danger: '#EF4444' } },
+  { name: 'Fresh Bistro', colors: { primary: '#10b981', primaryHover: '#059669', background: '#f0fdf4', surface: '#ffffff', text: '#064e3b', textMuted: '#4b5563', border: '#d1fae5', success: '#16A34A', danger: '#DC2626' } },
+  { name: 'Ocean Breeze', colors: { primary: '#0ea5e9', primaryHover: '#0284c7', background: '#f0f9ff', surface: '#ffffff', text: '#0f172a', textMuted: '#64748b', border: '#e0f2fe', success: '#10b981', danger: '#ef4444' } },
+  { name: 'Berry Smoothie', colors: { primary: '#d946ef', primaryHover: '#c026d3', background: '#fdf4ff', surface: '#ffffff', text: '#4a044e', textMuted: '#86198f', border: '#fae8ff', success: '#10b981', danger: '#e11d48' } },
+  { name: 'Golden Bakery', colors: { primary: '#eab308', primaryHover: '#ca8a04', background: '#fefce8', surface: '#ffffff', text: '#422006', textMuted: '#854d0e', border: '#fef08a', success: '#22c55e', danger: '#ef4444' } },
+  { name: 'Forest Retreat', colors: { primary: '#15803d', primaryHover: '#166534', background: '#f0fdf4', surface: '#ffffff', text: '#14532d', textMuted: '#4b5563', border: '#bbf7d0', success: '#22c55e', danger: '#ef4444' } },
+  { name: 'Crimson Luxe', colors: { primary: '#be123c', primaryHover: '#9f1239', background: '#fff1f2', surface: '#ffffff', text: '#4c0519', textMuted: '#9f1239', border: '#fecdd3', success: '#10b981', danger: '#e11d48' } }
 ];
 
 const ICON_OPTIONS = ['ShieldCheck', 'MapPin', 'Zap', 'Clock', 'Truck', 'Star', 'Heart', 'Utensils'];
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ currentColors, setCurrentColors }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  
   const [activeTab, setActiveTab] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [staffUser, setStaffUser] = useState(null);
   
-  // Dropdown States
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
 
-  // Data States
   const [data, setData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
@@ -74,22 +77,23 @@ export default function AdminDashboard() {
   }, []);
 
   const fetchData = () => {
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/stats`).then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/pending-payments`).then(r => r.json()).then(d => setPendingPayments(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/customers`).then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reviews`).then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/auth/live-feed`).then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`).then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
+    // 👇 RELATIVE PATHS
+    fetch('/api/admin/stats').then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(console.error);
+    fetch('/api/admin/chart-data').then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/admin/menu').then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/ingredients').then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/admin/pending-payments').then(r => r.json()).then(d => setPendingPayments(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/settings').then(r => r.json()).then(d => setSettings(d)).catch(console.error);
+    fetch('/api/admin/customers').then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/admin/reviews').then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/auth/live-feed').then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch('/api/admin/categories').then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
   };
 
   const fetchReports = () => {
     const { start, end } = reportDateRange;
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reports/sales?startDate=${start}&endDate=${end}`).then(r => r.json()).then(setSalesReport).catch(console.error);
-    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/reports/inventory`).then(r => r.json()).then(setInventoryReport).catch(console.error);
+    fetch(`/api/admin/reports/sales?startDate=${start}&endDate=${end}`).then(r => r.json()).then(setSalesReport).catch(console.error);
+    fetch('/api/admin/reports/inventory').then(r => r.json()).then(setInventoryReport).catch(console.error);
   };
 
   useEffect(() => {
@@ -110,13 +114,6 @@ export default function AdminDashboard() {
     if (activeTab === 'reports') fetchReports();
   }, [activeTab, reportDateRange]);
 
-  const updateTheme = (s) => {
-    document.documentElement.style.setProperty('--theme-primary', s.theme_primary_color);
-    document.documentElement.style.setProperty('--theme-bg', s.theme_bg_color);
-    document.documentElement.style.setProperty('--theme-text', s.theme_text_color);
-    document.documentElement.style.setProperty('--theme-card', s.theme_card_color);
-  };
-
   const handleUploadImage = async (e, field, target = 'settings') => {
     const file = e.target.files[0]; if (!file) return;
     setIsUploading(true);
@@ -133,7 +130,7 @@ export default function AdminDashboard() {
       } else throw new Error();
     } catch (err) {
       const localFormData = new FormData(); localFormData.append('image', file);
-      const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, { method: 'POST', body: localFormData });
+      const localRes = await fetch('/api/admin/upload-local', { method: 'POST', body: localFormData });
       const data = await localRes.json(); 
       if (data.url) { 
         if (target === 'settings') setSettings(prev => ({ ...prev, [field]: data.url }));
@@ -145,7 +142,7 @@ export default function AdminDashboard() {
 
   const saveSettings = async () => {
     if (!isLocal) return addToast("Only the local store can edit settings.", 'error');
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/settings`, {
+    await fetch('/api/settings', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings)
     });
     addToast("Settings saved! Refresh to see changes.", 'success');
@@ -153,7 +150,7 @@ export default function AdminDashboard() {
 
   const loadRecipe = async (item) => {
     setSelectedRecipeItem(item);
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${item.id}/recipe`);
+    const res = await fetch(`/api/admin/menu/${item.id}/recipe`);
     const recipe = await res.json();
     const map = {};
     recipe.forEach(r => { 
@@ -162,21 +159,24 @@ export default function AdminDashboard() {
     });
     setRecipeIngredients(map);
   };
+  
   const handleRecipeChange = (key, qty) => setRecipeIngredients(prev => ({ ...prev, [key]: parseFloat(qty) || 0 }));
+  
   const saveRecipe = async () => {
     if (!isLocal) return addToast("Only the local store can edit recipes.", 'error');
     const payload = Object.keys(recipeIngredients).map(key => {
       const [type, id] = key.split('_');
       return { ingredient_id: type === 'ing' ? parseInt(id) : null, component_menu_item_id: type === 'comp' ? parseInt(id) : null, quantity: recipeIngredients[key] };
     }).filter(p => p.quantity > 0);
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
+    await fetch(`/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: payload })
     });
     addToast("Recipe saved!", 'success'); setSelectedRecipeItem(null);
   };
+  
   const clearRecipe = async () => {
     if (!isLocal || !window.confirm("Delete this recipe?")) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
+    await fetch(`/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: [] })
     });
     addToast("Recipe cleared.", 'success'); setRecipeIngredients({}); setSelectedRecipeItem(null);
@@ -185,42 +185,45 @@ export default function AdminDashboard() {
   const handleRestock = async (id) => {
     const amount = prompt("How many units?");
     if (!amount || isNaN(amount)) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients/${id}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) }) });
+    await fetch(`/api/ingredients/${id}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) }) });
     addToast(`Restocked ${amount}.`, 'success'); fetchData();
   };
 
   const openModal = (mode, item = null) => {
     setModalMode(mode);
-    setSelectedItem(item || { name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' });
+    setSelectedItem(item || { name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '', description: '' });
     setIsModalOpen(true);
   };
+  
   const handleSaveItem = async (e) => {
     e.preventDefault();
     if (!isLocal) return addToast("Only the local store can modify items.", 'error');
-    const url = modalMode === 'edit' ? `${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedItem.id}` : `${import.meta.env.VITE_API_BASE}/api/admin/menu`;
+    const url = modalMode === 'edit' ? `/api/admin/menu/${selectedItem.id}` : `/api/admin/menu`;
     await fetch(url, { method: modalMode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...selectedItem, price: parseFloat(selectedItem.price), cost: parseFloat(selectedItem.cost) }) });
     setIsModalOpen(false); addToast("Saved!", 'success'); fetchData();
   };
+  
   const handleDeleteItem = async () => {
     if (!isLocal) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedItem.id}`, { method: 'DELETE' });
+    await fetch(`/api/admin/menu/${selectedItem.id}`, { method: 'DELETE' });
     setIsModalOpen(false); addToast("Deleted.", 'success'); fetchData();
   };
 
   const handleAddCategory = async (e) => {
     e.preventDefault(); const name = e.target.categoryName.value.trim(); if (!name) return;
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    const res = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
     if (res.ok) { e.target.reset(); addToast("Added!", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
   };
+  
   const handleDeleteCategory = async (id, name) => {
     if (!window.confirm(`Delete "${name}"?`)) return;
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
     if (res.ok) { addToast("Deleted.", 'success'); fetchData(); } else { const d = await res.json(); addToast(d.error, 'error'); }
   };
 
   const handleVerifyPayment = async (id) => {
     if (!window.confirm("Confirm payment received? This sends the order to the kitchen.")) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${id}/verify-payment`, { method: 'POST' });
+    await fetch(`/api/orders/${id}/verify-payment`, { method: 'POST' });
     addToast("Payment verified!", 'success'); fetchData();
   };
 
@@ -239,7 +242,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => { localStorage.clear(); navigate('/admin/login'); };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-[#FDFBF7] text-[#EA580C] font-bold text-xl">Loading...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-background text-primary font-bold text-xl">Loading...</div>;
 
   const navItems = [
     { id: 'overview',   label: 'Overview',        icon: LayoutDashboard },
@@ -255,273 +258,274 @@ export default function AdminDashboard() {
   ].filter(item => canAccessTab(staffUserRole, item.id));
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDFBF7] font-['Source_Sans_Pro',sans-serif]">
-      <div className="flex-1 flex">
+    <div className="min-h-screen flex bg-background text-text font-['Source_Sans_Pro',sans-serif] relative">
+      
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <aside className={`bg-surface border-r border-border flex flex-col fixed h-[100dvh] z-40 transition-transform duration-300 w-64
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+        md:translate-x-0 md:w-64`}>
         
-        {/* SIDEBAR */}
-        <aside className={`bg-white border-r border-gray-200 flex flex-col fixed h-[calc(100vh-32px)] z-20 transition-all duration-300 ${sidebarOpen ? 'w-60' : 'w-16'}`}>
-          <div className="p-4 flex items-center gap-3 border-b border-gray-200 h-16">
-            <div className="w-8 h-8 bg-[#EA580C] rounded-lg flex items-center justify-center text-white shrink-0">
+        <div className="p-4 flex items-center justify-between border-b border-border h-16 shrink-0">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shrink-0">
               <Beef size={18} strokeWidth={2.5} />
             </div>
-            {sidebarOpen && <span className="font-bold text-[#1A1C23] truncate">{settings?.restaurant_name || 'Burger Bombs'}</span>}
+            <span className="font-bold text-text truncate">{settings?.restaurant_name || 'Burger Bombs'}</span>
           </div>
+          <button className="md:hidden text-text-muted hover:text-text" onClick={() => setSidebarOpen(false)}>
+            <X size={20} />
+          </button>
+        </div>
 
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navItems.map(item => {
-              const Icon = item.icon;
-              return (
-                <button key={item.id} onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-semibold text-sm transition-all
-                    ${activeTab === item.id ? 'bg-[#EA580C]/10 text-[#EA580C]' : 'text-gray-500 hover:bg-gray-50 hover:text-[#1A1C23]'}`}>
-                  <div className="flex items-center gap-3"><Icon size={20} /> {sidebarOpen && <span>{item.label}</span>}</div>
-                  {sidebarOpen && item.badge > 0 && <span className="bg-[#EA001E] text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>}
-                </button>
-              );
-            })}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <button key={item.id} onClick={() => { setActiveTab(item.id); if(window.innerWidth < 768) setSidebarOpen(false); }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-semibold text-sm transition-all
+                  ${activeTab === item.id ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-background hover:text-text'}`}>
+                <div className="flex items-center gap-3"><Icon size={20} /> <span>{item.label}</span></div>
+                {item.badge > 0 && <span className="bg-danger text-white text-xs px-2 py-0.5 rounded-full">{item.badge}</span>}
+              </button>
+            );
+          })}
 
-            {/* LOCAL-ONLY QUICK ACCESS (hidden from cloud) */}
-            {isLocal && sidebarOpen && (
-              <div className="pt-4 mt-4 border-t border-gray-200">
-                <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Local Apps</p>
-                <a href="/pos" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:bg-gray-50 hover:text-[#EA580C] transition">
-                  <LayoutDashboard size={20} /> POS Terminal
-                </a>
-                <a href="/kitchen" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:bg-gray-50 hover:text-[#EA580C] transition">
-                  <ChefHat size={20} /> Kitchen Display
-                </a>
-                <a href="/kiosk" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:bg-gray-50 hover:text-[#EA580C] transition">
-                  <Store size={20} /> Kiosk
-                </a>
-              </div>
-            )}
+          {isLocal && (
+            <div className="pt-4 mt-4 border-t border-border">
+              <p className="px-3 text-xs font-bold text-text-muted uppercase tracking-wider mb-2">Local Apps</p>
+              <a href="/pos" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-text-muted hover:bg-background hover:text-primary transition">
+                <LayoutDashboard size={20} /> POS Terminal
+              </a>
+              <a href="/kitchen" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-text-muted hover:bg-background hover:text-primary transition">
+                <ChefHat size={20} /> Kitchen Display
+              </a>
+              <a href="/kiosk" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold text-sm text-text-muted hover:bg-background hover:text-primary transition">
+                <Store size={20} /> Kiosk
+              </a>
+            </div>
+          )}
+        </nav>
+      </aside>
 
-            {/* CLOUD INFO NOTE (only when on cloud) */}
-            {!isLocal && sidebarOpen && (
-              <div className="pt-4 mt-4 border-t border-gray-200">
-                <div className="px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
-                  <p className="text-xs font-bold text-blue-700">☁️ Cloud Mode</p>
-                  <p className="text-xs text-blue-600 mt-1 leading-tight">POS, Kitchen & Kiosk are only available on the local network.</p>
-                </div>
-              </div>
-            )}
-          </nav>
-        </aside>
-
-        {/* MAIN CONTENT */}
-        <main className={`flex-1 transition-all duration-300 flex flex-col ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>
+      <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-64'}`}>
+        
+        <header className="bg-surface h-16 border-b border-border flex items-center justify-between px-4 md:px-6 sticky top-0 z-20 shrink-0">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg text-text-muted hover:bg-background transition md:hidden">
+              <Menu size={22} />
+            </button>
+            <h1 className="text-lg font-bold text-text capitalize truncate">{activeTab.replace('content', 'Website Content')}</h1>
+          </div>
           
-          <header className="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg text-gray-500 hover:bg-gray-50 transition"><Menu size={22} /></button>
-              <h1 className="text-lg font-bold text-[#1A1C23] capitalize">{activeTab.replace('content', 'Website Content')}</h1>
+          <div className="flex items-center gap-4 relative">
+            <div className="relative" ref={notifRef}>
+              <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 relative rounded-full hover:bg-background transition">
+                <Bell size={20} className="text-text-muted" />
+                {liveFeed.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full"></span>}
+              </button>
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-72 md:w-80 bg-surface rounded-xl shadow-xl border border-border z-50 overflow-hidden">
+                  <div className="p-4 border-b border-border bg-background"><h3 className="font-bold text-text">Notifications</h3></div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {liveFeed.length === 0 ? <p className="p-4 text-sm text-text-muted">No new notifications</p> : liveFeed.slice(0, 5).map(log => (
+                      <div key={log.id} className="p-4 border-b border-border hover:bg-background">
+                        <p className="text-sm font-semibold text-text">{log.user_name}</p>
+                        <p className="text-xs text-text-muted">{log.details}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            
-            <div className="flex items-center gap-4 relative">
-              <div className="relative" ref={notifRef}>
-                <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 relative rounded-full hover:bg-gray-50 transition">
-                  <Bell size={20} className="text-gray-500" />
-                  {liveFeed.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EA001E] rounded-full"></span>}
-                </button>
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                    <div className="p-4 border-b border-gray-200 bg-gray-50"><h3 className="font-bold text-[#1A1C23]">Notifications</h3></div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {liveFeed.length === 0 ? <p className="p-4 text-sm text-gray-500">No new notifications</p> : liveFeed.slice(0, 5).map(log => (
-                        <div key={log.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
-                          <p className="text-sm font-semibold text-[#1A1C23]">{log.user_name}</p>
-                          <p className="text-xs text-gray-500">{log.details}</p>
-                        </div>
-                      ))}
-                    </div>
+
+            <div className="flex items-center gap-3 pl-4 border-l border-border relative" ref={profileRef}>
+              <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="flex items-center gap-3 hover:opacity-80 transition">
+                <div className="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm">{staffUser?.name?.charAt(0) || 'A'}</div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-sm font-bold text-text leading-tight">{staffUser?.name || 'Admin'}</p>
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wider">{ROLE_LABELS[staffUserRole] || 'Administrator'}</p>
+                </div>
+              </button>
+              {showProfileMenu && (
+                <div className="absolute top-12 right-0 mt-2 w-56 bg-surface rounded-xl shadow-xl border border-border z-50 overflow-hidden">
+                  <div className="p-4 border-b border-border bg-background">
+                    <p className="text-sm font-bold text-text">{staffUser?.name}</p>
+                    <p className="text-xs text-text-muted">{staffUser?.email}</p>
                   </div>
-                )}
+                  <button onClick={() => addToast("Profile Edit coming soon.", 'info')} className="w-full text-left px-4 py-3 text-sm font-semibold text-text-muted hover:bg-background hover:text-text flex items-center gap-3"><User size={16} /> Edit Profile</button>
+                  <button onClick={() => addToast("Password change coming soon.", 'info')} className="w-full text-left px-4 py-3 text-sm font-semibold text-text-muted hover:bg-background hover:text-text flex items-center gap-3"><Lock size={16} /> Change Password</button>
+                  <div className="border-t border-border"></div>
+                  <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-sm font-bold text-danger hover:bg-red-50 flex items-center gap-3"><LogOut size={16} /> Logout</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="p-4 md:p-6 lg:p-8 flex-1 pb-16 max-w-[1600px] w-full mx-auto overflow-hidden">
+          
+          {activeTab === 'overview' && data && (
+            <div className="space-y-4 md:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-surface p-4 md:p-5 rounded-xl border border-border shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs md:text-sm font-semibold text-text-muted uppercase tracking-wider">Gross Revenue</span>
+                    <DollarSign size={20} className="text-primary opacity-50" />
+                  </div>
+                  <div className="text-2xl md:text-3xl font-black text-text truncate">₱{data.metrics.total_sales.toLocaleString()}</div>
+                </div>
+                <div className="bg-surface p-4 md:p-5 rounded-xl border border-border shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs md:text-sm font-semibold text-text-muted uppercase tracking-wider">Total Orders</span>
+                    <ShoppingBag size={20} className="text-orange-500 opacity-50" />
+                  </div>
+                  <div className="text-2xl md:text-3xl font-black text-text">{data.metrics.total_orders}</div>
+                </div>
+                <div className="bg-surface p-4 md:p-5 rounded-xl border border-border shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs md:text-sm font-semibold text-text-muted uppercase tracking-wider">Avg. Order Value</span>
+                    <TrendingUp size={20} className="text-primary opacity-50" />
+                  </div>
+                  <div className="text-2xl md:text-3xl font-black text-text truncate">₱{(data.metrics.total_sales / data.metrics.total_orders || 0).toFixed(2)}</div>
+                </div>
+                <div className="bg-gradient-to-br from-[#45C65A] to-[#34A853] p-4 md:p-5 rounded-xl shadow-md text-white">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs md:text-sm font-semibold text-white/80 uppercase tracking-wider">Net Profit</span>
+                    <DollarSign size={20} className="text-white/50" />
+                  </div>
+                  <div className="text-2xl md:text-3xl font-black truncate">₱{(data.metrics.net_profit || 0).toLocaleString()}</div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 pl-4 border-l border-gray-200 relative" ref={profileRef}>
-                <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="flex items-center gap-3 hover:opacity-80 transition">
-                  <div className="w-9 h-9 bg-[#EA580C] text-white rounded-full flex items-center justify-center font-bold text-sm">{staffUser?.name?.charAt(0) || 'A'}</div>
-                  <div className="hidden md:block text-left">
-                    <p className="text-sm font-bold text-[#1A1C23] leading-tight">{staffUser?.name || 'Admin'}</p>
-                    <p className="text-xs font-semibold text-[#EA580C] uppercase tracking-wider">{ROLE_LABELS[staffUserRole] || 'Administrator'}</p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+                <div className="lg:col-span-2 bg-surface p-4 md:p-6 rounded-xl border border-border shadow-sm">
+                  <h2 className="font-bold text-base md:text-lg text-text mb-4 md:mb-6">Revenue Trend (7 Days)</h2>
+                  <div className="h-64 md:h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: 'var(--color-text-muted)', fontSize: 10, fontWeight: 600}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--color-text-muted)', fontSize: 10, fontWeight: 600}} tickFormatter={(v) => `₱${v}`} width={60} />
+                        <Tooltip cursor={{fill: 'var(--color-background)'}} contentStyle={{borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)'}} />
+                        <Bar dataKey="daily_sales" fill="var(--color-primary)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                </button>
-                {showProfileMenu && (
-                  <div className="absolute top-12 right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                    <div className="p-4 border-b border-gray-200 bg-gray-50">
-                      <p className="text-sm font-bold text-[#1A1C23]">{staffUser?.name}</p>
-                      <p className="text-xs text-gray-500">{staffUser?.email}</p>
-                    </div>
-                    <button onClick={() => addToast("Profile Edit coming soon.", 'info')} className="w-full text-left px-4 py-3 text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#1A1C23] flex items-center gap-3"><User size={16} /> Edit Profile</button>
-                    <button onClick={() => addToast("Password change coming soon.", 'info')} className="w-full text-left px-4 py-3 text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#1A1C23] flex items-center gap-3"><Lock size={16} /> Change Password</button>
-                    <div className="border-t border-gray-200"></div>
-                    <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-sm font-bold text-[#EA001E] hover:bg-red-50 flex items-center gap-3"><LogOut size={16} /> Logout</button>
+                </div>
+                <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+                  <div className="p-4 md:p-5 border-b border-border"><h2 className="font-bold text-base md:text-lg text-text">Live Activity</h2></div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-80">
+                    {liveFeed.length === 0 ? <p className="text-sm text-text-muted">No activity yet...</p> : liveFeed.slice(0, 5).map(log => (
+                      <div key={log.id} className="flex justify-between items-center p-3 bg-background border border-border rounded-lg text-sm">
+                        <p className="font-medium text-text"><b>{log.user_name}</b>: {log.details}</p>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
               </div>
             </div>
-          </header>
+          )}
 
-          <div className="p-6 max-w-[1440px] mx-auto w-full flex-1 pb-16">
-            
-            {activeTab === 'overview' && data && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Gross Revenue</span>
-                      <DollarSign size={20} className="text-[#EA580C] opacity-50" />
-                    </div>
-                    <div className="text-3xl font-black text-[#1A1C23]">₱{data.metrics.total_sales.toLocaleString()}</div>
-                  </div>
-                  <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Orders</span>
-                      <ShoppingBag size={20} className="text-[#FE9339] opacity-50" />
-                    </div>
-                    <div className="text-3xl font-black text-[#1A1C23]">{data.metrics.total_orders}</div>
-                  </div>
-                  <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avg. Order Value</span>
-                      <TrendingUp size={20} className="text-[#EA580C] opacity-50" />
-                    </div>
-                    <div className="text-3xl font-black text-[#1A1C23]">₱{(data.metrics.total_sales / data.metrics.total_orders || 0).toFixed(2)}</div>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#45C65A] to-[#34A853] p-5 rounded-xl shadow-md text-white">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-semibold text-white/80 uppercase tracking-wider">Net Profit</span>
-                      <DollarSign size={20} className="text-white/50" />
-                    </div>
-                    <div className="text-3xl font-black">₱{(data.metrics.net_profit || 0).toLocaleString()}</div>
-                  </div>
+          {activeTab === 'reports' && (
+            <div className="space-y-4 md:space-y-6">
+              <div className="bg-surface p-4 md:p-5 rounded-xl border border-border shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary"><FileText size={20} /></div>
+                  <h2 className="text-base md:text-lg font-bold text-text">Business Reports</h2>
                 </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h2 className="font-bold text-lg text-[#1A1C23] mb-6">Revenue Trend (7 Days)</h2>
-                    <div className="h-72 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12, fontWeight: 600}} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12, fontWeight: 600}} tickFormatter={(v) => `₱${v}`} />
-                          <Tooltip cursor={{fill: '#F9FAFB'}} contentStyle={{borderRadius: '8px', border: '1px solid #E5E7EB'}} />
-                          <Bar dataKey="daily_sales" fill="#EA580C" radius={[4, 4, 0, 0]} barSize={40} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 bg-background border border-border p-2 rounded-lg flex-1 sm:flex-none">
+                    <Calendar size={16} className="text-text-muted shrink-0" />
+                    <input type="date" onChange={(e) => setReportDateRange({...reportDateRange, start: e.target.value})} className="bg-transparent text-sm font-semibold outline-none text-text w-full" />
+                    <span className="text-text-muted text-sm">to</span>
+                    <input type="date" onChange={(e) => setReportDateRange({...reportDateRange, end: e.target.value})} className="bg-transparent text-sm font-semibold outline-none text-text w-full" />
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="p-5 border-b border-gray-200"><h2 className="font-bold text-lg text-[#1A1C23]">Live Activity</h2></div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                      {liveFeed.length === 0 ? <p className="text-sm text-gray-500">No activity yet...</p> : liveFeed.slice(0, 5).map(log => (
-                        <div key={log.id} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm">
-                          <p className="font-medium text-[#1A1C23]"><b>{log.user_name}</b>: {log.details}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <button onClick={fetchReports} className="bg-background border border-border text-text p-2.5 rounded-lg hover:bg-gray-200 transition"><Search size={18} /></button>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'reports' && (
-              <div className="space-y-6">
-                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[#EA580C]/10 rounded-lg text-[#EA580C]"><FileText size={20} /></div>
-                    <h2 className="text-lg font-bold text-[#1A1C23]">Business Reports</h2>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 p-2 rounded-lg">
-                      <Calendar size={16} className="text-gray-500" />
-                      <input type="date" onChange={(e) => setReportDateRange({...reportDateRange, start: e.target.value})} className="bg-transparent text-sm font-semibold outline-none text-[#1A1C23]" />
-                      <span className="text-gray-500">to</span>
-                      <input type="date" onChange={(e) => setReportDateRange({...reportDateRange, end: e.target.value})} className="bg-transparent text-sm font-semibold outline-none text-[#1A1C23]" />
-                    </div>
-                    <button onClick={fetchReports} className="bg-gray-50 border border-gray-200 text-[#1A1C23] p-2.5 rounded-lg hover:bg-gray-100 transition"><Search size={18} /></button>
-                  </div>
+              <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-4 md:p-5 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-background/50">
+                  <h3 className="font-bold text-text">Sales Transactions</h3>
+                  <button onClick={() => handlePrint('sales')} className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-hover transition flex items-center gap-2 w-full sm:w-auto justify-center"><Printer size={16} /> Print Report</button>
                 </div>
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left min-w-[600px]">
+                    <thead className="bg-background border-b border-border">
+                      <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Order ID</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Date</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Type</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Method</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Status</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase text-right">Total</th></tr>
+                    </thead>
+                    <tbody>
+                      {salesReport.map(o => (
+                        <tr key={o.id} className="border-b border-border hover:bg-background">
+                          <td className="p-3 md:p-4 font-bold text-text">#{o.id}</td>
+                          <td className="p-3 md:p-4 text-sm text-text-muted">{new Date(o.created_at).toLocaleDateString()}</td>
+                          <td className="p-3 md:p-4"><span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold whitespace-nowrap">{o.order_type}</span></td>
+                          <td className="p-3 md:p-4 text-sm font-medium text-text">{o.payment_method}</td>
+                          <td className="p-3 md:p-4"><span className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${o.status === 'RECEIVED' ? 'bg-success/10 text-success' : 'bg-orange-500/10 text-orange-500'}`}>{o.status}</span></td>
+                          <td className="p-3 md:p-4 text-right font-black text-text whitespace-nowrap">₱{o.total.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-[#1A1C23]">Sales Transactions</h3>
-                    <button onClick={() => handlePrint('sales')} className="bg-[#EA580C] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#C2410C] transition flex items-center gap-2"><Printer size={16} /> Print Report</button>
-                  </div>
-                  <div className="overflow-x-auto max-h-[500px]">
-                    <table className="w-full text-left">
-                      <thead className="bg-gray-50 sticky top-0 border-b border-gray-200">
-                        <tr><th className="p-4 text-xs font-bold text-gray-500 uppercase">Order ID</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Date</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Type</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Method</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Status</th><th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Total</th></tr>
-                      </thead>
-                      <tbody>
-                        {salesReport.map(o => (
-                          <tr key={o.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="p-4 font-bold text-[#1A1C23]">#{o.id}</td>
-                            <td className="p-4 text-sm text-gray-500">{new Date(o.created_at).toLocaleDateString()}</td>
-                            <td className="p-4"><span className="bg-[#EA580C]/10 text-[#EA580C] px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
-                            <td className="p-4 text-sm font-medium text-[#1A1C23]">{o.payment_method}</td>
-                            <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${o.status === 'RECEIVED' ? 'bg-[#45C65A]/10 text-[#45C65A]' : 'bg-[#FE9339]/10 text-[#FE9339]'}`}>{o.status}</span></td>
-                            <td className="p-4 text-right font-black text-[#1A1C23]">₱{o.total.toFixed(2)}</td>
+              <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-4 md:p-5 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-background/50">
+                  <h3 className="font-bold text-text">Inventory Audit</h3>
+                  <button onClick={() => handlePrint('inventory')} className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-hover transition flex items-center gap-2 w-full sm:w-auto justify-center"><Printer size={16} /> Print Audit</button>
+                </div>
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left min-w-[600px]">
+                    <thead className="bg-background border-b border-border">
+                      <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Ingredient</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Unit</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase text-right">Actual Stock</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase text-right">Theoretical</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase text-right">Variance</th></tr>
+                    </thead>
+                    <tbody>
+                      {inventoryReport.map(i => {
+                        const variance = i.actual_stock - i.theoretical_usage;
+                        return (
+                          <tr key={i.id} className="border-b border-border hover:bg-background">
+                            <td className="p-3 md:p-4 font-bold text-text">{i.name}</td>
+                            <td className="p-3 md:p-4 text-sm text-text-muted">{i.unit}</td>
+                            <td className="p-3 md:p-4 text-right font-bold text-text">{i.actual_stock.toFixed(2)}</td>
+                            <td className="p-3 md:p-4 text-right text-sm text-text-muted">{i.theoretical_usage.toFixed(2)}</td>
+                            <td className={`p-3 md:p-4 text-right font-bold ${variance < 0 ? 'text-danger' : 'text-success'}`}>{variance.toFixed(2)}</td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-[#1A1C23]">Inventory Audit (Stock vs. Theoretical Usage)</h3>
-                    <button onClick={() => handlePrint('inventory')} className="bg-[#EA580C] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#C2410C] transition flex items-center gap-2"><Printer size={16} /> Print Audit</button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr><th className="p-4 text-xs font-bold text-gray-500 uppercase">Ingredient</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Unit</th><th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Actual Stock</th><th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Theoretical Usage</th><th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Variance</th></tr>
-                      </thead>
-                      <tbody>
-                        {inventoryReport.map(i => {
-                          const variance = i.actual_stock - i.theoretical_usage;
-                          return (
-                            <tr key={i.id} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="p-4 font-bold text-[#1A1C23]">{i.name}</td>
-                              <td className="p-4 text-sm text-gray-500">{i.unit}</td>
-                              <td className="p-4 text-right font-bold text-[#1A1C23]">{i.actual_stock.toFixed(2)}</td>
-                              <td className="p-4 text-right text-sm text-gray-500">{i.theoretical_usage.toFixed(2)}</td>
-                              <td className={`p-4 text-right font-bold ${variance < 0 ? 'text-[#EA001E]' : 'text-[#45C65A]'}`}>{variance.toFixed(2)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {activeTab === 'payments' && (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-gray-200 bg-[#FE9339]/10">
-                  <h2 className="font-bold text-lg text-[#FE9339] flex items-center gap-2"><AlertTriangle size={20} /> Pending Payment Verifications</h2>
-                  <p className="text-sm text-[#FE9339]/80 mt-1">Verify the GCash/Maya reference before sending to kitchen.</p>
-                </div>
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr><th className="p-4 text-xs font-bold text-gray-500 uppercase">Order</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Method</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Ref #</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Total</th><th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Action</th></tr>
+          {activeTab === 'payments' && (
+            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="p-4 md:p-5 border-b border-border bg-orange-500/10">
+                <h2 className="font-bold text-base md:text-lg text-orange-500 flex items-center gap-2"><AlertTriangle size={20} /> Pending Payment Verifications</h2>
+                <p className="text-sm text-orange-500/80 mt-1">Verify the GCash/Maya reference before sending to kitchen.</p>
+              </div>
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left min-w-[600px]">
+                  <thead className="bg-background border-b border-border">
+                    <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Order</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Method</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Ref #</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Total</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase text-right">Action</th></tr>
                   </thead>
                   <tbody>
                     {pendingPayments.length === 0 ? (
-                      <tr><td colSpan="5" className="p-8 text-center text-gray-500 font-bold">No pending payments.</td></tr>
+                      <tr><td colSpan="5" className="p-8 text-center text-text-muted font-bold">No pending payments.</td></tr>
                     ) : pendingPayments.map(o => (
-                      <tr key={o.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="p-4 font-bold text-[#1A1C23]">#{o.id}</td>
-                        <td className="p-4"><span className="bg-[#EA580C]/10 text-[#EA580C] px-2 py-1 rounded text-xs font-bold">{o.payment_method}</span></td>
-                        <td className="p-4 font-mono text-sm text-gray-500">{o.payment_reference || 'N/A'}</td>
-                        <td className="p-4 font-black text-[#1A1C23]">₱{o.total}</td>
-                        <td className="p-4 text-right">
-                          <button onClick={() => handleVerifyPayment(o.id)} className="bg-[#45C65A] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#34A853] transition shadow-sm flex items-center gap-1 ml-auto">
-                            <CheckCircle size={16} /> Verify
+                      <tr key={o.id} className="border-b border-border hover:bg-background">
+                        <td className="p-3 md:p-4 font-bold text-text">#{o.id}</td>
+                        <td className="p-3 md:p-4"><span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold whitespace-nowrap">{o.payment_method}</span></td>
+                        <td className="p-3 md:p-4 font-mono text-sm text-text-muted">{o.payment_reference || 'N/A'}</td>
+                        <td className="p-3 md:p-4 font-black text-text whitespace-nowrap">₱{o.total}</td>
+                        <td className="p-3 md:p-4 text-right">
+                          <button onClick={() => handleVerifyPayment(o.id)} className="bg-success text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-success/90 transition shadow-sm flex items-center gap-1 ml-auto">
+                            <CheckCircle size={14} /> Verify
                           </button>
                         </td>
                       </tr>
@@ -529,381 +533,415 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
-            )}
+            </div>
+          )}
 
-            {activeTab === 'customers' && (
-              <div className="space-y-6">
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-gray-200 bg-gray-50/50">
-                    <h2 className="font-bold text-lg text-[#1A1C23]">Customer Database</h2>
-                    <p className="text-sm text-gray-500">Track user activity, IP addresses, and lifetime spend.</p>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr><th className="p-4 text-xs font-bold text-gray-500 uppercase">Customer</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Contact</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Total Orders</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Lifetime Spend</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Last Order</th></tr>
-                      </thead>
-                      <tbody>
-                        {customers.length === 0 ? (
-                          <tr><td colSpan="5" className="p-8 text-center text-gray-500 font-bold">No customers registered yet.</td></tr>
-                        ) : customers.map(c => (
-                          <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="p-4">
-                              <p className="font-bold text-[#1A1C23]">{c.name}</p>
-                              <p className="text-xs text-gray-500">{c.email}</p>
-                            </td>
-                            <td className="p-4 text-sm text-gray-500">{c.phone || 'N/A'}</td>
-                            <td className="p-4 font-bold text-[#1A1C23]">{c.total_orders}</td>
-                            <td className="p-4 font-black text-[#45C65A]">₱{c.total_spent.toLocaleString()}</td>
-                            <td className="p-4 text-xs text-gray-500">{c.last_order ? new Date(c.last_order).toLocaleDateString() : 'Never'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+          {activeTab === 'customers' && (
+            <div className="space-y-4 md:space-y-6">
+              <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-4 md:p-5 border-b border-border bg-background/50">
+                  <h2 className="font-bold text-base md:text-lg text-text">Customer Database</h2>
+                  <p className="text-sm text-text-muted">Track user activity, IP addresses, and lifetime spend.</p>
                 </div>
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left min-w-[700px]">
+                    <thead className="bg-background border-b border-border">
+                      <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Customer</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Contact</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Total Orders</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Lifetime Spend</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Last Order</th></tr>
+                    </thead>
+                    <tbody>
+                      {customers.length === 0 ? (
+                        <tr><td colSpan="5" className="p-8 text-center text-text-muted font-bold">No customers registered yet.</td></tr>
+                      ) : customers.map(c => (
+                        <tr key={c.id} className="border-b border-border hover:bg-background">
+                          <td className="p-3 md:p-4">
+                            <p className="font-bold text-text">{c.name}</p>
+                            <p className="text-xs text-text-muted">{c.email}</p>
+                          </td>
+                          <td className="p-3 md:p-4 text-sm text-text-muted">{c.phone || 'N/A'}</td>
+                          <td className="p-3 md:p-4 font-bold text-text">{c.total_orders}</td>
+                          <td className="p-3 md:p-4 font-black text-success whitespace-nowrap">₱{c.total_spent.toLocaleString()}</td>
+                          <td className="p-3 md:p-4 text-xs text-text-muted whitespace-nowrap">{c.last_order ? new Date(c.last_order).toLocaleDateString() : 'Never'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-gray-200 bg-[#FE9339]/10">
-                    <h2 className="font-bold text-lg text-[#FE9339]">Customer Feedback</h2>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-                    {reviews.length === 0 ? (
-                      <div className="col-span-2 text-center text-gray-500 font-bold py-8">No reviews yet.</div>
-                    ) : reviews.map(r => (
-                      <div key={r.id} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="font-bold text-[#1A1C23]">{r.customer_name || 'Guest'}</p>
-                          <p className="text-[#FE9339] text-lg">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</p>
-                        </div>
-                        <p className="text-sm text-gray-500 italic">"{r.comment}"</p>
-                        <p className="text-xs text-gray-400 mt-3 text-right">Order #{r.order_id} • {new Date(r.created_at).toLocaleDateString()}</p>
+              <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-4 md:p-5 border-b border-border bg-orange-500/10">
+                  <h2 className="font-bold text-base md:text-lg text-orange-500">Customer Feedback</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 md:p-6">
+                  {reviews.length === 0 ? (
+                    <div className="col-span-1 md:col-span-2 text-center text-text-muted font-bold py-8">No reviews yet.</div>
+                  ) : reviews.map(r => (
+                    <div key={r.id} className="border border-border rounded-xl p-4 bg-background">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-bold text-text">{r.customer_name || 'Guest'}</p>
+                        <p className="text-orange-500 text-lg">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</p>
                       </div>
+                      <p className="text-sm text-text-muted italic">"{r.comment}"</p>
+                      <p className="text-xs text-text-muted mt-3 text-right">Order #{r.order_id} • {new Date(r.created_at).toLocaleDateString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'menu' && (
+            <div className="space-y-4 md:space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h2 className="text-lg md:text-xl font-bold text-text">Menu Catalog</h2>
+                <button onClick={() => openModal('add')} className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-primary-hover transition flex items-center gap-2 w-full sm:w-auto justify-center">
+                  <Plus size={18} /> Add Menu Item
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {menuItems.map(item => (
+                  <div key={item.id} className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden group hover:shadow-lg transition flex flex-col">
+                    <div className="h-40 md:h-48 overflow-hidden relative shrink-0">
+                      {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" /> : <div className="w-full h-full bg-background flex items-center justify-center"><Utensils size={32} className="text-text-muted opacity-50" /></div>}
+                      <span className="absolute top-3 left-3 bg-surface/90 backdrop-blur px-2 py-1 rounded-md text-[10px] font-black text-text uppercase shadow-sm">{item.category}</span>
+                    </div>
+                    <div className="p-4 flex flex-col flex-1">
+                      <div className="flex justify-between items-start mb-1 gap-2">
+                        <h3 className="font-bold text-base md:text-lg text-text leading-tight truncate">{item.name}</h3>
+                        <span className="font-black text-primary whitespace-nowrap">₱{item.price}</span>
+                      </div>
+                      <p className="text-xs text-text-muted line-clamp-2 mb-3">{item.description || 'No description'}</p>
+                      <div className="flex gap-2 mt-auto pt-4">
+                        <button onClick={() => openModal('edit', item)} className="flex-1 bg-background hover:bg-gray-200 text-text-muted font-bold py-2 rounded-lg text-xs md:text-sm transition border border-border flex items-center justify-center gap-1 md:gap-2"><Pencil size={14} /> Edit</button>
+                        <button onClick={() => openModal('delete', item)} className="flex-1 bg-red-50 hover:bg-red-100 text-danger font-bold py-2 rounded-lg text-xs md:text-sm transition flex items-center justify-center gap-1 md:gap-2"><Trash2 size={14} /> Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'inventory' && (
+            <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left min-w-[500px]">
+                  <thead className="bg-background border-b border-border">
+                    <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Ingredient</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Current Stock</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase text-right">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {ingredients.map(ing => (
+                      <tr key={ing.id} className="border-b border-border hover:bg-background">
+                        <td className="p-3 md:p-4 font-bold text-text">{ing.name}</td>
+                        <td className="p-3 md:p-4"><span className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1 md:gap-2 w-fit ${ing.stock <= ing.low_stock ? 'bg-red-100 text-danger' : 'bg-green-100 text-success'}`}>{ing.stock} {ing.unit}</span></td>
+                        <td className="p-3 md:p-4 text-right">
+                          {isLocal ? <button onClick={() => handleRestock(ing.id)} className="bg-primary text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold text-xs md:text-sm hover:bg-primary-hover transition inline-flex items-center gap-1 md:gap-2"><Plus size={14} /> Restock</button> : <span className="text-text-muted text-xs md:text-sm italic">Cloud View Only</span>}
+                        </td>
+                      </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'recipes' && (
+            <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
+              <div className="bg-surface p-4 rounded-xl border border-border shadow-sm lg:w-1/4 shrink-0 lg:h-[calc(100vh-140px)] overflow-y-auto">
+                <h2 className="font-bold text-base md:text-lg mb-4 text-text sticky top-0 bg-surface pb-2">Menu Items</h2>
+                <div className="space-y-2">
+                  {menuItems.map(item => (
+                    <button key={item.id} onClick={() => loadRecipe(item)} className={`w-full text-left p-2 md:p-3 rounded-lg border font-bold text-sm transition ${selectedRecipeItem?.id === item.id ? 'bg-primary/10 border-primary text-primary shadow-sm' : 'border-border hover:bg-background text-text-muted'}`}>{item.name}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex-1 bg-surface p-4 md:p-8 rounded-xl shadow-sm border border-border">
+                {!selectedRecipeItem ? (
+                  <div className="text-center text-text-muted py-20 font-bold text-lg md:text-xl flex flex-col items-center gap-4"><ChefHat size={48} opacity={0.2} /> Select a menu item to build its recipe.</div>
+                ) : (
+                  <>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 pb-4 border-b border-border gap-4">
+                      <h2 className="font-black text-xl md:text-3xl text-text">Recipe: {selectedRecipeItem.name}</h2>
+                      <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
+                        <button onClick={clearRecipe} disabled={!isLocal} className="flex-1 sm:flex-none bg-red-50 text-danger px-4 md:px-6 py-2 md:py-3 rounded-lg font-bold hover:bg-red-100 transition shadow-sm flex items-center justify-center gap-2 text-sm md:text-base"><Trash2 size={16} /> Clear</button>
+                        <button onClick={saveRecipe} disabled={!isLocal} className="flex-1 sm:flex-none bg-success text-white px-4 md:px-8 py-2 md:py-3 rounded-lg font-bold hover:bg-success/90 transition shadow-md flex items-center justify-center gap-2 text-sm md:text-base"><CheckCircle size={16} /> Save</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
+                      <div>
+                        <h3 className="font-bold text-base md:text-lg mb-4 text-text flex items-center gap-2"><Beef size={20} /> Raw Ingredients</h3>
+                        <div className="space-y-2 md:space-y-3">
+                          {ingredients.map(ing => (
+                            <div key={`ing_${ing.id}`} className="flex items-center justify-between p-3 border border-border rounded-lg bg-background hover:bg-gray-100 transition">
+                              <div className="truncate pr-2"><span className="font-bold text-text text-sm md:text-base">{ing.name}</span><span className="text-xs text-text-muted ml-2">({ing.unit})</span></div>
+                              <input type="number" step="0.01" disabled={!isLocal} value={recipeIngredients[`ing_${ing.id}`] || ''} onChange={(e) => handleRecipeChange(`ing_${ing.id}`, e.target.value)} placeholder="0" className="w-20 md:w-24 border-border border p-1.5 md:p-2 rounded-lg text-right font-bold bg-surface text-text focus:ring-2 focus:ring-primary outline-none text-sm" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base md:text-lg mb-4 text-text flex items-center gap-2"><Utensils size={20} /> Combo Components</h3>
+                        <div className="space-y-2 md:space-y-3">
+                          {menuItems.filter(m => m.id !== selectedRecipeItem.id).map(comp => (
+                            <div key={`comp_${comp.id}`} className="flex items-center justify-between p-3 border border-primary/30 rounded-lg bg-primary/5 transition">
+                              <div className="truncate pr-2"><span className="font-bold text-text text-sm md:text-base">{comp.name}</span><span className="text-xs text-primary ml-2 hidden sm:inline">(Menu Item)</span></div>
+                              <input type="number" step="1" disabled={!isLocal} value={recipeIngredients[`comp_${comp.id}`] || ''} onChange={(e) => handleRecipeChange(`comp_${comp.id}`, e.target.value)} placeholder="0" className="w-20 md:w-24 border-border border p-1.5 md:p-2 rounded-lg text-right font-bold bg-surface text-text focus:ring-2 focus:ring-primary outline-none text-sm" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'categories' && (
+            <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
+              <div className="bg-surface p-4 md:p-8 rounded-xl shadow-sm border border-border">
+                <h2 className="font-bold text-lg md:text-2xl mb-4 md:mb-6 text-text">Add New Category</h2>
+                <form onSubmit={handleAddCategory} className="flex flex-col sm:flex-row gap-3 md:gap-4">
+                  <input name="categoryName" required disabled={!isLocal} placeholder="e.g. Tacos, Pasta, Coffee" className="flex-1 border-border border p-3 md:p-4 rounded-lg bg-background text-text focus:bg-surface transition font-medium outline-none focus:ring-2 focus:ring-primary" />
+                  <button type="submit" disabled={!isLocal} className="bg-primary text-white px-6 md:px-8 py-3 md:py-4 font-bold rounded-lg hover:bg-primary-hover transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2"><Plus size={18} /> Add</button>
+                </form>
+              </div>
+              <div className="bg-surface rounded-xl shadow-sm border border-border overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-border bg-background/50"><h2 className="font-bold text-lg md:text-xl text-text">Manage Categories</h2></div>
+                <ul>
+                  {categories.map(cat => (
+                    <li key={cat.id} className="flex justify-between items-center p-4 md:p-5 border-b border-border last:border-0 hover:bg-background transition">
+                      <span className="font-bold text-text text-base md:text-lg flex items-center gap-2 md:gap-3 truncate pr-2"><Folder size={18} className="text-text-muted shrink-0" /> {cat.name}</span>
+                      <button onClick={() => handleDeleteCategory(cat.id, cat.name)} disabled={!isLocal} className="text-danger bg-red-50 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold hover:bg-red-100 transition disabled:opacity-50 flex items-center gap-1 md:gap-2 shrink-0"><Trash2 size={14} /> Delete</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'content' && settings && (
+            <div className="space-y-4 md:space-y-6 max-w-5xl mx-auto">
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6 flex items-center gap-3"><Globe size={24} className="text-primary" /> Browser & Branding</h2>
+                <div className="space-y-4 md:space-y-5">
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-1 block">Browser Tab Title</label>
+                    <input type="text" disabled={!isLocal} value={settings.site_title || ''} onChange={e => setSettings({...settings, site_title: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background focus:bg-surface transition outline-none focus:ring-2 focus:ring-primary text-text" placeholder="e.g. Burger Bombs | Best Burgers in Manila" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-2 block">Favicon (Browser Icon)</label>
+                    <input type="file" accept="image/png,image/x-icon,image/svg+xml" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'favicon_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                    {settings.favicon_url && (
+                      <div className="mt-3 flex items-center gap-3 p-3 bg-background rounded-xl border border-border">
+                        <img src={settings.favicon_url} alt="Favicon" className="w-8 h-8" />
+                        <button onClick={() => setSettings({...settings, favicon_url: ''})} className="ml-auto text-danger hover:bg-red-50 p-1 rounded"><X size={16} /></button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-2 block">Restaurant Logo</label>
+                    <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'logo_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                    {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="mt-3 w-16 h-16 rounded-lg object-cover" />}
                   </div>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'menu' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-[#1A1C23]">Menu Catalog</h2>
-                  <button onClick={() => openModal('add')} className="bg-[#EA580C] text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-[#C2410C] transition flex items-center gap-2">
-                    <Plus size={18} /> Add Menu Item
-                  </button>
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6 flex items-center gap-3"><Image size={24} className="text-primary" /> Homepage Hero</h2>
+                <div className="space-y-4 md:space-y-5">
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-1 block">Hero Background Image</label>
+                    <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'hero_image_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                    {settings.hero_image_url && <img src={settings.hero_image_url} alt="Hero" className="mt-3 w-full h-40 object-cover rounded-xl" />}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Hero Title</label><input type="text" disabled={!isLocal} value={settings.hero_title || ''} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Hero Subtitle</label><input type="text" disabled={!isLocal} value={settings.hero_subtitle || ''} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Button Text</label><input type="text" disabled={!isLocal} value={settings.hero_button_text || ''} onChange={e => setSettings({...settings, hero_button_text: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Button Link</label><input type="text" disabled={!isLocal} value={settings.hero_button_link || ''} onChange={e => setSettings({...settings, hero_button_link: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="/store" /></div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {menuItems.map(item => (
-                    <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-lg transition">
-                      <div className="h-40 overflow-hidden relative">
-                        {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" /> : <div className="w-full h-full bg-gray-50 flex items-center justify-center"><Utensils size={32} className="text-gray-300" /></div>}
-                        <span className="absolute top-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded-md text-[10px] font-black text-[#1A1C23] uppercase shadow-sm">{item.category}</span>
-                      </div>
-                      <div className="p-5">
-                        <div className="flex justify-between items-start mb-3">
-                          <h3 className="font-bold text-lg text-[#1A1C23] leading-tight">{item.name}</h3>
-                          <span className="font-black text-[#EA580C]">₱{item.price}</span>
+              </div>
+
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
+                  <h2 className="font-black text-xl md:text-2xl text-text">Feature Highlights</h2>
+                  <label className="flex items-center gap-2 cursor-pointer bg-background px-3 py-1.5 rounded-lg border border-border">
+                    <input type="checkbox" disabled={!isLocal} checked={settings.show_features} onChange={e => setSettings({...settings, show_features: e.target.checked})} className="w-5 h-5 accent-primary" />
+                    <span className="text-sm font-bold text-text-muted">Show on Homepage</span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
+                  {[1, 2, 3].map(num => (
+                    <div key={num} className="p-4 md:p-5 border border-border rounded-xl bg-background">
+                      <p className="text-xs font-bold text-text-muted uppercase mb-3">Feature {num}</p>
+                      <div className="space-y-3">
+                        <div><label className="text-xs font-bold text-text-muted mb-1 block">Icon</label>
+                          <select disabled={!isLocal} value={settings[`feature_${num}_icon`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_icon`]: e.target.value})} className="w-full border-border border p-2 rounded-lg bg-surface text-sm text-text">
+                            {ICON_OPTIONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                          </select>
                         </div>
-                        <div className="flex gap-2 mt-4">
-                          <button onClick={() => openModal('edit', item)} className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold py-2 rounded-lg text-sm transition border border-gray-200 flex items-center justify-center gap-2"><Pencil size={14} /> Edit</button>
-                          <button onClick={() => openModal('delete', item)} className="flex-1 bg-red-50 hover:bg-red-100 text-[#EA001E] font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2"><Trash2 size={14} /> Delete</button>
-                        </div>
+                        <div><label className="text-xs font-bold text-text-muted mb-1 block">Title</label><input type="text" disabled={!isLocal} value={settings[`feature_${num}_title`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_title`]: e.target.value})} className="w-full border-border border p-2 rounded-lg bg-surface text-sm text-text" /></div>
+                        <div><label className="text-xs font-bold text-text-muted mb-1 block">Description</label><input type="text" disabled={!isLocal} value={settings[`feature_${num}_desc`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_desc`]: e.target.value})} className="w-full border-border border p-2 rounded-lg bg-surface text-sm text-text" /></div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
 
-            {activeTab === 'inventory' && (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr><th className="p-4 text-xs font-bold text-gray-500 uppercase">Ingredient</th><th className="p-4 text-xs font-bold text-gray-500 uppercase">Current Stock</th><th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {ingredients.map(ing => (
-                      <tr key={ing.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="p-4 font-bold text-[#1A1C23]">{ing.name}</td>
-                        <td className="p-4"><span className={`px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-2 w-fit ${ing.stock <= ing.low_stock ? 'bg-red-100 text-[#EA001E]' : 'bg-green-100 text-[#45C65A]'}`}>{ing.stock} {ing.unit}</span></td>
-                        <td className="p-4 text-right">
-                          {isLocal ? <button onClick={() => handleRestock(ing.id)} className="bg-[#EA580C] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#C2410C] transition inline-flex items-center gap-2"><Plus size={14} /> Restock</button> : <span className="text-gray-400 text-sm italic">Cloud View Only</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {activeTab === 'recipes' && (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm h-[calc(100vh-140px)] overflow-y-auto">
-                  <h2 className="font-bold text-lg mb-4 text-[#1A1C23] sticky top-0 bg-white pb-2">Menu Items</h2>
-                  <div className="space-y-2">
-                    {menuItems.map(item => (
-                      <button key={item.id} onClick={() => loadRecipe(item)} className={`w-full text-left p-3 rounded-lg border font-bold transition ${selectedRecipeItem?.id === item.id ? 'bg-[#EA580C]/10 border-[#EA580C] text-[#EA580C] shadow-sm' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>{item.name}</button>
-                    ))}
-                  </div>
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
+                  <h2 className="font-black text-xl md:text-2xl text-text">About Us Section</h2>
+                  <label className="flex items-center gap-2 cursor-pointer bg-background px-3 py-1.5 rounded-lg border border-border">
+                    <input type="checkbox" disabled={!isLocal} checked={settings.show_about} onChange={e => setSettings({...settings, show_about: e.target.checked})} className="w-5 h-5 accent-primary" />
+                    <span className="text-sm font-bold text-text-muted">Show on Homepage</span>
+                  </label>
                 </div>
-
-                <div className="lg:col-span-3 bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-                  {!selectedRecipeItem ? (
-                    <div className="text-center text-gray-400 py-32 font-bold text-xl flex flex-col items-center gap-4"><ChefHat size={48} opacity={0.2} /> Select a menu item to build its recipe.</div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
-                        <h2 className="font-black text-3xl text-[#1A1C23]">Recipe: {selectedRecipeItem.name}</h2>
-                        <div className="flex gap-3">
-                          <button onClick={clearRecipe} disabled={!isLocal} className="bg-red-50 text-[#EA001E] px-6 py-3 rounded-lg font-bold hover:bg-red-100 transition shadow-sm flex items-center gap-2"><Trash2 size={18} /> Clear</button>
-                          <button onClick={saveRecipe} disabled={!isLocal} className="bg-[#45C65A] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#34A853] transition shadow-md flex items-center gap-2"><CheckCircle size={18} /> Save Recipe</button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                          <h3 className="font-bold text-lg mb-4 text-[#1A1C23] flex items-center gap-2"><Beef size={20} /> Raw Ingredients</h3>
-                          <div className="space-y-3">
-                            {ingredients.map(ing => (
-                              <div key={`ing_${ing.id}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
-                                <div><span className="font-bold text-[#1A1C23]">{ing.name}</span><span className="text-xs text-gray-500 ml-2">({ing.unit})</span></div>
-                                <input type="number" step="0.01" disabled={!isLocal} value={recipeIngredients[`ing_${ing.id}`] || ''} onChange={(e) => handleRecipeChange(`ing_${ing.id}`, e.target.value)} placeholder="0" className="w-24 border-gray-200 border p-2 rounded-lg text-right font-bold bg-white text-[#1A1C23] focus:ring-2 focus:ring-[#EA580C] outline-none" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg mb-4 text-[#1A1C23] flex items-center gap-2"><Utensils size={20} /> Combo Components</h3>
-                          <div className="space-y-3">
-                            {menuItems.filter(m => m.id !== selectedRecipeItem.id).map(comp => (
-                              <div key={`comp_${comp.id}`} className="flex items-center justify-between p-4 border border-[#EA580C]/30 rounded-lg bg-[#EA580C]/5 transition">
-                                <div><span className="font-bold text-[#1A1C23]">{comp.name}</span><span className="text-xs text-[#EA580C] ml-2">(Menu Item)</span></div>
-                                <input type="number" step="1" disabled={!isLocal} value={recipeIngredients[`comp_${comp.id}`] || ''} onChange={(e) => handleRecipeChange(`comp_${comp.id}`, e.target.value)} placeholder="0" className="w-24 border-gray-200 border p-2 rounded-lg text-right font-bold bg-white text-[#1A1C23] focus:ring-2 focus:ring-[#EA580C] outline-none" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'categories' && (
-              <div className="max-w-3xl mx-auto space-y-6">
-                <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-                  <h2 className="font-bold text-2xl mb-6 text-[#1A1C23]">Add New Category</h2>
-                  <form onSubmit={handleAddCategory} className="flex gap-4">
-                    <input name="categoryName" required disabled={!isLocal} placeholder="e.g. Tacos, Pasta, Coffee" className="flex-1 border-gray-200 border p-4 rounded-lg bg-gray-50 text-[#1A1C23] focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" />
-                    <button type="submit" disabled={!isLocal} className="bg-[#EA580C] text-white px-8 font-bold rounded-lg hover:bg-[#C2410C] transition shadow-md disabled:opacity-50 flex items-center gap-2"><Plus size={18} /> Add</button>
-                  </form>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-6 border-b border-gray-200 bg-gray-50/50"><h2 className="font-bold text-xl text-[#1A1C23]">Manage Categories</h2></div>
-                  <ul>
-                    {categories.map(cat => (
-                      <li key={cat.id} className="flex justify-between items-center p-5 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition">
-                        <span className="font-bold text-[#1A1C23] text-lg flex items-center gap-3"><Folder size={18} className="text-gray-400" /> {cat.name}</span>
-                        <button onClick={() => handleDeleteCategory(cat.id, cat.name)} disabled={!isLocal} className="text-[#EA001E] bg-red-50 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition disabled:opacity-50 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'content' && settings && (
-              <div className="space-y-6">
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                  <h2 className="font-black text-2xl text-[#1A1C23] mb-6 flex items-center gap-3"><Globe size={24} className="text-[#EA580C]" /> Browser & Branding</h2>
-                  <div className="space-y-5">
-                    <div>
-                      <label className="text-sm font-bold text-gray-600 mb-1 block">Browser Tab Title</label>
-                      <input type="text" disabled={!isLocal} value={settings.site_title || ''} onChange={e => setSettings({...settings, site_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white transition outline-none focus:ring-2 focus:ring-[#EA580C]" placeholder="e.g. Burger Bombs | Best Burgers in Manila" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-bold text-gray-600 mb-2 block">Favicon (Browser Icon)</label>
-                      <input type="file" accept="image/png,image/x-icon,image/svg+xml" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'favicon_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
-                      {settings.favicon_url && (
-                        <div className="mt-3 flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                          <img src={settings.favicon_url} alt="Favicon" className="w-8 h-8" />
-                          <button onClick={() => setSettings({...settings, favicon_url: ''})} className="ml-auto text-red-500 hover:bg-red-50 p-1 rounded"><X size={16} /></button>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-sm font-bold text-gray-600 mb-2 block">Restaurant Logo</label>
-                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'logo_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
-                      {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="mt-3 w-16 h-16 rounded-lg object-cover" />}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                  <h2 className="font-black text-2xl text-[#1A1C23] mb-6 flex items-center gap-3"><Image size={24} className="text-[#EA580C]" /> Homepage Hero</h2>
-                  <div className="space-y-5">
-                    <div>
-                      <label className="text-sm font-bold text-gray-600 mb-1 block">Hero Background Image</label>
-                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'hero_image_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
-                      {settings.hero_image_url && <img src={settings.hero_image_url} alt="Hero" className="mt-3 w-full h-40 object-cover rounded-xl" />}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Hero Title</label><input type="text" disabled={!isLocal} value={settings.hero_title || ''} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Hero Subtitle</label><input type="text" disabled={!isLocal} value={settings.hero_subtitle || ''} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Button Text</label><input type="text" disabled={!isLocal} value={settings.hero_button_text || ''} onChange={e => setSettings({...settings, hero_button_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Button Link</label><input type="text" disabled={!isLocal} value={settings.hero_button_link || ''} onChange={e => setSettings({...settings, hero_button_link: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="/store" /></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="font-black text-2xl text-[#1A1C23]">Feature Highlights</h2>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" disabled={!isLocal} checked={settings.show_features} onChange={e => setSettings({...settings, show_features: e.target.checked})} className="w-5 h-5 accent-[#EA580C]" />
-                      <span className="text-sm font-bold text-gray-600">Show on Homepage</span>
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {[1, 2, 3].map(num => (
-                      <div key={num} className="p-5 border border-gray-200 rounded-xl bg-gray-50">
-                        <p className="text-xs font-bold text-gray-400 uppercase mb-3">Feature {num}</p>
-                        <div className="space-y-3">
-                          <div><label className="text-xs font-bold text-gray-600 mb-1 block">Icon</label>
-                            <select disabled={!isLocal} value={settings[`feature_${num}_icon`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_icon`]: e.target.value})} className="w-full border-gray-200 border p-2 rounded-lg bg-white text-sm">
-                              {ICON_OPTIONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
-                            </select>
-                          </div>
-                          <div><label className="text-xs font-bold text-gray-600 mb-1 block">Title</label><input type="text" disabled={!isLocal} value={settings[`feature_${num}_title`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_title`]: e.target.value})} className="w-full border-gray-200 border p-2 rounded-lg bg-white text-sm" /></div>
-                          <div><label className="text-xs font-bold text-gray-600 mb-1 block">Description</label><input type="text" disabled={!isLocal} value={settings[`feature_${num}_desc`] || ''} onChange={e => setSettings({...settings, [`feature_${num}_desc`]: e.target.value})} className="w-full border-gray-200 border p-2 rounded-lg bg-white text-sm" /></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="font-black text-2xl text-[#1A1C23]">About Us Section</h2>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" disabled={!isLocal} checked={settings.show_about} onChange={e => setSettings({...settings, show_about: e.target.checked})} className="w-5 h-5 accent-[#EA580C]" />
-                      <span className="text-sm font-bold text-gray-600">Show on Homepage</span>
-                    </label>
-                  </div>
-                  <div className="space-y-5">
-                    <div><label className="text-sm font-bold text-gray-600 mb-1 block">About Title</label><input type="text" disabled={!isLocal} value={settings.about_title || ''} onChange={e => setSettings({...settings, about_title: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    <div><label className="text-sm font-bold text-gray-600 mb-1 block">About Description</label><textarea rows="4" disabled={!isLocal} value={settings.about_text || ''} onChange={e => setSettings({...settings, about_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    <div>
-                      <label className="text-sm font-bold text-gray-600 mb-2 block">About Image</label>
-                      <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'about_image_url')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20" />
-                      {settings.about_image_url && <img src={settings.about_image_url} alt="About" className="mt-3 w-full h-40 object-cover rounded-xl" />}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                  <h2 className="font-black text-2xl text-[#1A1C23] mb-6">Footer & Social Media</h2>
-                  <div className="space-y-5">
-                    <div><label className="text-sm font-bold text-gray-600 mb-1 block">Footer Text</label><input type="text" disabled={!isLocal} value={settings.footer_text || ''} onChange={e => setSettings({...settings, footer_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Facebook URL</label><input type="url" disabled={!isLocal} value={settings.social_facebook || ''} onChange={e => setSettings({...settings, social_facebook: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://facebook.com/..." /></div>
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Instagram URL</label><input type="url" disabled={!isLocal} value={settings.social_instagram || ''} onChange={e => setSettings({...settings, social_instagram: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://instagram.com/..." /></div>
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">TikTok URL</label><input type="url" disabled={!isLocal} value={settings.social_tiktok || ''} onChange={e => setSettings({...settings, social_tiktok: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://tiktok.com/@..." /></div>
-                      <div><label className="text-sm font-bold text-gray-600 mb-1 block">Twitter / X URL</label><input type="url" disabled={!isLocal} value={settings.social_twitter || ''} onChange={e => setSettings({...settings, social_twitter: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" placeholder="https://x.com/..." /></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                  <h2 className="font-black text-2xl text-[#1A1C23] mb-2">Custom Domain / URL</h2>
-                  <p className="text-sm text-gray-500 mb-6">This is your "vanity URL" slug.</p>
-                  <div className="flex items-center">
-                    <input disabled={!isLocal} value={settings.brand_url || ''} onChange={e => setSettings({...settings, brand_url: e.target.value})} className="flex-1 border-gray-200 border p-3 rounded-l-xl bg-gray-50 focus:bg-white transition font-medium outline-none focus:ring-2 focus:ring-[#EA580C]" placeholder="burger-bombs" />
-                    <span className="bg-gray-100 border border-l-0 border-gray-200 p-3 rounded-r-xl text-gray-500 font-bold text-sm">.vercel.app</span>
-                  </div>
-                </div>
-
-                <button onClick={saveSettings} disabled={!isLocal || isUploading} className="w-full bg-[#EA580C] text-white font-bold py-4 rounded-xl hover:bg-[#C2410C] transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 sticky bottom-20 z-10">
-                  {isUploading ? 'Uploading...' : <><CheckCircle size={20} /> Save All Changes</>}
-                </button>
-              </div>
-            )}
-
-            {activeTab === 'settings' && settings && (
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-5xl mx-auto">
-                <h2 className="font-black text-3xl text-[#1A1C23] flex items-center gap-3 mb-8 pb-6 border-b border-gray-200"><Settings size={28} className="text-[#EA580C]" /> Store Settings</h2>
-                <div className="space-y-8">
+                <div className="space-y-4 md:space-y-5">
+                  <div><label className="text-sm font-bold text-text-muted mb-1 block">About Title</label><input type="text" disabled={!isLocal} value={settings.about_title || ''} onChange={e => setSettings({...settings, about_title: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
+                  <div><label className="text-sm font-bold text-text-muted mb-1 block">About Description</label><textarea rows="4" disabled={!isLocal} value={settings.about_text || ''} onChange={e => setSettings({...settings, about_text: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
                   <div>
-                    <h3 className="text-xl font-bold text-[#1A1C23] mb-4">One-Click Themes</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {THEME_PRESETS.map((theme) => {
-                        const isActive = settings.theme_primary_color === theme.primary && settings.theme_bg_color === theme.bg;
-                        return (
-                          <button key={theme.name} type="button" disabled={!isLocal}
-                            onClick={() => { const s = { ...settings, theme_primary_color: theme.primary, theme_bg_color: theme.bg, theme_text_color: theme.text, theme_card_color: theme.card }; setSettings(s); updateTheme(s); }}
-                            className={`relative p-4 rounded-xl border-2 transition-all text-left ${isActive ? 'border-[#EA580C] shadow-md scale-[1.02]' : 'border-gray-200'}`}>
-                            <div className="flex gap-2 mb-3">
-                              <div className="w-6 h-6 rounded-full shadow-sm" style={{ backgroundColor: theme.primary }}></div>
-                              <div className="w-6 h-6 rounded-full shadow-sm border" style={{ backgroundColor: theme.bg }}></div>
-                              <div className="w-6 h-6 rounded-full shadow-sm border" style={{ backgroundColor: theme.card }}></div>
-                            </div>
-                            <p className="font-bold text-[#1A1C23] text-sm">{theme.name}</p>
-                            {isActive && <span className="absolute top-2 right-2 text-[#EA580C]">✓</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <label className="text-sm font-bold text-text-muted mb-2 block">About Image</label>
+                    <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'about_image_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                    {settings.about_image_url && <img src={settings.about_image_url} alt="About" className="mt-3 w-full h-40 object-cover rounded-xl" />}
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div><label className="text-sm font-bold text-gray-600">Restaurant Name</label><input required disabled={!isLocal} value={settings.restaurant_name} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    <div><label className="text-sm font-bold text-gray-600">Tagline</label><input required disabled={!isLocal} value={settings.tagline} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div><label className="text-sm font-bold text-gray-600">Contact Phone</label><input disabled={!isLocal} value={settings.contact_phone || ''} onChange={e => setSettings({...settings, contact_phone: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    <div><label className="text-sm font-bold text-gray-600">Contact Email</label><input disabled={!isLocal} value={settings.contact_email || ''} onChange={e => setSettings({...settings, contact_email: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div><label className="text-sm font-bold text-gray-600">Currency Symbol</label><input disabled={!isLocal} value={settings.currency_symbol} onChange={e => setSettings({...settings, currency_symbol: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                    <div><label className="text-sm font-bold text-gray-600">Tax Rate</label><input type="number" step="0.01" disabled={!isLocal} value={settings.tax_rate} onChange={e => setSettings({...settings, tax_rate: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                  </div>
-                  <div><label className="text-sm font-bold text-gray-600">Promo Banner Text</label><input disabled={!isLocal} value={settings.promo_banner_text || ''} onChange={e => setSettings({...settings, promo_banner_text: e.target.value})} className="w-full border-gray-200 border p-3 rounded-xl mt-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none" /></div>
-                  <button onClick={saveSettings} disabled={!isLocal || isUploading} className="w-full bg-[#EA580C] text-white font-bold py-4 rounded-xl hover:bg-[#C2410C] transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle size={20} /> Save Settings</button>
                 </div>
               </div>
-            )}
 
-          </div>
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6">Footer & Social Media</h2>
+                <div className="space-y-4 md:space-y-5">
+                  <div><label className="text-sm font-bold text-text-muted mb-1 block">Footer Text</label><input type="text" disabled={!isLocal} value={settings.footer_text || ''} onChange={e => setSettings({...settings, footer_text: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Facebook URL</label><input type="url" disabled={!isLocal} value={settings.social_facebook || ''} onChange={e => setSettings({...settings, social_facebook: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="https://facebook.com/..." /></div>
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Instagram URL</label><input type="url" disabled={!isLocal} value={settings.social_instagram || ''} onChange={e => setSettings({...settings, social_instagram: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="https://instagram.com/..." /></div>
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">TikTok URL</label><input type="url" disabled={!isLocal} value={settings.social_tiktok || ''} onChange={e => setSettings({...settings, social_tiktok: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="https://tiktok.com/@..." /></div>
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Twitter / X URL</label><input type="url" disabled={!isLocal} value={settings.social_twitter || ''} onChange={e => setSettings({...settings, social_twitter: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="https://x.com/..." /></div>
+                  </div>
+                </div>
+              </div>
 
-          <footer className="fixed bottom-0 right-0 h-8 bg-white border-t border-gray-200 flex items-center justify-between px-6 text-xs font-semibold text-gray-500 z-20" style={{ left: sidebarOpen ? '240px' : '64px', transition: 'all 0.3s' }}>
-            <span className="flex items-center gap-1"><Activity size={12} className="text-[#45C65A]" /> {isLocal ? 'Local Mode' : 'Cloud Mode'} — System Online</span>
-          </footer>
-        </main>
-      </div>
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-2">Custom Domain / URL</h2>
+                <p className="text-sm text-text-muted mb-4 md:mb-6">This is your "vanity URL" slug.</p>
+                <div className="flex items-center">
+                  <input disabled={!isLocal} value={settings.brand_url || ''} onChange={e => setSettings({...settings, brand_url: e.target.value})} className="flex-1 border-border border p-3 rounded-l-xl bg-background text-text focus:bg-surface transition font-medium outline-none focus:ring-2 focus:ring-primary" placeholder="burger-bombs" />
+                  <span className="bg-background border border-l-0 border-border p-3 rounded-r-xl text-text-muted font-bold text-sm hidden sm:block">.vercel.app</span>
+                </div>
+              </div>
+
+              <button onClick={saveSettings} disabled={!isLocal || isUploading} className="w-full bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-hover transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 sticky bottom-20 z-10">
+                {isUploading ? 'Uploading...' : <><CheckCircle size={20} /> Save All Changes</>}
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'settings' && settings && (
+            <div className="bg-surface p-4 md:p-8 rounded-2xl shadow-sm border border-border max-w-5xl mx-auto">
+              <h2 className="font-black text-2xl md:text-3xl text-text flex items-center gap-3 mb-6 md:mb-8 pb-4 md:pb-6 border-b border-border"><Settings size={28} className="text-primary" /> Store Settings</h2>
+              
+              <div className="space-y-8 md:space-y-10 mb-8 md:mb-10">
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold text-text mb-4 flex items-center gap-2"><Palette size={20} /> One-Click Themes</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    {PRESET_THEMES.map((preset) => {
+                      const isActive = currentColors.primary === preset.colors.primary && currentColors.background === preset.colors.background;
+                      return (
+                        <button key={preset.name} type="button" disabled={!isLocal}
+                          onClick={() => { setCurrentColors(preset.colors); addToast(`${preset.name} applied`, 'success'); }}
+                          className={`relative p-3 md:p-4 rounded-xl border-2 transition-all text-left ${isActive ? 'border-primary shadow-md scale-[1.02]' : 'border-border hover:border-gray-300'}`}>
+                          <div className="flex gap-1.5 md:gap-2 mb-2 md:mb-3">
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full shadow-sm" style={{ backgroundColor: preset.colors.primary }}></div>
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full shadow-sm border border-border" style={{ backgroundColor: preset.colors.background }}></div>
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-full shadow-sm border border-border" style={{ backgroundColor: preset.colors.surface }}></div>
+                          </div>
+                          <p className="font-bold text-text text-xs md:text-sm truncate">{preset.name}</p>
+                          {isActive && <span className="absolute top-2 right-2 text-primary text-xs md:text-base">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold text-text mb-4 flex items-center gap-2"><Palette size={20} /> Customize Colors</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+                    {[['primary', 'Primary (Buttons)'],['primaryHover', 'Primary Hover'],['background', 'Background'],['surface', 'Surface (Cards)'],['text', 'Text'],['textMuted', 'Muted Text'],['border', 'Borders'],['success', 'Success'],['danger', 'Danger']].map(([key, label]) => (
+                      <div key={key} className="flex items-center gap-3 p-3 bg-background rounded-xl border border-border">
+                        <input type="color" value={currentColors[key] || '#000000'} disabled={!isLocal} onChange={(e) => setCurrentColors({...currentColors, [key]: e.target.value})} className="w-8 h-8 md:w-10 md:h-10 rounded cursor-pointer border-none p-0 bg-transparent shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs md:text-sm font-bold text-text truncate">{label}</div>
+                          <div className="text-[10px] md:text-xs text-text-muted font-mono">{currentColors[key]}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6 md:space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div><label className="text-sm font-bold text-text-muted">Restaurant Name</label><input required disabled={!isLocal} value={settings.restaurant_name || ''} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                  <div><label className="text-sm font-bold text-text-muted">Tagline</label><input required disabled={!isLocal} value={settings.tagline || ''} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div><label className="text-sm font-bold text-text-muted">Contact Phone</label><input disabled={!isLocal} value={settings.contact_phone || ''} onChange={e => setSettings({...settings, contact_phone: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                  <div><label className="text-sm font-bold text-text-muted">Contact Email</label><input disabled={!isLocal} value={settings.contact_email || ''} onChange={e => setSettings({...settings, contact_email: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <div><label className="text-sm font-bold text-text-muted">Currency Symbol</label><input disabled={!isLocal} value={settings.currency_symbol || '₱'} onChange={e => setSettings({...settings, currency_symbol: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                  <div><label className="text-sm font-bold text-text-muted">Tax Rate</label><input type="number" step="0.01" disabled={!isLocal} value={settings.tax_rate || 0} onChange={e => setSettings({...settings, tax_rate: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                </div>
+                <div><label className="text-sm font-bold text-text-muted">Promo Banner Text</label><input disabled={!isLocal} value={settings.promo_banner_text || ''} onChange={e => setSettings({...settings, promo_banner_text: e.target.value})} className="w-full border-border border p-3 rounded-xl mt-2 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition" /></div>
+                <button onClick={saveSettings} disabled={!isLocal || isUploading} className="w-full bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-hover transition shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"><CheckCircle size={20} /> Save Settings</button>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        <footer className="bg-surface border-t border-border flex items-center justify-between px-4 md:px-6 py-2 text-xs font-semibold text-text-muted mt-auto shrink-0">
+          <span className="flex items-center gap-1"><Activity size={12} className="text-success" /> {isLocal ? 'Local Mode' : 'Cloud Mode'} — System Online</span>
+        </footer>
+      </main>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalMode === 'delete' ? 'Confirm Deletion' : modalMode === 'edit' ? 'Edit Menu Item' : 'Add New Item'} variant={modalMode === 'delete' ? 'danger' : 'info'}>
         {modalMode === 'delete' ? (
           <div>
-            <p className="text-gray-500 mb-6">Are you sure you want to delete <b>{selectedItem?.name}</b>? This action cannot be undone.</p>
+            <p className="text-text-muted mb-6 text-sm md:text-base">Are you sure you want to delete <b>{selectedItem?.name}</b>? This action cannot be undone.</p>
             <div className="flex gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-gray-50 text-gray-600 font-bold rounded-lg hover:bg-gray-100 transition border border-gray-200">Cancel</button>
-              <button onClick={handleDeleteItem} className="flex-1 py-3 bg-[#EA001E] text-white font-bold rounded-lg hover:bg-red-700 transition shadow-md flex items-center justify-center gap-2"><Trash2 size={16} /> Yes, Delete</button>
+              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 md:py-3 bg-background text-text-muted font-bold rounded-lg hover:bg-gray-200 transition border border-border text-sm md:text-base">Cancel</button>
+              <button onClick={handleDeleteItem} className="flex-1 py-2 md:py-3 bg-danger text-white font-bold rounded-lg hover:bg-red-700 transition shadow-md flex items-center justify-center gap-2 text-sm md:text-base"><Trash2 size={16} /> Yes, Delete</button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSaveItem} className="space-y-4">
-            <div><label className="text-xs font-bold text-gray-500 uppercase">Item Name</label><input required value={selectedItem?.name || ''} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-xs font-bold text-gray-500 uppercase">Price (₱)</label><input required type="number" step="0.01" value={selectedItem?.price || ''} onChange={e => setSelectedItem({...selectedItem, price: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" /></div>
-              <div><label className="text-xs font-bold text-gray-500 uppercase">Cost (₱)</label><input required type="number" step="0.01" value={selectedItem?.cost || ''} onChange={e => setSelectedItem({...selectedItem, cost: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition" /></div>
+          <form onSubmit={handleSaveItem} className="space-y-3 md:space-y-4">
+            <div><label className="text-xs font-bold text-text-muted uppercase">Item Name</label><input required value={selectedItem?.name || ''} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>
+            
+            <div>
+              <label className="text-xs font-bold text-text-muted uppercase">Description</label>
+              <textarea 
+                rows="2"
+                value={selectedItem?.description || ''} 
+                onChange={e => setSelectedItem({...selectedItem, description: e.target.value})} 
+                placeholder="Classic beef patty with lettuce, tomato, and house sauce"
+                className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" 
+              />
             </div>
-            <div><label className="text-xs font-bold text-gray-500 uppercase">Category</label><select value={selectedItem?.category || ''} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})} className="w-full border border-gray-200 p-3 rounded-lg mt-1 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#EA580C] outline-none transition">{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
-            <div><label className="text-xs font-bold text-gray-500 uppercase">Image Upload</label><input type="file" accept="image/*" onChange={e => handleUploadImage(e, 'image_url', 'menu')} className="w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#EA580C]/10 file:text-[#EA580C] hover:file:bg-[#EA580C]/20 transition" />{selectedItem?.image_url && <img src={selectedItem.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg mt-3 shadow-sm" />}</div>
-            <div className="pt-4 flex gap-3">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-gray-50 text-gray-600 font-bold rounded-lg hover:bg-gray-100 transition border border-gray-200">Cancel</button>
-              <button type="submit" disabled={isUploading} className="flex-1 py-3 bg-[#EA580C] text-white font-bold rounded-lg hover:bg-[#C2410C] transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2">{isUploading ? 'Uploading...' : <><CheckCircle size={16} /> Save Item</>}</button>
+
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div><label className="text-xs font-bold text-text-muted uppercase">Price (₱)</label><input required type="number" step="0.01" value={selectedItem?.price || ''} onChange={e => setSelectedItem({...selectedItem, price: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>
+              <div><label className="text-xs font-bold text-text-muted uppercase">Cost (₱)</label><input required type="number" step="0.01" value={selectedItem?.cost || ''} onChange={e => setSelectedItem({...selectedItem, cost: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>
+            </div>
+            <div><label className="text-xs font-bold text-text-muted uppercase">Category</label><select value={selectedItem?.category || ''} onChange={e => setSelectedItem({...selectedItem, category: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base">{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
+            <div><label className="text-xs font-bold text-text-muted uppercase">Image Upload</label><input type="file" accept="image/*" onChange={e => handleUploadImage(e, 'image_url', 'menu')} className="w-full mt-2 text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition" />{selectedItem?.image_url && <img src={selectedItem.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg mt-3 shadow-sm" />}</div>
+            <div className="pt-2 md:pt-4 flex gap-3">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 md:py-3 bg-background text-text-muted font-bold rounded-lg hover:bg-gray-200 transition border border-border text-sm md:text-base">Cancel</button>
+              <button type="submit" disabled={isUploading} className="flex-1 py-2 md:py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary-hover transition shadow-md disabled:opacity-50 flex items-center justify-center gap-2 text-sm md:text-base">{isUploading ? 'Uploading...' : <><CheckCircle size={16} /> Save Item</>}</button>
             </div>
           </form>
         )}

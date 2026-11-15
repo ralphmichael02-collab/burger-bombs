@@ -22,7 +22,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 const router = Router();
 
-// STATS
 router.get('/admin/stats', async (_req, res) => {
   try {
     const totalsRes = await pool.query(`
@@ -55,7 +54,6 @@ router.get('/admin/stats', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// CHART DATA
 router.get('/admin/chart-data', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -68,7 +66,6 @@ router.get('/admin/chart-data', async (_req, res) => {
   } catch (err) { res.json([]); }
 });
 
-// MENU MANAGEMENT
 router.get('/admin/menu', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM menu_items ORDER BY category, name`);
@@ -76,35 +73,37 @@ router.get('/admin/menu', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// FIXED: Added description
 router.post('/admin/menu', async (req, res) => {
-  const { name, price, category, image_url, cost } = req.body;
+  const { name, price, category, image_url, cost, description } = req.body;
   try {
     const { rows } = await pool.query(
-      `INSERT INTO menu_items (name, price, category, image_url, cost) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name, price, category, image_url, cost]
+      `INSERT INTO menu_items (name, price, category, image_url, cost, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name, price, category, image_url, cost, description]
     );
     if (cloudPool) {
       await cloudPool.query(
-        `INSERT INTO menu_items (id, name, price, category, image_url, cost) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [rows[0].id, name, price, category, image_url, cost]
+        `INSERT INTO menu_items (id, name, price, category, image_url, cost, description) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [rows[0].id, name, price, category, image_url, cost, description]
       );
     }
     res.json({ ok: true, item: rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// FIXED: Added description
 router.put('/admin/menu/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, price, category, image_url, cost } = req.body;
+  const { name, price, category, image_url, cost, description } = req.body;
   try {
     const { rows } = await pool.query(
-      `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 WHERE id = $6 RETURNING *`,
-      [name, price, category, image_url, cost, id]
+      `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5, description = $6 WHERE id = $7 RETURNING *`,
+      [name, price, category, image_url, cost, description, id]
     );
     if (cloudPool) {
       await cloudPool.query(
-        `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5 WHERE id = $6`,
-        [name, price, category, image_url, cost, id]
+        `UPDATE menu_items SET name = $1, price = $2, category = $3, image_url = $4, cost = $5, description = $6 WHERE id = $7`,
+        [name, price, category, image_url, cost, description, id]
       );
     }
     res.json({ ok: true, item: rows[0] });
@@ -120,14 +119,12 @@ router.delete('/admin/menu/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// LOCAL IMAGE UPLOAD
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const protocol = req.get('host').includes('.test') ? 'https' : req.protocol;
   res.json({ url: `${protocol}://${req.get('host')}/uploads/${req.file.filename}` });
 });
 
-// INVENTORY MANAGEMENT
 router.get('/ingredients', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT * FROM ingredients ORDER BY name ASC`);
@@ -145,7 +142,6 @@ router.post('/ingredients/:id/restock', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// RECIPE / BOM MANAGEMENT
 router.get('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
   try {
@@ -179,7 +175,6 @@ router.post('/admin/menu/:id/recipe', async (req, res) => {
   } finally { client.release(); }
 });
 
-// CATEGORY MANAGEMENT
 router.get('/admin/categories', async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories ORDER BY name ASC');
@@ -212,7 +207,6 @@ router.delete('/admin/categories/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PENDING PAYMENTS
 router.get('/admin/pending-payments', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -223,7 +217,6 @@ router.get('/admin/pending-payments', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// CUSTOMERS (CRM)
 router.get('/admin/customers', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -238,7 +231,6 @@ router.get('/admin/customers', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// REVIEWS
 router.get('/admin/reviews', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -250,7 +242,6 @@ router.get('/admin/reviews', async (_req, res) => {
   } catch (err) { res.json([]); }
 });
 
-// REPORTS: SALES
 router.get('/admin/reports/sales', async (req, res) => {
   const { startDate, endDate } = req.query;
   try {
@@ -263,7 +254,6 @@ router.get('/admin/reports/sales', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// REPORTS: INVENTORY AUDIT
 router.get('/admin/reports/inventory', async (_req, res) => {
   try {
     const { rows } = await pool.query(`

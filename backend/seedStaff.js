@@ -13,13 +13,15 @@ try {
   `);
   console.log('✅ Schema updated.');
 
-  const staff = [
-    { email: 'admin@burgerbombs.com', name: 'Boss Admin', role: 'admin' },
-    { email: 'manager@burgerbombs.com', name: 'Maria Manager', role: 'manager' },
-    { email: 'cashier@burgerbombs.com', name: 'Juan Cashier', role: 'cashier' },
-    { email: 'kitchen@burgerbombs.com', name: 'Chef Boy', role: 'kitchen' },
-    { email: 'inventory@burgerbombs.com', name: 'Ana Inventory', role: 'inventory' },
-  ];
+  // backend/seedStaff.js (updated staff array)
+const staff = [
+  { email: 'admin@burgerbombs.com',      name: 'Boss Admin',      role: 'admin' },
+  { email: 'manager@burgerbombs.com',    name: 'Maria Manager',   role: 'manager' },
+  { email: 'supervisor@burgerbombs.com', name: 'Pedro Supervisor', role: 'supervisor' },
+  { email: 'cashier@burgerbombs.com',    name: 'Juan Cashier',    role: 'cashier' },
+  { email: 'kitchen@burgerbombs.com',    name: 'Chef Boy',        role: 'kitchen' },
+  { email: 'inventory@burgerbombs.com',  name: 'Ana Inventory',   role: 'inventory' },
+];
 
   const password = await bcrypt.hash('password123', 10);
 

@@ -1,3 +1,4 @@
+// backend/src/routes/settings.js
 import { Router } from 'express';
 import { pool, cloudPool } from '../db.js';
 
@@ -59,15 +60,22 @@ router.put('/settings', async (req, res) => {
   try {
     const columns = Object.keys(DEFAULT_SETTINGS);
     const values = columns.map(col => req.body[col] !== undefined ? req.body[col] : DEFAULT_SETTINGS[col]);
-    const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
+    
+    // FIXED: Build INSERT ... ON CONFLICT DO UPDATE query
+    const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
+    const setClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
+    
+    const query = `
+      INSERT INTO store_settings (id, ${columns.join(', ')})
+      VALUES (1, ${placeholders})
+      ON CONFLICT (id) DO UPDATE SET ${setClause}
+      RETURNING *
+    `;
 
-    const { rows } = await pool.query(
-      `UPDATE store_settings SET ${setClause} WHERE id = 1 RETURNING *`,
-      values
-    );
+    const { rows } = await pool.query(query, values);
 
     if (cloudPool) {
-      await cloudPool.query(`UPDATE store_settings SET ${setClause} WHERE id = 1`, values);
+      await cloudPool.query(query, values);
     }
 
     res.json({ ok: true, settings: rows[0] });

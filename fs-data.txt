@@ -1,0 +1,905 @@
+FEASIBILITY STUDY AND IMPLEMENTATION PLAN
+Burger Bombs — Offline-First Restaurant Management System
+Document Control	
+Project Name	Burger Bombs — Hybrid Cloud Restaurant POS
+Document Type	Feasibility Study & Implementation Plan
+Version	1.0
+Date	November 15, 2026
+Prepared By	Solo Developer / Project Lead
+Target Audience	Restaurant Owners, Stakeholders, Technical Reviewers
+Status	Phase 0 Complete; Phase 1 In Progress
+Table of Contents
+Executive Summary
+
+Project Background
+
+Problem Statement
+
+Project Objectives
+
+Scope Definition
+
+Technical Feasibility
+
+Operational Feasibility
+
+Economic Feasibility
+
+Schedule Feasibility
+
+Risk Analysis
+
+Implementation Plan
+
+System Architecture
+
+Cost-Benefit Analysis
+
+Compliance & Legal Considerations
+
+Recommendations
+
+Appendices
+
+1. Executive Summary
+1.1 Purpose of This Document
+This document presents a comprehensive feasibility study and implementation plan for Burger Bombs, an offline-first, hybrid-cloud restaurant management system designed for small-to-medium restaurants in the Philippines. The study evaluates technical, operational, economic, and schedule feasibility, and provides a phased implementation roadmap.
+
+1.2 Project Summary
+Burger Bombs is a prototype restaurant management platform that addresses a critical failure point in existing POS systems: dependency on stable internet connectivity. The system uses an offline-first architecture where every order is saved to the browser's local database first, then synced to the cloud when connectivity is available. This guarantees that no order is ever lost — even during internet outages.
+
+The system consists of seven subsystems:
+
+Point of Sale (POS)
+
+Kitchen Display System (KDS)
+
+Self-Service Kiosk
+
+Inventory Management (with recipe-level BOM)
+
+Delivery GPS Tracking
+
+Admin Dashboard
+
+Online Store
+
+1.3 Verdict
+Technically Feasible. Economically Viable at Prototype Scale. Operationally Sound for Small Restaurants.
+
+The project is feasible as a demo-ready prototype deployable within 8–14 weeks by a solo developer using zero-budget infrastructure. Full production deployment requires additional investment in hardware (~₱30,000–₱50,000) and ongoing operational costs (~₱500–₱1,500/month for paid tiers).
+
+1.4 Key Findings
+Dimension	Verdict	Confidence
+Technical Feasibility	✅ Feasible	High
+Operational Feasibility	✅ Feasible	High
+Economic Feasibility	✅ Feasible (prototype)	Medium-High
+Schedule Feasibility	⚠️ Tight for solo dev	Medium
+Risk Level	⚠️ Moderate	Managed via phased approach
+1.5 Recommendation
+Proceed with phased implementation. Build and demo Phases 0–3 first (offline-first POS, cloud sync, kitchen display). These three phases deliver 80% of the value and are the highest-impact features for restaurant sales conversations. Phases 4–5 (GPS, Kiosk, BOM) are additive and should be built only after a restaurant commits to the system.
+
+2. Project Background
+2.1 Context
+The Philippine restaurant industry is characterized by:
+
+Micro and small enterprises (95% of restaurants have fewer than 20 employees)
+
+Inconsistent internet infrastructure — metro areas have decent connectivity; provincial areas experience frequent outages
+
+Manual processes — many small restaurants still use paper tickets, calculators, and WhatsApp for order management
+
+High competition — thin margins, need to optimize operations
+
+Growing digital adoption — GCash, Maya, and online ordering are increasingly expected by customers
+
+2.2 The Target Market
+Primary target: Small burger restaurants, cafes, and fast-casual dining establishments in the Philippines with 1–3 branches, 5–20 employees, and daily revenue of ₱10,000–₱50,000.
+
+Secondary target: Food stalls and kiosks in malls, food parks, and commercial areas.
+
+2.3 Existing Solutions and Their Limitations
+Solution	Limitation
+Manual (paper + calculator)	Lost orders, no analytics, slow checkout
+Basic POS (e.g., Loyverse free tier)	Requires internet; data stored in cloud
+Enterprise POS (e.g., Revel, Toast)	₱50,000+ setup, requires reliable internet, overkill for small restaurants
+Custom development (agency)	₱60,000–₱130,000, 14–22 weeks
+The gap: An affordable, offline-capable POS that works in Philippine conditions and is simple enough for non-technical staff.
+
+3. Problem Statement
+3.1 Core Problem
+Small restaurants lose revenue and customer trust when their POS system fails due to internet outages.
+
+3.2 Specific Pain Points
+Lost orders during outages — When the POS cannot reach the cloud, orders are either lost or manually re-entered later (risking errors).
+
+No visibility for kitchen staff — Paper tickets get lost, handwriting is unclear, and there's no way to know what's pending.
+
+Manual inventory tracking — Ingredients run out mid-service because nobody tracked depletion in real time.
+
+No customer tracking for delivery — Customers call repeatedly to ask "Where's my order?"
+
+Fragmented channels — Walk-in, phone orders, and online orders are handled separately, leading to missed orders and duplicate prep.
+
+3.3 Problem Impact Quantification
+For a restaurant with ₱30,000 daily revenue:
+
+1 hour of downtime during lunch rush = ₱5,000–₱8,000 in lost sales
+
+Weekly internet outages (2–3 occurrences) = ₱10,000–₱24,000 monthly revenue loss
+
+Manual order errors (5% error rate) = ₱1,500 daily in remade food / refunds
+
+Annual impact: ₱180,000–₱450,000 in lost revenue and waste.
+
+4. Project Objectives
+4.1 Primary Objectives
+ID	Objective	Success Metric
+O1	Eliminate order loss during internet outages	0 orders lost in 30-day test period
+O2	Provide real-time kitchen visibility	Order-to-kitchen latency < 200ms
+O3	Enable customer self-service online ordering	50% of orders via online/kiosk in demo
+O4	Provide inventory visibility	Real-time stock levels for all menu items
+O5	Keep monthly operating cost < ₱1,500	Verified via cost tracking
+4.2 Secondary Objectives
+ID	Objective	Success Metric
+O6	Enable delivery tracking without a mobile app	Rider visible on map via browser
+O7	Support multiple sales channels	POS, online, kiosk all functional
+O8	Provide business analytics	Daily sales, order count, peak hours
+4.3 Non-Objectives (Out of Scope)
+Multi-branch chain management (single-branch only)
+
+Integration with accounting software (manual export only)
+
+Custom hardware (uses off-the-shelf tablets/printers)
+
+Native mobile apps (web-only)
+
+Loyalty programs and promotions (Phase 6+)
+
+5. Scope Definition
+5.1 In Scope
+Component	Description	Priority
+Offline-First POS	React-based cashier interface with local persistence	Critical
+Cloud Sync	Idempotent sync engine with outbox pattern	Critical
+Kitchen Display	Real-time order screen via Socket.IO	High
+Online Store	Customer-facing ordering page	High
+GPS Tracking	Rider location on Leaflet/OSM map	Medium
+Kiosk	Self-service ordering with QR receipt	Medium
+Admin Dashboard	Sales and order overview	Medium
+Recipe-Level BOM	Ingredient depletion per sale	Low (Phase 5+)
+5.2 Out of Scope
+Payment gateway integration (Phase 2+, requires KYC)
+
+Multi-tenant SaaS architecture
+
+Mobile native apps
+
+Hardware procurement/integration beyond standard tablets
+
+Tax compliance / BIR integration
+
+Multi-currency support
+
+5.3 Assumptions
+Restaurant has at least one tablet or laptop available
+
+Restaurant has a stable (though not necessarily reliable) internet connection
+
+Staff can be trained in 1–2 hours on the POS interface
+
+Menu is defined before system deployment
+
+Restaurant accepts that the prototype requires manual backup of critical data
+
+5.4 Constraints
+Solo developer — all coding, deployment, and support by one person
+
+Zero initial budget — must use free tiers for cloud services
+
+No business registration — payment gateway integration deferred until registered
+
+No physical hardware budget — relies on existing devices
+
+6. Technical Feasibility
+6.1 Technology Stack Assessment
+Layer	Technology	Maturity	Feasibility
+Frontend	React 18 + Vite	⭐⭐⭐⭐⭐	✅ Proven
+Local DB	Dexie.js (IndexedDB)	⭐⭐⭐⭐⭐	✅ Standard for offline-first
+Styling	Tailwind CSS	⭐⭐⭐⭐⭐	✅ Rapid prototyping
+Backend	Express 5 + Node.js	⭐⭐⭐⭐⭐	✅ Industry standard
+Cloud DB	PostgreSQL (Neon)	⭐⭐⭐⭐⭐	✅ Free tier generous
+Real-time	Socket.IO + Redis Pub/Sub	⭐⭐⭐⭐⭐	✅ Production-proven
+Maps	Leaflet + OpenStreetMap	⭐⭐⭐⭐⭐	✅ Free, no API key
+QR	react-qr-code, html5-qrcode	⭐⭐⭐⭐	✅ Well-maintained
+Hosting	Vercel + Render	⭐⭐⭐⭐	✅ Free tiers available
+6.2 Offline-First Architecture Feasibility
+Challenge: Ensuring data consistency when multiple offline devices (POS, kiosk) both sell the last item.
+
+Solution Approach:
+
+Outbox Pattern — Every write goes to local IndexedDB + an outbox table atomically
+
+Idempotent Sync — Every mutation has a UUID; backend deduplicates via processed_mutations table
+
+Reservation Model — Inventory is reserved at order creation, released on cancellation/timeout
+
+Feasibility Verdict: ✅ Well-understood pattern, implemented in production systems like Atlas POS.
+
+Known Limitation: True conflict resolution (two offline devices selling the same last item) requires a reservation model. For the prototype, we'll use simple stock decrement and flag overselling conflicts for human review in the admin dashboard.
+
+6.3 Real-Time Kitchen Display Feasibility
+Approach: Socket.IO with Redis Pub/Sub adapter.
+
+Evidence: A production system handling 10,000+ daily orders across 50 outlets using this exact stack achieved 87ms average order delivery with zero lost tickets over 90 days.
+
+Feasibility Verdict: ✅ Proven pattern.
+
+6.4 GPS Tracking Feasibility
+Approach: navigator.geolocation.watchPosition → Socket.IO → Leaflet marker.
+
+Constraints:
+
+Rider needs a mobile data connection
+
+Battery drain on rider's phone (~10–15% per hour of active tracking)
+
+Accuracy depends on GPS signal (10–50m in urban areas)
+
+Feasibility Verdict: ✅ Feasible for prototype; production needs battery optimization and "last known location" fallback.
+
+6.5 Recipe-Level BOM Feasibility
+Approach: ingredients table + recipes mapping table + depletion logic in sync transaction.
+
+Complexity: This is a separate engineering project. Requires:
+
+Unit conversion logic
+
+Recipe management UI
+
+Waste tracking
+
+Theoretical vs. actual inventory reconciliation
+
+Feasibility Verdict: ⚠️ Feasible but complex. Recommend starting with simple stock count (sell 1 burger → decrement 1 burger) and adding BOM only after Phase 3 is stable.
+
+6.6 Technical Risks
+Risk	Likelihood	Mitigation
+Free tier limits exceeded	High	Monitor usage; upgrade to paid tier before 80%
+Dexie.js sync conflicts	Medium	Reservation model; flag conflicts for review
+Socket.IO disconnections	Medium	Auto-reconnect + last-known-state fallback
+Express 5 incompatibilities	Low	Pin to Express 4 if issues arise
+Neon connection limits	Low	Use pooled connections
+7. Operational Feasibility
+7.1 Stakeholder Analysis
+Stakeholder	Role	Interest	Influence
+Restaurant Owner	Decision maker, payer	High	High
+Cashier	Primary user of POS	High	Medium
+Kitchen Staff	User of Kitchen Display	High	Medium
+Rider	User of GPS tracking	Medium	Low
+Customer	User of online store/tracking	Medium	Low
+Developer	Builder, maintainer	High	High
+7.2 User Impact Assessment
+User Group	Current Process	Proposed Process	Change Impact
+Cashier	Paper tickets or basic POS	Touchscreen POS	Medium — training required
+Kitchen	Verbal/paper tickets	Screen-based order cards	Medium — new workflow
+Owner	Manual tally at day end	Dashboard with live stats	Low — better data
+Rider	Calls to report location	GPS auto-tracking	Low — passive
+Customer	Calls to order	Web-based ordering	Low — familiar pattern
+7.3 Training Requirements
+User	Training Time	Format
+Cashier	30 minutes	In-person walkthrough
+Kitchen Staff	15 minutes	In-person + laminated guide
+Owner	1 hour	Dashboard tour + reporting
+Rider	10 minutes	Simple URL + "Start" button
+Total training investment: ~2 hours per restaurant. Feasible for a solo developer to deliver.
+
+7.4 Support Requirements
+Support Type	Frequency	Method
+Initial setup	Once per restaurant	On-site or remote
+Bug fixes	As needed	Remote (GitHub → Render/Vercel redeploy)
+Feature requests	Monthly	Asynchronous (email/chat)
+Data backup	Daily (automated)	Neon point-in-time recovery
+7.5 Business Process Fit
+Compatible with:
+
+Counter-service burger restaurants
+
+Fast-casual dining
+
+Food parks / stalls
+
+Incompatible with (out of scope):
+
+Fine dining with table service requirements
+
+Franchise chains requiring centralized management
+
+Establishments requiring BIR-certified POS
+
+7.6 Operational Risks
+Risk	Likelihood	Impact	Mitigation
+Staff resist new system	Medium	High	Gradual rollout; keep paper as fallback for 2 weeks
+Owner doesn't see value	Medium	High	Demo with real data; show time savings
+Hardware failure	Low	High	Backup tablet; cloud data recovery
+Developer unavailable	Medium	High	Documented runbook; open-source stack
+8. Economic Feasibility
+8.1 Development Costs (Solo Developer)
+Item	Cost	Notes
+Time investment	~400–600 hours	8–14 weeks part-time
+Hardware (existing laptop)	₱0	Assume already owned
+Software licenses	₱0	All open-source / free tier
+Internet	~₱1,500/month	Already paying
+Total cash cost	₱0	
+Opportunity cost	~₱80,000	At ₱200/hr freelance rate
+8.2 Operating Costs (Monthly)
+Service	Free Tier	Paid Tier	Recommended
+Vercel (frontend)	₱0	₱1,100/mo	Free
+Render (backend)	₱0 (with cold starts)	₱400/mo (Starter)	Paid — avoids cold starts
+Neon PostgreSQL	₱0 (0.5 GB)	~₱1,000/mo (10 GB)	Free until data grows
+Redis (Upstash)	₱0 (10K cmd/day)	~₱500/mo	Free for prototype
+Domain name	—	~₱600/year	Optional
+Total (prototype)	₱0/month		
+Total (production)		~₱1,500–2,000/month	Recommended after first customer
+8.3 Capital Expenditure (Restaurant Side)
+Item	Cost (PHP)	Notes
+Tablet (Samsung Tab A9 or similar)	₱12,000	For POS
+Kitchen Display tablet/TV	₱8,000	Or use old tablet
+Thermal receipt printer	₱3,500	Optional (QR-only alternative)
+Stand/case	₱1,500	Optional
+Total CapEx	₱25,000	One-time
+Minimum viable	₱12,000	Tablet-only
+8.4 Cost-Benefit Analysis (Restaurant Perspective)
+Scenario: ₱30,000/day revenue, 2 internet outages per month (2 hours each).
+
+Item	Monthly Value
+Revenue recovered from outages	₱16,000–₱20,000
+Reduced order errors	₱3,000–₱5,000
+Staff time savings (inventory, reporting)	₱2,000
+Total monthly benefit	₱21,000–₱27,000
+Monthly cost (system)	₱2,000
+Net monthly benefit	₱19,000–₱25,000
+Payback period (₱12,000 CapEx)	~2 weeks
+Economic verdict: ✅ Strongly positive. Even with conservative estimates, payback within the first month.
+
+8.5 Pricing Model (for the Developer's Revenue)
+If the developer commercializes this:
+
+Model	Price	Rationale
+Setup fee	₱10,000	One-time onboarding
+Monthly subscription	₱1,500	Hosting + support + updates
+Commission per order	—	Not recommended (complex billing)
+Target: 20 restaurants	₱30,000/mo recurring	Sustainable for one person
+8.6 Economic Risks
+Risk	Likelihood	Impact	Mitigation
+Free tier limits hit	High	Low (upgrade)	Monitor usage; ₱2,000/mo budget ready
+Restaurants won't pay	Medium	High	Focus on demo-first; prove ROI
+Hosting price increases	Low	Medium	Self-host on restaurant's local machine
+9. Schedule Feasibility
+9.1 Overall Timeline
+Estimated duration: 8–14 weeks part-time for a solo developer.
+
+9.2 Phase Breakdown
+Phase	Duration	Deliverable
+Phase 0	1 week	Docker + Schema + Backend	✅ Complete
+Phase 1	2–3 weeks	Offline-First POS	🔄 In Progress
+Phase 2	2 weeks	Neon + Online Store	⏳ Planned
+Phase 3	1–2 weeks	Kitchen Display	⏳ Planned
+Phase 4	1–2 weeks	GPS Tracking	⏳ Planned
+Phase 5	2–4 weeks	Kiosk + BOM + Admin	⏳ Optional
+9.3 Critical Path
+text
+Phase 0 (Docker + Schema + Backend)
+    ↓
+Phase 1 (Offline-First POS) ← CRITICAL — nothing demos without this
+    ↓
+Phase 2 (Cloud + Online Store)
+    ↓
+Phase 3 (Kitchen Display) ← Minimum viable demo complete
+    ↓
+Phase 4 (GPS Tracking) ────┐
+    ↓                     │
+Phase 5 (Kiosk + BOM) ─────┘ ← Additive; can defer
+9.4 Milestones
+Milestone	Target Date	Acceptance Criteria
+M0: Infrastructure Ready	Week 1	Backend responds to /health; DB tables exist
+M1: Offline-First POS	Week 4	Order placed offline → syncs when online, no duplicates
+M2: Cloud Sync	Week 6	Online order appears in POS within 5 seconds
+M3: Kitchen Display	Week 8	Order appears on kitchen screen within 200ms
+M4: Minimum Demo Ready	Week 8	Full demo flow works end-to-end
+M5: GPS Demo	Week 10	Rider visible on customer map
+M6: Full Prototype	Week 14	All 7 subsystems functional
+9.5 Schedule Risks
+Risk	Likelihood	Impact	Mitigation
+Solo dev illness/burnout	Medium	High	Buffer week per phase; document everything
+Framework updates break code	Low	Medium	Pin versions in package.json
+Scope creep from demos	High	Medium	Strict phase gates; log requests for post-launch
+Neon/Render breaking changes	Low	Medium	Keep local fallback; document alternatives
+9.6 Schedule Feasibility Verdict
+⚠️ Tight but achievable. The 8-week "minimum demo" timeline is realistic if the developer is disciplined about scope. The full 14-week timeline for all features is achievable part-time but requires sustained focus.
+
+10. Risk Analysis
+10.1 Risk Matrix
+ID	Risk	Category	Likelihood	Impact	Score	Mitigation
+R1	Render free tier spin-down causes latency	Technical	High	Severe	🔴	Pay ₱400/mo Starter, or self-host
+R2	Neon DB reaches free tier limit	Technical	Medium	Severe	🟠	Monitor usage; archive old orders
+R3	Offline/online overselling conflict	Technical	Medium-High	Severe	🔴	Reservation model from day one
+R4	Solo developer unavailable	Operational	Medium	High	🟠	Documented runbook; open-source stack
+R5	Hardware costs not budgeted	Economic	High	Moderate	🟠	Budget ₱12,000–₱25,000 per restaurant
+R6	Payment gateway KYC delays	Legal	Medium	Moderate	🟡	Launch with cash + manual GCash first
+R7	BOM depletion scope creep	Technical	Medium	Moderate	🟡	Start with simple stock; add BOM later
+R8	GPS battery drain on rider phones	Operational	Medium	Low-Moderate	🟡	Throttle updates; show stale indicator
+R9	Staff resistance to new system	Operational	Medium	High	🟠	Gradual rollout; 2-week paper fallback
+R10	Data loss from DB corruption	Technical	Low	Severe	🟡	Neon PITR backup; daily exports
+Score Legend: 🔴 High priority · 🟠 Medium priority · 🟡 Monitor
+
+10.2 Risk Response Strategies
+R1 (Render cold starts): Accept for prototype; upgrade to paid before live restaurant use
+
+R2 (Neon limits): Set up Uptime Robot alerts at 70% usage; archive old orders to local files
+
+R3 (Overselling): Implement reservation model in Phase 2 before online ordering
+
+R5 (Hardware): Include hardware in demo discussions — make it clear it's a CapEx for the restaurant, not for the developer
+
+R9 (Staff resistance): Demo to cashier before owner signs; get buy-in from actual users
+
+11. Implementation Plan
+11.1 Development Methodology
+Approach: Incremental, demo-first development.
+
+Principles:
+
+Build narrow, demo early — Every phase is demoable independently
+
+Test with real users — Show to actual restaurant staff at each milestone
+
+Document as you go — No retroactive documentation
+
+Open-source stack — No vendor lock-in; every tool has a free alternative
+
+11.2 Phase-by-Phase Implementation
+Phase 0 — Foundation (✅ Complete)
+Duration: 1 week
+Deliverables:
+
+Docker Compose with PostgreSQL + Redis
+
+SQL schema (menu_items, orders, processed_mutations)
+
+Express backend with /health, /api/menu, /api/sync
+
+Idempotent sync endpoint (verified with curl)
+
+Acceptance: Two identical POSTs to /api/sync return one order and one "duplicate" response.
+
+Phase 1 — Offline-First POS (🔄 In Progress)
+Duration: 2–3 weeks
+Deliverables:
+
+React POS with Dexie.js local database
+
+Outbox pattern for order creation
+
+Background sync worker (5s interval)
+
+Cart, menu, order submission UI
+
+Acceptance: Place 3 orders offline → reconnect → all 3 sync without duplicates.
+
+Demo: DevTools Network → Offline → Place 3 orders → Back online → Watch sync.
+
+Phase 2 — Cloud & Online Store (⏳ Planned)
+Duration: 2 weeks
+Deliverables:
+
+Neon PostgreSQL database
+
+Backend pointed at Neon via DATABASE_URL swap
+
+Customer-facing online store on Vercel
+
+CORS configured for cross-origin
+
+Acceptance: Order placed on Vercel URL appears in POS within 5 seconds.
+
+Phase 3 — Kitchen Display (⏳ Planned)
+Duration: 1–2 weeks
+Deliverables:
+
+Socket.IO + Redis Pub/Sub on backend
+
+Kitchen Display React app
+
+Room-based event routing
+
+Acceptance: Order appears on kitchen screen in <200ms, no refresh needed.
+
+Phase 4 — GPS Tracking (⏳ Planned)
+Duration: 1–2 weeks
+Deliverables:
+
+Rider view with navigator.geolocation.watchPosition
+
+Customer tracking view with Leaflet/OSM
+
+Socket.IO location forwarding
+
+Acceptance: Rider phone location visible on customer map with <5s latency.
+
+Phase 5 — Kiosk, BOM, Admin (⏳ Optional)
+Duration: 2–4 weeks
+Deliverables:
+
+Kiosk UI with QR receipt
+
+Recipe-level BOM (ingredients + recipes + movements)
+
+Admin dashboard with sales analytics
+
+Acceptance: End-to-end kiosk → QR scan → kitchen → admin count.
+
+11.3 Quality Assurance
+Level	What's Tested	Method
+Unit	Individual functions	Manual (prototype phase)
+Integration	Frontend ↔ backend	curl + browser console
+System	Full order flow	Manual walkthrough
+User Acceptance	Restaurant staff	Live demo
+Regression	After each phase	Checklist of core flows
+Test Coverage Target: 60% for prototype (focus on sync and idempotency paths); 85%+ for production.
+
+11.4 Deployment Strategy
+Environment	Purpose	URL
+Local	Development + demo	localhost:5173, localhost:4000
+Staging	Pre-production checks	Vercel preview + Render staging
+Production	Live restaurants	Vercel prod + Render prod + Neon
+Deployment cadence:
+
+Local: continuous (every save)
+
+Staging: per phase completion
+
+Production: after UAT sign-off
+
+11.5 Documentation Deliverables
+Document	Purpose	Status
+README	Onboarding, project overview	✅ Complete
+Technical Docs	Code, API, schema reference	✅ Complete
+Feasibility Study	This document	✅ Complete
+User Manual	Cashier + Kitchen staff guide	⏳ Phase 1
+Admin Manual	Owner dashboard guide	⏳ Phase 5
+Runbook	Ops, backup, recovery	⏳ Phase 2
+12. System Architecture
+12.1 High-Level Architecture
+text
+┌─────────────────────────────────────────────────────────────┐
+│                     CLIENT LAYER                            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │   POS    │  │  Online  │  │  Kiosk   │  │ Kitchen  │   │
+│  │ (React)  │  │  Store   │  │ (React)  │  │ Display  │   │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
+│       │             │             │             │          │
+│       └─────────────┴──────┬──────┴─────────────┘          │
+│                             │                              │
+│                   ┌─────────▼──────────┐                  │
+│                   │  Dexie.js          │                  │
+│                   │  (IndexedDB)       │                  │
+│                   │  Local-first DB    │                  │
+│                   └─────────┬──────────┘                  │
+└─────────────────────────────┼──────────────────────────────┘
+                              │ Outbox sync (5s)
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      API LAYER                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Express + Socket.IO + Redis Pub/Sub                │   │
+│  │  - /api/menu, /api/sync, /api/admin                 │   │
+│  │  - Socket: order:new, rider:location                │   │
+│  │  - Idempotency via processed_mutations              │   │
+│  └─────────────────────────┬───────────────────────────┘   │
+└────────────────────────────┼────────────────────────────────┘
+                             │ pg driver
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      DATA LAYER                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  PostgreSQL (Neon)                                  │   │
+│  │  - menu_items, orders, processed_mutations          │   │
+│  │  - ingredients, recipes, inventory_movements        │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+12.2 Data Flow: Order Creation
+text
+User clicks "Place Order"
+    │
+    ▼
+createOrder(orderData) ──────────────────────┐
+    │                                          │
+    ├── crypto.randomUUID() → mutationId       │
+    │                                          │
+    ├── BEGIN Dexie transaction ───────────────┤
+    │   ├── INSERT orders (_syncStatus='pending')
+    │   └── INSERT syncOutbox (mutationId, payload)
+    ├── COMMIT ────────────────────────────────┘
+    │
+    ▼
+UI shows "Pending sync: 1" (via useLiveQuery)
+    │
+    ▼ (within 5s)
+syncService.tick()
+    │
+    ├── navigator.onLine === true?
+    │   ├── No → skip, retry next tick
+    │   └── Yes → continue
+    │
+    ├── Read pending items from syncOutbox
+    │
+    ├── POST /api/sync { mutationId, type, payload }
+    │
+    ▼
+Backend /api/sync
+    │
+    ├── BEGIN pg transaction
+    │
+    ├── INSERT INTO processed_mutations
+    │   ON CONFLICT DO NOTHING
+    │   RETURNING mutation_id
+    │
+    ├── If rowCount === 0:
+    │   ├── ROLLBACK
+    │   └── Return { ok: true, duplicate: true }
+    │
+    ├── INSERT INTO orders (sync_id, status, total, items)
+    │
+    ├── (Phase 3+) io.to('kitchen').emit('order:new', ...)
+    │
+    ├── COMMIT
+    │
+    └── Return { ok: true }
+    │
+    ▼
+syncService.pushOne() success path
+    │
+    ├── BEGIN Dexie transaction
+    │   ├── UPDATE syncOutbox SET status='sent'
+    │   └── UPDATE orders SET _syncStatus='synced'
+    └── COMMIT
+    │
+    ▼
+UI shows "Pending sync: 0" (via useLiveQuery)
+12.3 Data Model (Entity Relationships)
+text
+┌──────────────┐
+│  menu_items  │
+│  ───────────  │
+│  id (PK)      │
+│  name         │
+│  price        │
+│  available    │
+└──────┬───────┘
+       │
+       │ (referenced via JSONB items, not FK)
+       │
+┌──────▼───────┐          ┌─────────────────────┐
+│    orders    │          │ processed_mutations │
+│  ───────────  │          │  ───────────────     │
+│  id (PK)      │          │  mutation_id (PK)   │
+│  sync_id (UQ) │◄─────────│  (same UUID as      │
+│  status       │  (concept)│   orders.sync_id)  │
+│  total        │          │  type               │
+│  items (JSONB)│          │  processed_at       │
+│  created_at   │          └─────────────────────┘
+└──────┬───────┘
+       │
+       │ (Phase 5+)
+       │
+┌──────▼───────┐    ┌──────────────┐    ┌──────────────────────┐
+│  ingredients │◄───│   recipes    │    │ inventory_movements  │
+│  ───────────  │    │  ───────────  │    │  ───────────────     │
+│  id (PK)      │    │  id (PK)      │    │  id (PK)             │
+│  name         │    │  menu_item_id │    │  ingredient_id (FK)  │
+│  unit         │    │  ingredient_id│    │  delta               │
+│  stock_qty    │    │  qty_per_unit │    │  reason              │
+│  cost_per_unit│    └──────────────┘    │  order_id (FK)       │
+└──────────────┘                          │  created_at          │
+                                          └──────────────────────┘
+12.4 Non-Functional Requirements
+Requirement	Target	Achieved By
+Availability	99.5% uptime	Offline-first means local works even when cloud is down
+Latency (sync)	<5s after reconnection	5s polling interval + online event listener
+Latency (kitchen)	<200ms	Socket.IO persistent connection
+Data durability	Zero order loss	IndexedDB + outbox + idempotent backend
+Scalability	100 orders/day	Current architecture handles 10,000+/day
+Security	Encrypted in transit	HTTPS/TLS on Neon, Vercel, Render
+Backup	Daily PITR	Neon automatic point-in-time recovery
+13. Cost-Benefit Analysis
+13.1 Total Cost of Ownership (3 years, one restaurant)
+Year	CapEx	OpEx	Total
+Year 1	₱12,000 (tablet)	₱18,000 (₱1,500/mo)	₱30,000
+Year 2	₱0	₱18,000	₱18,000
+Year 3	₱0	₱18,000	₱18,000
+Total	₱12,000	₱54,000	₱66,000
+13.2 Total Benefit of Ownership (3 years)
+Year	Revenue Saved	Errors Avoided	Staff Savings	Total
+Year 1	₱240,000	₱48,000	₱24,000	₱312,000
+Year 2	₱240,000	₱48,000	₱24,000	₱312,000
+Year 3	₱240,000	₱48,000	₱24,000	₱312,000
+Total	₱720,000	₱144,000	₱72,000	₱936,000
+13.3 Return on Investment
+Metric	Value
+Total benefit (3 years)	₱936,000
+Total cost (3 years)	₱66,000
+Net benefit	₱870,000
+ROI	1,318%
+Payback period	~2 weeks
+Note: These estimates assume conservative outage frequency and error rates. Even with 50% reduction in estimates, the ROI remains above 600%.
+
+13.4 Break-Even Analysis
+For the restaurant:
+
+Fixed cost (tablet): ₱12,000
+
+Monthly benefit: ₱21,000 (minimum estimate)
+
+Break-even: <1 month
+
+For the developer (if commercialized):
+
+Development cost (sunk): 400–600 hours
+
+Setup fee per restaurant: ₱10,000
+
+Monthly subscription: ₱1,500
+
+Break-even at 20 restaurants: month 1 of 20th restaurant
+
+14. Compliance & Legal Considerations
+14.1 Data Privacy (RA 10173 — Data Privacy Act of 2012)
+Requirement	Current Status	Action Needed
+Customer data consent	Not implemented	Add checkbox on online store
+Privacy policy	Not drafted	Draft before Phase 2 launch
+Data retention policy	Not defined	Define before production
+Breach notification	Not planned	Add to runbook
+DPO registration	Not applicable (<250 employees)	Skip for prototype
+Risk Level: 🟡 Medium. Must address before public launch.
+
+14.2 BIR Compliance
+Requirement	Status	Notes
+Official Receipt (OR)	Not implemented	Required for BIR-registered businesses
+Sales journal	Partial (orders table)	Need OR sequence + printer
+VAT handling	Not implemented	12% VAT on non-exempt items
+Risk Level: 🔴 High for live restaurant use. The prototype is not BIR-compliant. Restaurants must continue using their existing BIR-registered receipt system alongside this POS, OR the system must be enhanced with BIR certification.
+
+Important: For the prototype, this is acceptable as a "supplementary system." For production use by a BIR-registered restaurant, additional work is required.
+
+14.3 Payment Gateway (Phase 2+)
+Provider	Requirement	Status
+PayMongo	Business registration, bank account, KYC	⏳ Deferred
+GCash	Merchant account, DTI/SEC registration	⏳ Deferred
+Maya	Similar requirements	⏳ Deferred
+Mitigation: Launch with cash + manual GCash transfer (screenshot upload). Add gateway integration after the restaurant is registered and has demonstrated volume.
+
+14.4 Software Licensing
+Component	License	Commercial Use
+React, Express, PostgreSQL, Redis	MIT / BSD / PostgreSQL	✅ Allowed
+Leaflet, Dexie, Socket.IO	MIT	✅ Allowed
+Tailwind CSS	MIT	✅ Allowed
+Neon, Vercel, Render	Commercial terms	✅ Free tiers permitted for non-commercial; check ToS for commercial use
+Vercel Hobby Tier: Explicitly non-commercial use only. For commercial deployment, upgrade to Pro ($20/mo) or move to self-hosted. This is a known constraint — plan for it before first paying customer.
+
+15. Recommendations
+15.1 Primary Recommendation
+Proceed with implementation using the phased approach. Specifically:
+
+Complete Phase 1 immediately — Finish the offline-first POS and run the demo (offline → 3 orders → online → sync). This is the core value proposition.
+
+Build Phase 3 before Phase 2 if pressed for time — The Kitchen Display is the "wow" factor that sells the system in demos. It's more visually compelling than the online store.
+
+Defer Phase 5 until a restaurant commits — Kiosk and BOM are complex and only matter after a restaurant says "yes."
+
+15.2 Secondary Recommendations
+Set up monitoring on Day 1 of production
+
+Uptime Robot for /health endpoint
+
+Neon dashboard alerts at 70% storage
+
+Render logs review weekly
+
+Document the runbook before the first customer
+
+How to restore from Neon backup
+
+How to redeploy backend after changes
+
+How to add a new restaurant
+
+Build the simple stock system first, not BOM
+
+Sell 1 burger → decrement 1 burger from menu_items.stock_qty
+
+Add recipe-level BOM only after the restaurant asks for it
+
+Plan for Vercel commercial upgrade
+
+Free tier is non-commercial
+
+Budget ₱1,100/mo for Vercel Pro OR self-host on restaurant's local machine
+
+Do not promise BIR compliance initially
+
+The prototype is supplementary
+
+Restaurant keeps its BIR-registered receipt system until Phase 5+
+
+Be honest with restaurant owners about this
+
+15.3 Go/No-Go Criteria for Production
+Proceed to paid production deployment only when:
+
+□ Phase 3 (Kitchen Display) is stable for 30 days in demo mode
+□ At least 500 test orders processed without sync failures
+□ Zero data loss in last 30 days of demo use
+□ A restaurant has agreed to pay the subscription
+□ Runbook is documented and tested
+□ Privacy policy is drafted
+□ Vercel Pro upgrade is budgeted
+□ Backup restoration has been tested once
+16. Appendices
+Appendix A — Technology Justification Matrix
+Component	Chosen	Alternatives Considered	Why Chosen
+Local DB	Dexie.js	localStorage, SQL.js	Best API, React integration, large community
+Backend	Express	Fastify, NestJS	Simplest, well-documented
+Database	PostgreSQL	MySQL, MongoDB	Transactions, JSONB, free tier options
+Cloud DB	Neon	Aiven, Supabase	No read-only surprise, generous free tier
+Frontend host	Vercel	Netlify, Cloudflare Pages	Best DX, preview deploys
+Backend host	Render	Railway, Fly.io	Free tier, simple setup
+Real-time	Socket.IO	raw WebSocket, SSE	Reconnection built-in, Redis adapter
+Cache/Broker	Redis	Memcached	Pub/Sub needed for multi-instance
+Maps	Leaflet + OSM	Google Maps, Mapbox	Free, no API key, no quota
+QR	react-qr-code + html5-qrcode	qrcode.react, zxing	Best combined generate+scan
+Appendix B — Key Metrics to Track
+Metric	Target	How to Measure
+Sync latency (online → synced)	<5s	Timestamp delta in orders table
+Order-to-kitchen latency	<200ms	Socket.IO event timestamps
+Sync failure rate	<0.1%	syncOutbox WHERE status='failed'
+Duplicate prevention	100%	orders count vs processed_mutations count
+Orders per day	Track	COUNT(*) WHERE created_at::date = CURRENT_DATE
+Pending sync backlog	<5	syncOutbox WHERE status='pending'
+DB storage usage	<70%	Neon dashboard
+Uptime	>99%	Uptime Robot
+Average order value	Track	AVG(total)
+Peak hour	Track	EXTRACT(HOUR FROM created_at)
+Appendix C — Glossary
+Term	Definition
+Offline-First	Architecture where local storage is the primary data source; cloud syncs in background
+Outbox Pattern	Queue of pending mutations that are sent to the server; ensures no write is lost
+Idempotency	Property where repeating an operation has the same effect as doing it once
+Mutation	A discrete data change (create order, update status); has a unique UUID
+Sync Worker	Background process that reads the outbox and POSTs to the backend
+BOM	Bill of Materials — recipe-level ingredient breakdown
+KDS	Kitchen Display System
+POS	Point of Sale
+PITR	Point-In-Time Recovery — database backup feature
+KYC	Know Your Customer — identity verification for payment gateways
+Appendix D — Reference Links
+Resource	URL
+Neon	https://neon.tech
+Vercel	https://vercel.com
+Render	https://render.com
+Dexie.js	https://dexie.org
+Leaflet	https://leafletjs.com
+Socket.IO	https://socket.io
+PayMongo	https://paymongo.com
+OpenStreetMap	https://openstreetmap.org
+RA 10173 (Data Privacy)	https://privacy.gov.ph/data-privacy-act/
+Appendix E — Document Revision History
+Version	Date	Changes	Author
+1.0	2026-11-15	Initial feasibility study and implementation plan	Project Lead
+Sign-Off
+Role	Name	Signature	Date
+Project Lead	_________________	_________________	_______
+Technical Reviewer	_________________	_________________	_______
+Stakeholder (Restaurant Owner)	_________________	_________________	_______
+END OF DOCUMENT
+
+This feasibility study is a living document. Update it as phases complete and new information emerges.

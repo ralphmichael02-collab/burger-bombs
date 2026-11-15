@@ -1,6 +1,6 @@
 // backend/src/routes/sync.js
 import { Router } from 'express';
-import { pool } from '../db.js';
+import { pool, cloudPool } from '../db.js';
 import { queueCloudSync } from '../services/cloudSync.js';
 
 const router = Router();
@@ -43,7 +43,6 @@ async function refundStock(client, menuItemId, quantityRefunded) {
   }
 }
 
-// CREATE ORDER (POS, Kiosk, Online Store)
 router.post('/sync', async (req, res) => {
   const { mutationId, type, payload } = req.body;
   if (!mutationId || !type || !payload) {
@@ -73,9 +72,17 @@ router.post('/sync', async (req, res) => {
       }
 
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
-      const initialStatus = (payload.orderType === 'ONLINE' && payload.paymentMethod !== 'Cash')
-        ? 'PENDING_PAYMENT'
-        : 'PENDING';
+      
+      // KIOSK always needs cashier verification
+      // ONLINE with non-cash also needs verification
+      let initialStatus;
+      if (payload.orderType === 'KIOSK') {
+        initialStatus = 'PENDING_PAYMENT';
+      } else if (payload.orderType === 'ONLINE' && payload.paymentMethod !== 'Cash') {
+        initialStatus = 'PENDING_PAYMENT';
+      } else {
+        initialStatus = 'PENDING';
+      }
 
       const result = await client.query(
         `INSERT INTO orders (sync_id, status, total, items, created_at, order_type, ip_address, payment_method, customer_id, delivery_address, delivery_lat, delivery_lng, payment_reference)
@@ -86,15 +93,30 @@ router.post('/sync', async (req, res) => {
       newOrderId = result.rows[0].id;
 
       const io = req.app.get('io');
-      if (io && initialStatus !== 'PENDING_PAYMENT') {
-        io.emit('new_order', {
-          id: newOrderId,
-          items: payload.items,
-          total: payload.total,
-          createdAt: payload.createdAt,
-          orderType: payload.orderType || 'POS',
-          paymentMethod: payload.paymentMethod || 'Cash'
-        });
+      if (io) {
+        if (initialStatus === 'PENDING_PAYMENT') {
+          // Notify cashier of new pending order
+          io.to('cashier').emit('kiosk:new-pending', {
+            id: newOrderId,
+            sync_id: mutationId,
+            items: payload.items,
+            total: payload.total,
+            createdAt: payload.createdAt,
+            order_type: payload.orderType || 'POS',
+            payment_method: payload.paymentMethod || 'Cash',
+            payment_reference: payload.paymentReference || null
+          });
+        } else {
+          // Send directly to kitchen
+          io.to('kitchen').emit('order:new', {
+            id: newOrderId,
+            items: payload.items,
+            total: payload.total,
+            createdAt: payload.createdAt,
+            orderType: payload.orderType || 'POS',
+            paymentMethod: payload.paymentMethod || 'Cash'
+          });
+        }
       }
 
       queueCloudSync({ mutationId, total: payload.total, items: payload.items, createdAt: payload.createdAt, orderType: payload.orderType || 'POS' });
@@ -115,21 +137,39 @@ router.post('/sync', async (req, res) => {
   }
 });
 
-// VOID ORDER (Cashier refund)
+// ─── VOID ORDER (cashier or admin) ──────────────────────────
 router.post('/orders/:id/void', async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const orderRes = await client.query(`SELECT items, status FROM orders WHERE id = $1`, [id]);
+    
+    const orderRes = await client.query(
+      `SELECT sync_id, items, status FROM orders WHERE id = $1`, 
+      [id]
+    );
     if (orderRes.rowCount === 0) throw new Error("Order not found");
     if (orderRes.rows[0].status === 'VOIDED') throw new Error("Already voided");
+    
     const items = orderRes.rows[0].items;
     for (const item of items) {
       await refundStock(client, item.id, item.qty);
     }
+    
     await client.query(`UPDATE orders SET status = 'VOIDED' WHERE id = $1`, [id]);
+    
+    if (cloudPool) {
+      await cloudPool.query(`UPDATE orders SET status = 'VOIDED' WHERE sync_id = $1`, [orderRes.rows[0].sync_id]);
+    }
+    
     await client.query('COMMIT');
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to('cashier').emit('kiosk:pending-removed', { id: parseInt(id) });
+      io.to('kitchen').emit('order:voided', { id: parseInt(id) });
+    }
+
     res.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -139,19 +179,24 @@ router.post('/orders/:id/void', async (req, res) => {
   }
 });
 
-// VERIFY PAYMENT (Admin)
 router.post('/orders/:id/verify-payment', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      `UPDATE orders SET status = 'PENDING' WHERE id = $1 AND status = 'PENDING_PAYMENT' RETURNING *`,
+      `UPDATE orders SET status = 'PENDING' 
+       WHERE id = $1 AND status = 'PENDING_PAYMENT' 
+       RETURNING *`,
       [id]
     );
     if (result.rowCount === 0) throw new Error("Order not found or already verified");
 
+    if (cloudPool) {
+      await cloudPool.query(`UPDATE orders SET status = 'PENDING' WHERE sync_id = $1`, [result.rows[0].sync_id]);
+    }
+
     const io = req.app.get('io');
     if (io) {
-      io.emit('new_order', {
+      io.to('kitchen').emit('order:new', {
         id: result.rows[0].id,
         items: result.rows[0].items,
         total: result.rows[0].total,
@@ -159,6 +204,7 @@ router.post('/orders/:id/verify-payment', async (req, res) => {
         orderType: result.rows[0].order_type,
         paymentMethod: result.rows[0].payment_method
       });
+      io.to('cashier').emit('kiosk:pending-removed', { id: parseInt(id) });
     }
     res.json({ ok: true });
   } catch (err) {
@@ -166,7 +212,6 @@ router.post('/orders/:id/verify-payment', async (req, res) => {
   }
 });
 
-// KITCHEN: Active Orders
 router.get('/orders/active', async (_req, res) => {
   try {
     const { rows } = await pool.query(
@@ -178,18 +223,20 @@ router.get('/orders/active', async (_req, res) => {
   }
 });
 
-// KITCHEN: Complete Order
 router.post('/orders/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query(`UPDATE orders SET status = 'COMPLETED' WHERE id = $1`, [id]);
+    const result = await pool.query(`UPDATE orders SET status = 'COMPLETED' WHERE id = $1 RETURNING sync_id`, [id]);
+    
+    if (cloudPool && result.rowCount > 0) {
+      await cloudPool.query(`UPDATE orders SET status = 'COMPLETED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// RIDER: Ready for Delivery
 router.get('/orders/ready-for-delivery', async (_req, res) => {
   try {
     const { rows } = await pool.query(
@@ -201,11 +248,15 @@ router.get('/orders/ready-for-delivery', async (_req, res) => {
   }
 });
 
-// RIDER: Deliver
 router.post('/orders/:id/deliver', async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query(`UPDATE orders SET status = 'DELIVERED' WHERE id = $1`, [id]);
+    const result = await pool.query(`UPDATE orders SET status = 'DELIVERED' WHERE id = $1 RETURNING sync_id`, [id]);
+    
+    if (cloudPool && result.rowCount > 0) {
+      await cloudPool.query(`UPDATE orders SET status = 'DELIVERED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
+    }
+    
     const io = req.app.get('io');
     if (io) io.emit('delivery_completed', { orderId: id });
     res.json({ ok: true });
@@ -214,11 +265,14 @@ router.post('/orders/:id/deliver', async (req, res) => {
   }
 });
 
-// CUSTOMER: Confirm Receipt
 router.post('/orders/:id/confirm-receipt', async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query(`UPDATE orders SET status = 'RECEIVED' WHERE id = $1`, [id]);
+    const result = await pool.query(`UPDATE orders SET status = 'RECEIVED' WHERE id = $1 RETURNING sync_id`, [id]);
+    
+    if (cloudPool && result.rowCount > 0) {
+      await cloudPool.query(`UPDATE orders SET status = 'RECEIVED' WHERE sync_id = $1`, [result.rows[0].sync_id]);
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

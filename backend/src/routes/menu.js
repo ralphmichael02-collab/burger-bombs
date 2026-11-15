@@ -11,6 +11,7 @@ router.get('/menu', async (_req, res) => {
         m.id::int, 
         m.name, 
         m.price::float,
+        m.description,
         m.category,
         m.image_url,
         CASE 
