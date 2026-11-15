@@ -86,33 +86,37 @@ router.post('/sync', async (req, res) => {
         await deductStock(client, item.id, item.qty);
       }
 
-      // Capture Client IP and Payment Method
-      // Inside the router.post('/sync') -> if (type === 'CREATE_ORDER') block:
-
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
       const paymentMethod = payload.paymentMethod || 'Cash';
       
-      // NEW: Extract delivery and customer info from payload
       const customerId = payload.customerId || null;
       const deliveryAddress = payload.deliveryAddress || null;
       const deliveryLat = payload.deliveryLat || null;
       const deliveryLng = payload.deliveryLng || null;
+      const paymentRef = payload.paymentReference || null;
+
+      // 👇 NEW: If it's an online order and NOT cash, set to PENDING_PAYMENT
+      const initialStatus = (payload.orderType === 'ONLINE' && paymentMethod !== 'Cash') 
+        ? 'PENDING_PAYMENT' 
+        : 'PENDING';
 
       const result = await client.query(
         `INSERT INTO orders (
           sync_id, status, total, items, created_at, order_type, ip_address, payment_method, 
-          customer_id, delivery_address, delivery_lat, delivery_lng
-         ) VALUES ($1, 'PENDING', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+          customer_id, delivery_address, delivery_lat, delivery_lng, payment_reference
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
         [
-          mutationId, payload.total, JSON.stringify(payload.items), payload.createdAt, payload.orderType || 'POS', 
-          clientIp, paymentMethod, customerId, deliveryAddress, deliveryLat, deliveryLng
+          mutationId, initialStatus, payload.total, JSON.stringify(payload.items), payload.createdAt, payload.orderType || 'POS', 
+          clientIp, paymentMethod, customerId, deliveryAddress, deliveryLat, deliveryLng, paymentRef
         ]
       );
 
       newOrderId = result.rows[0].id;
 
       const io = req.app.get('io');
-      if (io) {
+      
+      // 👇 NEW: Only emit to Kitchen if it's NOT pending payment
+      if (io && initialStatus !== 'PENDING_PAYMENT') {
         io.emit('new_order', {
           id: newOrderId, items: payload.items, total: payload.total,
           createdAt: payload.createdAt, orderType: payload.orderType || 'POS',
@@ -144,27 +148,51 @@ router.post('/sync', async (req, res) => {
 });
 
 // ==========================================
-// 2. VOID ORDER (Cancel & Refund)
+// 2. ADMIN: VERIFY PAYMENT
+// ==========================================
+router.post('/orders/:id/verify-payment', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE orders SET status = 'PENDING' WHERE id = $1 AND status = 'PENDING_PAYMENT' RETURNING *`,
+      [id]
+    );
+    
+    if (result.rowCount === 0) throw new Error("Order not found or already verified");
+
+    // Now emit to Kitchen!
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('new_order', {
+        id: result.rows[0].id, 
+        items: result.rows[0].items, 
+        total: result.rows[0].total,
+        createdAt: result.rows[0].created_at, 
+        orderType: result.rows[0].order_type,
+        paymentMethod: result.rows[0].payment_method
+      });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 3. VOID & KITCHEN ROUTES
 // ==========================================
 router.post('/orders/:id/void', async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
-  
   try {
     await client.query('BEGIN');
-    
     const orderRes = await client.query(`SELECT items, status FROM orders WHERE id = $1`, [id]);
     if (orderRes.rowCount === 0) throw new Error("Order not found");
-    if (orderRes.rows[0].status === 'VOIDED') throw new Error("Order already voided");
     
     const items = orderRes.rows[0].items;
-    
-    for (const item of items) {
-      await refundStock(client, item.id, item.qty);
-    }
+    for (const item of items) { await refundStock(client, item.id, item.qty); }
     
     await client.query(`UPDATE orders SET status = 'VOIDED' WHERE id = $1`, [id]);
-    
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
@@ -175,9 +203,6 @@ router.post('/orders/:id/void', async (req, res) => {
   }
 });
 
-// ==========================================
-// 3. KITCHEN & RIDER ROUTES
-// ==========================================
 router.get('/orders/active', async (_req, res) => {
   try {
     const { rows } = await pool.query(
@@ -198,7 +223,7 @@ router.post('/orders/:id/complete', async (req, res) => {
 router.get('/orders/ready-for-delivery', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, total::float, items, created_at FROM orders WHERE status = 'COMPLETED' ORDER BY created_at ASC`
+      `SELECT id, total::float, items, delivery_address, created_at FROM orders WHERE status = 'COMPLETED' ORDER BY created_at ASC`
     );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }

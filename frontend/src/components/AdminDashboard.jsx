@@ -4,11 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const DEFAULT_CATEGORIES = [
-  { id: 1, name: 'Burgers' },
-  { id: 2, name: 'Combos' },
-  { id: 3, name: 'Sides' },
-  { id: 4, name: 'Drinks' },
-  { id: 5, name: 'Desserts' }
+  { id: 1, name: 'Burgers' }, { id: 2, name: 'Combos' }, { id: 3, name: 'Sides' }, { id: 4, name: 'Drinks' }, { id: 5, name: 'Desserts' }
 ];
 
 export default function AdminDashboard() {
@@ -20,15 +16,14 @@ export default function AdminDashboard() {
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]); 
   const [settings, setSettings] = useState(null);
+  const [pendingPayments, setPendingPayments] = useState([]); // 👈 NEW
   const [loading, setLoading] = useState(true);
 
-  // Menu Form State
   const [newItem, setNewItem] = useState({ name: '', price: '', cost: '', category: 'Burgers', image_url: '' });
   const [editingId, setEditingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [menuFilter, setMenuFilter] = useState('All'); 
 
-  // Recipe / BOM State
   const [selectedRecipeItem, setSelectedRecipeItem] = useState(null);
   const [recipeIngredients, setRecipeIngredients] = useState({});
 
@@ -41,17 +36,16 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${import.meta.env.VITE_API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)).catch(console.error);
     
-    // Fetch categories and fallback if empty
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`)
       .then(r => r.json())
-      .then(d => {
-        if (Array.isArray(d) && d.length > 0) {
-          setCategories(d);
-        } else {
-          setCategories(DEFAULT_CATEGORIES); // Fallback if DB is empty
-        }
-      })
+      .then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); })
       .catch(() => setCategories(DEFAULT_CATEGORIES));
+
+    // Fetch pending payments
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/pending-payments`)
+      .then(r => r.json())
+      .then(d => setPendingPayments(Array.isArray(d) ? d : []))
+      .catch(console.error);
   };
 
   useEffect(() => {
@@ -65,7 +59,6 @@ export default function AdminDashboard() {
     setSelectedRecipeItem(item);
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${item.id}/recipe`);
     const recipe = await res.json();
-    
     const recipeMap = {};
     recipe.forEach(r => { 
       if (r.ingredient_id) recipeMap[`ing_${r.ingredient_id}`] = r.quantity;
@@ -74,26 +67,18 @@ export default function AdminDashboard() {
     setRecipeIngredients(recipeMap);
   };
 
-  const handleRecipeChange = (key, qty) => {
-    setRecipeIngredients(prev => ({ ...prev, [key]: parseFloat(qty) || 0 }));
-  };
+  const handleRecipeChange = (key, qty) => setRecipeIngredients(prev => ({ ...prev, [key]: parseFloat(qty) || 0 }));
 
   const saveRecipe = async () => {
     if (!isLocal) return alert("Only the local store can edit recipes.");
-    
     const payload = Object.keys(recipeIngredients).map(key => {
       const [type, id] = key.split('_');
-      return {
-        ingredient_id: type === 'ing' ? parseInt(id) : null,
-        component_menu_item_id: type === 'comp' ? parseInt(id) : null,
-        quantity: recipeIngredients[key]
-      };
+      return { ingredient_id: type === 'ing' ? parseInt(id) : null, component_menu_item_id: type === 'comp' ? parseInt(id) : null, quantity: recipeIngredients[key] };
     }).filter(p => p.quantity > 0);
 
     await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${selectedRecipeItem.id}/recipe`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients: payload })
     });
-    
     alert("Recipe saved successfully!");
     setSelectedRecipeItem(null);
   };
@@ -102,116 +87,65 @@ export default function AdminDashboard() {
   const handleRestock = async (id) => {
     const amount = prompt("How many units are you adding?");
     if (!amount || isNaN(amount)) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients/${id}/restock`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) })
-    });
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients/${id}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: parseInt(amount) }) });
     fetchData();
   };
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+    const file = e.target.files[0]; if (!file) return;
     setIsUploading(true);
-    
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
-      
-      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, {
-        method: 'POST', body: formData
-      });
-      
-      if (cloudRes.ok) {
-        const data = await cloudRes.json();
-        setNewItem({ ...newItem, image_url: data.secure_url });
-      } else {
-        throw new Error("Cloudinary failed");
-      }
+      const formData = new FormData(); formData.append('file', file); formData.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`, { method: 'POST', body: formData });
+      if (cloudRes.ok) { const data = await cloudRes.json(); setNewItem({ ...newItem, image_url: data.secure_url }); } else throw new Error();
     } catch (err) {
-      const localFormData = new FormData();
-      localFormData.append('image', file);
-      const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, {
-        method: 'POST', body: localFormData
-      });
-      const data = await localRes.json();
-      if (data.url) setNewItem({ ...newItem, image_url: data.url });
-    } finally {
-      setIsUploading(false);
-    }
+      const localFormData = new FormData(); localFormData.append('image', file);
+      const localRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/upload-local`, { method: 'POST', body: localFormData });
+      const data = await localRes.json(); if (data.url) setNewItem({ ...newItem, image_url: data.url });
+    } finally { setIsUploading(false); }
   };
 
   const handleSubmitMenu = async (e) => {
-    e.preventDefault();
-    if (!isLocal) return alert("Only the local store can modify menu items.");
-    
-    const url = editingId 
-      ? `${import.meta.env.VITE_API_BASE}/api/admin/menu/${editingId}`
-      : `${import.meta.env.VITE_API_BASE}/api/admin/menu`;
-      
-    await fetch(url, {
-      method: editingId ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), cost: parseFloat(newItem.cost) })
-    });
-    
-    setNewItem({ name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' });
-    setEditingId(null);
-    fetchData();
+    e.preventDefault(); if (!isLocal) return alert("Only local store can modify items.");
+    const url = editingId ? `${import.meta.env.VITE_API_BASE}/api/admin/menu/${editingId}` : `${import.meta.env.VITE_API_BASE}/api/admin/menu`;
+    await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...newItem, price: parseFloat(newItem.price), cost: parseFloat(newItem.cost) }) });
+    setNewItem({ name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' }); setEditingId(null); fetchData();
   };
 
   const handleEditClick = (item) => {
-    setNewItem({ 
-      name: item.name, price: item.price.toString(), cost: item.cost ? item.cost.toString() : '0', 
-      category: item.category || 'Burgers', image_url: item.image_url || '' 
-    });
-    setEditingId(item.id);
-    window.scrollTo(0, 0);
+    setNewItem({ name: item.name, price: item.price.toString(), cost: item.cost ? item.cost.toString() : '0', category: item.category || 'Burgers', image_url: item.image_url || '' });
+    setEditingId(item.id); window.scrollTo(0, 0);
   };
 
   const handleDeleteMenu = async (id) => {
     if (!isLocal || !window.confirm("Delete this item?")) return;
-    await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${id}`, { method: 'DELETE' });
-    fetchData();
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${id}`, { method: 'DELETE' }); fetchData();
   };
 
   // --- CATEGORY LOGIC ---
   const handleAddCategory = async (e) => {
-    e.preventDefault();
-    const name = e.target.categoryName.value.trim();
-    if (!name) return;
-    
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name })
-    });
-    
-    if (res.ok) {
-      e.target.reset();
-      fetchData();
-    } else {
-      const d = await res.json();
-      alert(d.error);
-    }
+    e.preventDefault(); const name = e.target.categoryName.value.trim(); if (!name) return;
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    if (res.ok) { e.target.reset(); fetchData(); } else { const d = await res.json(); alert(d.error); }
   };
 
   const handleDeleteCategory = async (id, name) => {
     if (!window.confirm(`Delete category "${name}"?`)) return;
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/categories/${id}`, { method: 'DELETE' });
-    if (res.ok) fetchData();
-    else {
-      const d = await res.json();
-      alert(d.error);
-    }
+    if (res.ok) fetchData(); else { const d = await res.json(); alert(d.error); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('burger_admin_auth');
-    navigate('/admin/login');
+  // --- VERIFY PAYMENT LOGIC ---
+  const handleVerifyPayment = async (orderId) => {
+    if (!window.confirm("Are you sure you received the payment? This will send the order to the kitchen.")) return;
+    await fetch(`${import.meta.env.VITE_API_BASE}/api/orders/${orderId}/verify-payment`, { method: 'POST' });
+    fetchData();
+    alert("Payment verified! Order sent to Kitchen.");
   };
+
+  const handleLogout = () => { localStorage.removeItem('burger_admin_auth'); navigate('/admin/login'); };
 
   if (loading) return <div className="p-10 text-center text-xl">Loading Dashboard...</div>;
-
   const filteredMenuItems = menuItems.filter(item => menuFilter === 'All' || item.category === menuFilter);
 
   return (
@@ -226,20 +160,15 @@ export default function AdminDashboard() {
           
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
             <div className="flex bg-white rounded-lg shadow-sm p-1 overflow-x-auto w-full sm:w-auto">
-              {['overview', 'inventory', 'menu', 'recipes', 'categories', 'settings'].map(tab => (
+              {/* Added 'payments' tab */}
+              {['overview', 'payments', 'inventory', 'menu', 'recipes', 'categories', 'settings'].map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
                   className={`px-4 lg:px-6 py-2 rounded-md font-bold capitalize transition whitespace-nowrap text-sm lg:text-base ${activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
                   {tab}
                 </button>
               ))}
             </div>
-
-            <button 
-              onClick={handleLogout}
-              className="bg-red-100 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-200 transition whitespace-nowrap w-full sm:w-auto"
-            >
-              Logout
-            </button>
+            <button onClick={handleLogout} className="bg-red-100 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-200 transition whitespace-nowrap w-full sm:w-auto">Logout</button>
           </div>
         </header>
 
@@ -265,14 +194,11 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* LOW STOCK ALERTS */}
             {data.lowStock && data.lowStock.length > 0 && (
               <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-8 rounded shadow-sm">
                 <h3 className="text-red-700 font-bold mb-2 flex items-center gap-2">⚠️ Low Stock Alerts</h3>
                 <ul className="text-red-600 text-sm space-y-1">
-                  {data.lowStock.map((item, idx) => (
-                    <li key={idx}>• <b>{item.name}</b> is running low! Only {item.stock} {item.unit} left.</li>
-                  ))}
+                  {data.lowStock.map((item, idx) => (<li key={idx}>• <b>{item.name}</b> is running low! Only {item.stock} {item.unit} left.</li>))}
                 </ul>
               </div>
             )}
@@ -299,6 +225,7 @@ export default function AdminDashboard() {
                     <th className="p-4">ID</th>
                     <th className="p-4">Type</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4">Address</th> {/* 👈 New Column */}
                     <th className="p-4">IP Address</th>
                     <th className="p-4 text-right">Total</th>
                   </tr>
@@ -310,11 +237,15 @@ export default function AdminDashboard() {
                       <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">{o.order_type}</span></td>
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded text-xs font-bold ${
+                          o.status === 'PENDING_PAYMENT' ? 'bg-yellow-100 text-yellow-700' :
                           o.status === 'VOIDED' ? 'bg-red-100 text-red-700' : 
                           o.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                         }`}>
                           {o.status}
                         </span>
+                      </td>
+                      <td className="p-4 text-xs text-gray-600 max-w-[200px] truncate" title={o.delivery_address}>
+                        {o.delivery_address ? `📍 ${o.delivery_address}` : 'In-Store'}
                       </td>
                       <td className="p-4 text-xs font-mono text-gray-500">{o.ip_address || 'Local'}</td>
                       <td className="p-4 text-right font-bold">₱{o.total}</td>
@@ -323,6 +254,36 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* PAYMENTS TAB (NEW) */}
+        {activeTab === 'payments' && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b bg-yellow-50 border-yellow-200">
+              <h2 className="font-bold text-xl text-yellow-800">Pending Payment Verifications</h2>
+              <p className="text-sm text-yellow-600 mt-1">Verify the GCash/Maya reference before sending to kitchen.</p>
+            </div>
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-sm text-gray-500">
+                <tr><th className="p-4">Order</th><th className="p-4">Method</th><th className="p-4">Ref #</th><th className="p-4">Total</th><th className="p-4 text-right">Action</th></tr>
+              </thead>
+              <tbody>
+                {pendingPayments.length === 0 ? (
+                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">No pending payments.</td></tr>
+                ) : pendingPayments.map(o => (
+                  <tr key={o.id} className="border-b">
+                    <td className="p-4 font-bold">#{o.id}</td>
+                    <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">{o.payment_method}</span></td>
+                    <td className="p-4 font-mono text-sm">{o.payment_reference || 'N/A'}</td>
+                    <td className="p-4 font-bold">₱{o.total}</td>
+                    <td className="p-4 text-right">
+                      <button onClick={() => handleVerifyPayment(o.id)} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Verify Payment</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -340,11 +301,7 @@ export default function AdminDashboard() {
                     <td className="p-4 font-bold">{ing.name}</td>
                     <td className="p-4">{ing.stock} {ing.unit}</td>
                     <td className="p-4 text-right">
-                      {isLocal ? (
-                        <button onClick={() => handleRestock(ing.id)} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Restock</button>
-                      ) : (
-                        <span className="text-gray-400 text-sm italic">Cloud View Only</span>
-                      )}
+                      {isLocal ? <button onClick={() => handleRestock(ing.id)} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Restock</button> : <span className="text-gray-400 text-sm italic">Cloud View Only</span>}
                     </td>
                   </tr>
                 ))}
@@ -356,49 +313,30 @@ export default function AdminDashboard() {
         {/* MENU TAB */}
         {activeTab === 'menu' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit sticky top-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-xl">{editingId ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
-                {editingId && (
-                  <button onClick={() => { setEditingId(null); setNewItem({ name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' }); }} className="text-sm text-red-500 font-bold hover:underline">Cancel Edit</button>
-                )}
+                {editingId && <button onClick={() => { setEditingId(null); setNewItem({ name: '', price: '', cost: '', category: categories[0]?.name || 'Burgers', image_url: '' }); }} className="text-sm text-red-500 font-bold hover:underline">Cancel Edit</button>}
               </div>
-              
               {!isLocal && <p className="text-red-500 text-sm mb-4 font-bold">Only local store can modify items.</p>}
-              
               <form onSubmit={handleSubmitMenu} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Name</label>
-                  <input required disabled={!isLocal} value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full border p-2 rounded mt-1" />
-                </div>
+                <div><label className="text-xs font-bold text-gray-500">Name</label><input required disabled={!isLocal} value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full border p-2 rounded mt-1" /></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-bold text-gray-500">Price (₱)</label>
-                    <input required type="number" step="0.01" disabled={!isLocal} value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full border p-2 rounded mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-gray-500">Cost (₱)</label>
-                    <input required type="number" step="0.01" disabled={!isLocal} value={newItem.cost} onChange={e => setNewItem({...newItem, cost: e.target.value})} className="w-full border p-2 rounded mt-1" />
-                  </div>
+                  <div><label className="text-xs font-bold text-gray-500">Price (₱)</label><input required type="number" step="0.01" disabled={!isLocal} value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full border p-2 rounded mt-1" /></div>
+                  <div><label className="text-xs font-bold text-gray-500">Cost (₱)</label><input required type="number" step="0.01" disabled={!isLocal} value={newItem.cost} onChange={e => setNewItem({...newItem, cost: e.target.value})} className="w-full border p-2 rounded mt-1" /></div>
                 </div>
-                
-                {/* Category Dropdown */}
                 <div>
                   <label className="text-xs font-bold text-gray-500">Category</label>
                   <select disabled={!isLocal} value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="w-full border p-2 rounded mt-1 bg-white">
                     {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
-
                 <div>
-                  <label className="text-xs font-bold text-gray-500">Image (Cloudinary / Local Fallback)</label>
+                  <label className="text-xs font-bold text-gray-500">Image</label>
                   <input type="file" accept="image/*" disabled={!isLocal} onChange={handleImageUpload} className="w-full mt-1" />
                   {newItem.image_url && <img src={newItem.image_url} alt="Preview" className="w-full h-32 object-cover rounded mt-2" />}
                 </div>
-                <button type="submit" disabled={!isLocal || isUploading} className="w-full bg-black text-white font-bold py-2 rounded hover:bg-gray-800 disabled:opacity-50">
-                  {isUploading ? 'Uploading...' : editingId ? 'Update Item' : 'Save to Local & Cloud'}
-                </button>
+                <button type="submit" disabled={!isLocal || isUploading} className="w-full bg-black text-white font-bold py-2 rounded hover:bg-gray-800 disabled:opacity-50">{isUploading ? 'Uploading...' : editingId ? 'Update Item' : 'Save to Local & Cloud'}</button>
               </form>
             </div>
 
@@ -407,21 +345,14 @@ export default function AdminDashboard() {
                 <h2 className="font-bold text-xl">Current Menu</h2>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {['All', ...categories.map(c => c.name)].map(cat => (
-                    <button key={cat} onClick={() => setMenuFilter(cat)} 
-                      className={`px-3 py-1 text-sm font-bold rounded-lg border whitespace-nowrap transition ${menuFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-                      {cat}
-                    </button>
+                    <button key={cat} onClick={() => setMenuFilter(cat)} className={`px-3 py-1 text-sm font-bold rounded-lg border whitespace-nowrap transition ${menuFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{cat}</button>
                   ))}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                 {filteredMenuItems.map(item => (
                   <div key={item.id} className={`border rounded-xl p-4 flex gap-4 ${editingId === item.id ? 'border-yellow-500 bg-yellow-50' : ''}`}>
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-20 h-20 object-cover rounded-lg" loading="lazy" />
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">No Img</div>
-                    )}
+                    {item.image_url ? <img src={item.image_url} alt={item.name} className="w-20 h-20 object-cover rounded-lg" loading="lazy" /> : <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-500">No Img</div>}
                     <div className="flex-1">
                       <div className="text-xs font-bold text-yellow-600">{item.category}</div>
                       <div className="font-bold">{item.name}</div>
@@ -445,10 +376,7 @@ export default function AdminDashboard() {
               <h2 className="font-bold text-xl mb-4">Select a Menu Item</h2>
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {menuItems.map(item => (
-                  <button key={item.id} onClick={() => loadRecipe(item)}
-                    className={`w-full text-left p-3 rounded-lg border font-bold transition ${selectedRecipeItem?.id === item.id ? 'bg-yellow-50 border-yellow-500' : 'hover:bg-gray-50'}`}>
-                    {item.name}
-                  </button>
+                  <button key={item.id} onClick={() => loadRecipe(item)} className={`w-full text-left p-3 rounded-lg border font-bold transition ${selectedRecipeItem?.id === item.id ? 'bg-yellow-50 border-yellow-500' : 'hover:bg-gray-50'}`}>{item.name}</button>
                 ))}
               </div>
             </div>
@@ -496,7 +424,6 @@ export default function AdminDashboard() {
                 <button type="submit" disabled={!isLocal} className="bg-black text-white px-6 font-bold rounded-lg hover:bg-gray-800 disabled:opacity-50">Add</button>
               </form>
             </div>
-
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b"><h2 className="font-bold text-xl">Manage Categories</h2></div>
               <ul>
@@ -521,64 +448,31 @@ export default function AdminDashboard() {
               </div>
               {!isLocal && <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-xs font-bold">Cloud View Only</span>}
             </div>
-            
             <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!isLocal) return alert("Only local store can edit settings.");
-              await fetch(`${import.meta.env.VITE_API_BASE}/api/settings`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings)
-              });
+              e.preventDefault(); if (!isLocal) return alert("Only local store can edit settings.");
+              await fetch(`${import.meta.env.VITE_API_BASE}/api/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
               alert("Settings saved! Refresh the homepage to see the changes.");
             }} className="space-y-6">
               
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Restaurant Name</label>
-                  <input required disabled={!isLocal} value={settings.restaurant_name} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Tagline</label>
-                  <input required disabled={!isLocal} value={settings.tagline} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
-                </div>
+                <div><label className="text-xs font-bold text-gray-500">Restaurant Name</label><input required disabled={!isLocal} value={settings.restaurant_name} onChange={e => setSettings({...settings, restaurant_name: e.target.value})} className="w-full border p-3 rounded-lg mt-1" /></div>
+                <div><label className="text-xs font-bold text-gray-500">Tagline</label><input required disabled={!isLocal} value={settings.tagline} onChange={e => setSettings({...settings, tagline: e.target.value})} className="w-full border p-3 rounded-lg mt-1" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Hero Title (Big Text)</label>
-                  <input required disabled={!isLocal} value={settings.hero_title} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Hero Subtitle</label>
-                  <input required disabled={!isLocal} value={settings.hero_subtitle} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
-                </div>
+                <div><label className="text-xs font-bold text-gray-500">Hero Title (Big Text)</label><input required disabled={!isLocal} value={settings.hero_title} onChange={e => setSettings({...settings, hero_title: e.target.value})} className="w-full border p-3 rounded-lg mt-1" /></div>
+                <div><label className="text-xs font-bold text-gray-500">Hero Subtitle</label><input required disabled={!isLocal} value={settings.hero_subtitle} onChange={e => setSettings({...settings, hero_subtitle: e.target.value})} className="w-full border p-3 rounded-lg mt-1" /></div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-gray-500">Logo URL (Cloudinary)</label>
-                <input disabled={!isLocal} value={settings.logo_url || ''} onChange={e => setSettings({...settings, logo_url: e.target.value})} className="w-full border p-3 rounded-lg mt-1" placeholder="https://res.cloudinary.com/..." />
-                {settings.logo_url && <img src={settings.logo_url} alt="Logo Preview" className="w-16 h-16 rounded-full object-cover mt-2" />}
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-500">Hero Background Image URL (Cloudinary)</label>
-                <input disabled={!isLocal} value={settings.hero_image_url || ''} onChange={e => setSettings({...settings, hero_image_url: e.target.value})} className="w-full border p-3 rounded-lg mt-1" placeholder="https://res.cloudinary.com/..." />
-                {settings.hero_image_url && <img src={settings.hero_image_url} alt="Hero Preview" className="w-full h-32 object-cover rounded-lg mt-2" />}
-              </div>
+              <div><label className="text-xs font-bold text-gray-500">Logo URL</label><input disabled={!isLocal} value={settings.logo_url || ''} onChange={e => setSettings({...settings, logo_url: e.target.value})} className="w-full border p-3 rounded-lg mt-1" placeholder="https://res.cloudinary.com/..." /></div>
+              <div><label className="text-xs font-bold text-gray-500">Hero Background Image URL</label><input disabled={!isLocal} value={settings.hero_image_url || ''} onChange={e => setSettings({...settings, hero_image_url: e.target.value})} className="w-full border p-3 rounded-lg mt-1" placeholder="https://res.cloudinary.com/..." /></div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Currency Symbol</label>
-                  <input required disabled={!isLocal} value={settings.currency_symbol} onChange={e => setSettings({...settings, currency_symbol: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-500">Tax Rate (e.g., 0.12 for 12%)</label>
-                  <input required type="number" step="0.01" disabled={!isLocal} value={settings.tax_rate} onChange={e => setSettings({...settings, tax_rate: e.target.value})} className="w-full border p-3 rounded-lg mt-1" />
-                </div>
+                <div><label className="text-xs font-bold text-gray-500">Currency Symbol</label><input required disabled={!isLocal} value={settings.currency_symbol} onChange={e => setSettings({...settings, currency_symbol: e.target.value})} className="w-full border p-3 rounded-lg mt-1" /></div>
+                <div><label className="text-xs font-bold text-gray-500">Tax Rate (e.g., 0.12)</label><input required type="number" step="0.01" disabled={!isLocal} value={settings.tax_rate} onChange={e => setSettings({...settings, tax_rate: e.target.value})} className="w-full border p-3 rounded-lg mt-1" /></div>
               </div>
 
-              <button type="submit" disabled={!isLocal} className="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 disabled:opacity-50">
-                Save Settings
-              </button>
+              <button type="submit" disabled={!isLocal} className="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 disabled:opacity-50">Save Settings</button>
             </form>
           </div>
         )}

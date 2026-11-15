@@ -305,4 +305,19 @@ router.delete('/admin/categories/:id', async (req, res) => {
   }
 });
 
+// Add to admin.js
+router.get('/admin/pending-payments', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, total::float, payment_method, payment_reference, created_at 
+      FROM orders 
+      WHERE status = 'PENDING_PAYMENT' 
+      ORDER BY created_at ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
