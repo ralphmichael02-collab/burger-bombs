@@ -1,9 +1,11 @@
 // frontend/src/components/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [data, setData] = useState(null);
+  const [chartData, setChartData] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,7 @@ export default function AdminDashboard() {
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/stats`).then(r => r.json()).then(d => { setData(d); setLoading(false); });
     fetch(`${import.meta.env.VITE_API_BASE}/api/ingredients`).then(r => r.json()).then(d => setIngredients(Array.isArray(d) ? d : []));
     fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu`).then(r => r.json()).then(d => setMenuItems(Array.isArray(d) ? d : []));
+    fetch(`${import.meta.env.VITE_API_BASE}/api/admin/chart-data`).then(r => r.json()).then(d => setChartData(Array.isArray(d) ? d : []));
   };
 
   useEffect(() => {
@@ -37,7 +40,6 @@ export default function AdminDashboard() {
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/admin/menu/${item.id}/recipe`);
     const recipe = await res.json();
     
-    // Convert array [{ ingredient_id, quantity }] into an object { ingredient_id: quantity }
     const recipeMap = {};
     recipe.forEach(r => { recipeMap[r.ingredient_id] = r.quantity; });
     setRecipeIngredients(recipeMap);
@@ -207,7 +209,25 @@ export default function AdminDashboard() {
                 <p className="text-3xl font-black text-blue-600">{data.metrics.total_orders}</p>
               </div>
             </div>
-            
+
+            {/* SALES CHART */}
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-8">
+              <h2 className="font-bold text-xl mb-6">Sales (Last 7 Days)</h2>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} tickFormatter={(value) => `₱${value}`} />
+                    <Tooltip 
+                      cursor={{fill: '#f3f4f6'}} 
+                      contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                    />
+                    <Bar dataKey="daily_sales" fill="#eab308" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b"><h2 className="font-bold text-xl">Recent Orders</h2></div>
               <div className="overflow-x-auto">
@@ -264,7 +284,6 @@ export default function AdminDashboard() {
         {activeTab === 'menu' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* ADD / EDIT MENU FORM */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit sticky top-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-xl">{editingId ? 'Edit Menu Item' : 'Add Menu Item'}</h2>
@@ -305,7 +324,6 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* MENU LIST */}
             <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b"><h2 className="font-bold text-xl">Current Menu</h2></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
@@ -335,8 +353,6 @@ export default function AdminDashboard() {
         {/* RECIPES TAB */}
         {activeTab === 'recipes' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Select Menu Item */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit">
               <h2 className="font-bold text-xl mb-4">Select a Menu Item</h2>
               <div className="space-y-2">
@@ -352,7 +368,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* BOM Editor */}
             <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               {!selectedRecipeItem ? (
                 <div className="text-center text-gray-500 py-20">Select a menu item to edit its ingredients.</div>

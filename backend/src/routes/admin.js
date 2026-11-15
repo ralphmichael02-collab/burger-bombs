@@ -75,7 +75,27 @@ router.get('/admin/stats', async (_req, res) => {
 });
 
 // ==========================================
-// 2. MENU MANAGEMENT (Menu Tab)
+// 2. CHART DATA (Overview Tab - Recharts)
+// ==========================================
+router.get('/admin/chart-data', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT 
+        TO_CHAR(created_at, 'Mon DD') as date,
+        SUM(total)::float as daily_sales
+      FROM orders
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY TO_CHAR(created_at, 'Mon DD'), DATE_TRUNC('day', created_at)
+      ORDER BY DATE_TRUNC('day', created_at) ASC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 3. MENU MANAGEMENT (Menu Tab)
 // ==========================================
 router.get('/admin/menu', async (_req, res) => {
   try {
@@ -146,7 +166,7 @@ router.delete('/admin/menu/:id', async (req, res) => {
 });
 
 // ==========================================
-// 3. LOCAL IMAGE UPLOAD FALLBACK
+// 4. LOCAL IMAGE UPLOAD FALLBACK
 // ==========================================
 router.post('/admin/upload-local', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -156,7 +176,7 @@ router.post('/admin/upload-local', upload.single('image'), (req, res) => {
 });
 
 // ==========================================
-// 4. INVENTORY MANAGEMENT (Inventory Tab)
+// 5. INVENTORY MANAGEMENT (Inventory Tab)
 // ==========================================
 router.get('/ingredients', async (_req, res) => {
   try {
@@ -190,7 +210,7 @@ router.post('/ingredients/:id/restock', async (req, res) => {
 });
 
 // ==========================================
-// 5. RECIPE / BOM MANAGEMENT (Recipes Tab)
+// 6. RECIPE / BOM MANAGEMENT (Recipes Tab)
 // ==========================================
 router.get('/admin/menu/:id/recipe', async (req, res) => {
   const { id } = req.params;
