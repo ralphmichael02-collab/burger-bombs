@@ -5,7 +5,7 @@ import { pool } from './src/db.js';
 console.log('🔄 Running schema migrations...');
 
 try {
-  // 1. Force update the schema
+  // Ensure columns exist
   await pool.query(`
     ALTER TABLE customers 
       ADD COLUMN IF NOT EXISTS password_hash TEXT,
@@ -13,9 +13,8 @@ try {
       ADD COLUMN IF NOT EXISTS verification_token TEXT,
       ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'customer';
   `);
-  console.log('✅ Schema updated: password_hash, is_verified, verification_token, role added.');
+  console.log('✅ Schema updated.');
 
-  // 2. Staff Data
   const staff = [
     { email: 'admin@burgerbombs.com', name: 'Boss Admin', role: 'admin' },
     { email: 'manager@burgerbombs.com', name: 'Maria Manager', role: 'manager' },
@@ -37,18 +36,16 @@ try {
         [s.email, password, s.name, s.role]
       );
       console.log(`✅ Created ${s.role}: ${s.email}`);
-    } catch (err) { 
-      console.error(`❌ Error creating ${s.email}:`, err.message); 
+    } catch (err) {
+      console.error(`❌ Error creating ${s.email}:`, err.message);
     }
   }
 
-  console.log('\n🎉 Done! You can now log in with:');
+  console.log('\n🎉 Done! Login credentials:');
   console.log('   Email: admin@burgerbombs.com');
   console.log('   Password: password123\n');
-
 } catch (err) {
   console.error('❌ Migration failed:', err.message);
-  console.error('Check that your DATABASE_URL is correct and the database is running.');
 } finally {
   process.exit(0);
 }

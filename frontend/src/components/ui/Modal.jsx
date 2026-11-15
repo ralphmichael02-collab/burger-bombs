@@ -1,25 +1,19 @@
-// frontend/src/components/ui/Modal.jsx
+import { X } from 'lucide-react';
 export default function Modal({ isOpen, onClose, title, children, variant = 'info' }) {
   if (!isOpen) return null;
-
   const headerColors = {
-    danger: 'bg-red-50 text-red-700 border-red-200',
-    success: 'bg-green-50 text-green-700 border-green-200',
-    warning: 'bg-amber-50 text-amber-700 border-amber-200',
-    info: 'bg-slate-50 text-slate-800 border-slate-200',
+    danger: 'bg-[#EA001E]/10 text-[#EA001E] border-[#EA001E]/20',
+    success: 'bg-[#45C65A]/10 text-[#45C65A] border-[#45C65A]/20',
+    warning: 'bg-[#FE9339]/10 text-[#FE9339] border-[#FE9339]/20',
+    info: 'bg-[#F7F7F7] text-[#1A1C23] border-[#E5E7EB]',
   };
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
         <div className={`px-6 py-4 border-b flex justify-between items-center ${headerColors[variant]}`}>
           <h3 className="text-lg font-bold">{title}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition"><X size={20} /></button>
         </div>
         <div className="p-6">{children}</div>
       </div>

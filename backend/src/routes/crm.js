@@ -4,13 +4,12 @@ import { pool } from '../db.js';
 
 const router = Router();
 
-// Submit a review
+// SUBMIT REVIEW
 router.post('/reviews', async (req, res) => {
   const { orderId, customerId, rating, comment } = req.body;
   try {
     await pool.query(
-      `INSERT INTO reviews (order_id, customer_id, rating, comment) 
-       VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO reviews (order_id, customer_id, rating, comment) VALUES ($1, $2, $3, $4)`,
       [orderId, customerId, rating, comment]
     );
     res.json({ ok: true });
@@ -19,7 +18,7 @@ router.post('/reviews', async (req, res) => {
   }
 });
 
-// Admin: Get all reviews
+// ADMIN: Get All Reviews
 router.get('/admin/reviews', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -31,27 +30,8 @@ router.get('/admin/reviews', async (_req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Admin: Get all customers (CRM)
-router.get('/admin/customers', async (_req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT 
-        c.id, c.name, c.email, c.phone, c.created_at,
-        COUNT(o.id)::int as total_orders,
-        COALESCE(SUM(o.total), 0)::float as total_spent,
-        MAX(o.created_at) as last_order
-      FROM customers c
-      LEFT JOIN orders o ON c.id = o.customer_id
-      GROUP BY c.id 
-      ORDER BY c.created_at DESC
-    `);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.warn('[admin-reviews] Returning empty array:', err.message);
+    res.json([]);
   }
 });
 

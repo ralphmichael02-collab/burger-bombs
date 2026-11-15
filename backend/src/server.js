@@ -22,7 +22,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 const httpServer = createServer(app);
@@ -39,7 +39,7 @@ Promise.all([pubClient.connect(), subClient.connect()])
     io.adapter(createAdapter(pubClient, subClient));
     console.log('[socket] Redis adapter connected');
   })
-  .catch(err => console.error('[redis] connection error', err));
+  .catch(err => console.error('[redis] connection error', err.message));
 
 app.set('io', io);
 
@@ -53,9 +53,9 @@ app.use('/api', syncRouter);
 app.use('/api', menuRouter);
 app.use('/api', adminRouter);
 app.use('/api', settingsRouter);
-app.use('/api/auth', authRouter);       // 👈 New
-app.use('/api', crmRouter);             // 👈 New
-app.get('/health', (_req, res) => res.json({ ok: true }));
+app.use('/api/auth', authRouter);
+app.use('/api', crmRouter);
+app.get('/health', (_req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
 
 startCloudSyncWorker();
 startImageSyncWorker();

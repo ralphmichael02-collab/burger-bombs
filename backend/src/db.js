@@ -9,11 +9,10 @@ export const pool = new pg.Pool({
   idleTimeoutMillis: 30000,
 });
 
-pool.on('error', (err) => console.error('[Primary DB] error', err));
+pool.on('error', (err) => console.error('[Primary DB] error', err.message));
 
 // 2. Cloud Sync Database (ONLY exists when running locally)
-// Render will not have CLOUD_DATABASE_URL, so this will be null in the cloud.
-export const cloudPool = process.env.CLOUD_DATABASE_URL 
+export const cloudPool = process.env.CLOUD_DATABASE_URL
   ? new pg.Pool({
       connectionString: process.env.CLOUD_DATABASE_URL,
       max: 5,
@@ -22,5 +21,8 @@ export const cloudPool = process.env.CLOUD_DATABASE_URL
   : null;
 
 if (cloudPool) {
-  cloudPool.on('error', (err) => console.error('[Cloud DB] error', err));
+  cloudPool.on('error', (err) => console.error('[Cloud DB] error', err.message));
+  console.log('[db] Cloud sync enabled (dual-mode)');
+} else {
+  console.log('[db] Running in single-database mode (cloud)');
 }
