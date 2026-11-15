@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import { useEffect, useState } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import POS from './components/POS';
 import CustomerStore from './components/CustomerStore';
 import AdminDashboard from './components/AdminDashboard';
@@ -10,6 +10,7 @@ import Kiosk from './components/Kiosk';
 import MobileScanner from './components/MobileScanner';
 import MobilePortal from './components/MobilePortal';
 import { refreshMenuFromBackend } from './db';
+import { isLocalEnvironment } from './utils/isLocal'; // 👈 IMPORT THE DETECTOR
 
 const PRESET_THEMES = [
   { name: 'Enterprise Orange', colors: { primary: '#EA580C', primaryHover: '#C2410C', background: '#FDFBF7', surface: '#FFFFFF', text: '#1A1C23', textMuted: '#6B7280', border: '#E5E7EB', success: '#45C65A', danger: '#EA001E' } },
@@ -24,6 +25,8 @@ const PRESET_THEMES = [
 
 export default function App() {
   const location = useLocation();
+  const isLocal = isLocalEnvironment(); // 👈 Check if we are on the LAN
+  
   const [currentColors, setCurrentColors] = useState(() => {
     const saved = localStorage.getItem('burger-bombs-colors');
     return saved ? JSON.parse(saved) : PRESET_THEMES[0].colors;
@@ -42,6 +45,12 @@ export default function App() {
     });
   }, [currentColors]);
 
+  // Block access to local-only pages if we are on the cloud (Vercel)
+  const isLocalOnlyRoute = ['/pos', '/kitchen', '/kiosk', '/admin'].some(p => location.pathname.startsWith(p));
+  if (!isLocal && isLocalOnlyRoute) {
+    return <Navigate to="/store" replace />;
+  }
+
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isStandalone = ['/kitchen', '/kiosk', '/scanner', '/mobile'].some(p => location.pathname.startsWith(p));
 
@@ -49,23 +58,41 @@ export default function App() {
     <div className="min-h-screen bg-background text-text">
       {!isAdminRoute && !isStandalone && (
         <nav className="bg-surface border-b border-border p-3 flex gap-4 shadow-sm sticky top-0 z-50">
-          <Link to="/pos" className={`capitalize font-bold ${location.pathname === '/pos' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>POS</Link>
+          {/* Only show POS and Admin links if we are local */}
+          {isLocal && (
+            <Link to="/pos" className={`capitalize font-bold ${location.pathname === '/pos' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>POS</Link>
+          )}
+          
           <Link to="/store" className={`capitalize font-bold ${location.pathname === '/store' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>Online Store</Link>
-          <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>Admin Dashboard</Link>
+          
+          {isLocal && (
+            <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>Admin Dashboard</Link>
+          )}
         </nav>
       )}
 
       <Routes>
-        <Route path="/" element={<POS />} />
-        <Route path="/pos" element={<POS />} />
+        {/* The root URL (/) goes to the Online Store on Cloud, but POS on Local */}
+        <Route path="/" element={isLocal ? <POS /> : <CustomerStore />} />
+        
+        {/* Public Routes (Available on Cloud & Local) */}
         <Route path="/store" element={<CustomerStore />} />
-        <Route path="/admin" element={<AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/kitchen" element={<KitchenDisplay />} />
-        <Route path="/kiosk" element={<Kiosk />} />
         <Route path="/scanner" element={<MobileScanner />} />
         <Route path="/mobile" element={<MobilePortal />} />
-        <Route path="*" element={<POS />} />
+
+        {/* Local Only Routes */}
+        {isLocal && (
+          <>
+            <Route path="/pos" element={<POS />} />
+            <Route path="/kitchen" element={<KitchenDisplay />} />
+            <Route path="/kiosk" element={<Kiosk />} />
+            <Route path="/admin" element={<AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+          </>
+        )}
+
+        {/* Fallback */}
+        <Route path="*" element={isLocal ? <POS /> : <CustomerStore />} />
       </Routes>
     </div>
   );
