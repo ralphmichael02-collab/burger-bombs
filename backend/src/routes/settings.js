@@ -15,15 +15,20 @@ const DEFAULT_SETTINGS = {
   hero_subtitle: 'Order online and get it delivered hot and fresh.',
   hero_button_text: 'Start Your Order',
   hero_button_link: '/store',
-  
-  // NEW: Ads & Commercials
+
+  // Login Page Branding
+  login_hero_image_url: '',
+  login_welcome_title: 'Welcome back',
+  login_welcome_subtitle: 'Sign in to continue',
+
+  // Ads & Commercials
   show_ad_banner: false,
   ad_banner_image_url: '',
   ad_banner_link: '',
   show_video: false,
   video_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-  
-  // NEW: Contact & Map
+
+  // Contact & Map
   show_contact: true,
   contact_address: 'Catarman, Northern Samar',
   contact_lat: 12.4989,
@@ -75,7 +80,7 @@ router.put('/settings', async (req, res) => {
     const values = columns.map(col => req.body[col] !== undefined ? req.body[col] : DEFAULT_SETTINGS[col]);
     const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
     const setClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
-    
+
     const query = `
       INSERT INTO store_settings (id, ${columns.join(', ')})
       VALUES (1, ${placeholders})

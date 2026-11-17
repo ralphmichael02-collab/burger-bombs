@@ -12,6 +12,7 @@ import MobilePortal from './components/MobilePortal';
 import RiderPortal from './components/RiderPortal';
 import TrackOrder from './components/TrackOrder';
 import LandingPage from './components/LandingPage';
+import StaffGuard from './components/StaffGuard';
 import { refreshMenuFromBackend } from './db';
 import { isLocalEnvironment } from './utils/isLocal';
 import { API_BASE, safeFetch } from './config/api';
@@ -30,7 +31,7 @@ const PRESET_THEMES = [
 export default function App() {
   const location = useLocation();
   const isLocal = isLocalEnvironment();
-  
+
   const [currentColors, setCurrentColors] = useState(() => {
     const saved = localStorage.getItem('burger-bombs-colors');
     return saved ? JSON.parse(saved) : PRESET_THEMES[0].colors;
@@ -38,8 +39,7 @@ export default function App() {
 
   useEffect(() => {
     refreshMenuFromBackend();
-    
-    // 👇 GLOBAL BRANDING FETCH
+
     safeFetch(`${API_BASE}/api/settings`)
       .then(res => res.json())
       .then(data => {
@@ -83,11 +83,11 @@ export default function App() {
 
   const isLocalOnlyRoute = ['/pos', '/kitchen', '/kiosk'].some(p => location.pathname.startsWith(p));
   if (!isLocal && isLocalOnlyRoute) {
-    return <Navigate to="/" replace />; 
+    return <Navigate to="/" replace />;
   }
 
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const isStandalone = ['/kitchen', '/kiosk', '/scanner', '/mobile', '/rider', '/track'].some(p => location.pathname.startsWith(p));
+  const isStandalone = ['/kitchen', '/kiosk', '/scanner', '/mobile', '/rider', '/track', '/pos'].some(p => location.pathname.startsWith(p));
 
   return (
     <div className="min-h-screen bg-background text-text">
@@ -104,7 +104,7 @@ export default function App() {
           <Link to="/store" className={`capitalize font-bold ${location.pathname === '/store' ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
             Online Store
           </Link>
-          
+
           <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
             Staff Login
           </Link>
@@ -116,16 +116,57 @@ export default function App() {
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/scanner" element={<MobileScanner />} />
         <Route path="/mobile" element={<MobilePortal />} />
-        <Route path="/rider" element={<RiderPortal />} />
         <Route path="/track/:orderId" element={<TrackOrder />} />
-        
-        <Route path="/admin" element={<AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />} />
+
+        <Route
+          path="/rider"
+          element={
+            <StaffGuard
+              requiredRoles={['admin', 'manager', 'supervisor', 'rider']}
+              portalName="Rider Portal"
+            >
+              <RiderPortal />
+            </StaffGuard>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <StaffGuard
+              requiredRoles={['admin', 'manager', 'supervisor', 'inventory']}
+              portalName="Merchant Portal"
+            >
+              <AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />
+            </StaffGuard>
+          }
+        />
         <Route path="/admin/login" element={<AdminLogin />} />
 
         {isLocal && (
           <>
-            <Route path="/pos" element={<POS />} />
-            <Route path="/kitchen" element={<KitchenDisplay />} />
+            <Route
+              path="/pos"
+              element={
+                <StaffGuard
+                  requiredRoles={['admin', 'manager', 'supervisor', 'cashier']}
+                  portalName="POS Terminal"
+                >
+                  <POS />
+                </StaffGuard>
+              }
+            />
+            <Route
+              path="/kitchen"
+              element={
+                <StaffGuard
+                  requiredRoles={['admin', 'manager', 'supervisor', 'kitchen']}
+                  portalName="Kitchen Display"
+                >
+                  <KitchenDisplay />
+                </StaffGuard>
+              }
+            />
             <Route path="/kiosk" element={<Kiosk />} />
           </>
         )}

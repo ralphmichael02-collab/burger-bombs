@@ -9,6 +9,7 @@ import {
   Search, Plus, X, User, Lock, Activity, Globe, Image, Store, Palette, Megaphone, MapPin
 } from 'lucide-react';
 import Modal from './ui/Modal';
+import BranchModal from './BranchModal';
 import { useToast } from './ui/Toast';
 import { isLocalEnvironment } from '../utils/isLocal';
 import { canAccessTab, ROLE_LABELS } from '../utils/roles';
@@ -65,6 +66,9 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
   const [modalMode, setModalMode] = useState('add'); 
   const [selectedItem, setSelectedItem] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [branchList, setBranchList] = useState([]);
+  const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState(null);
 
   const isLocal = isLocalEnvironment();
   const staffUserRole = staffUser?.role;
@@ -90,6 +94,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
     fetch(`${API_BASE}/api/admin/reviews`).then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${API_BASE}/api/auth/live-feed`).then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${API_BASE}/api/admin/categories`).then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
+    fetch(`${API_BASE}/api/branches/all`).then(r => r.json()).then(d => setBranchList(Array.isArray(d) ? d : [])).catch(console.error);
   };
 
   const fetchReports = () => {
@@ -246,6 +251,26 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
     printWindow.document.close(); printWindow.print();
   };
 
+  const handleSaveBranch = async () => {
+    setBranchModalOpen(false);
+    setEditingBranch(null);
+    addToast('Branch saved!', 'success');
+    fetchData();
+  };
+
+  const handleDeleteBranch = async (id, name) => {
+    if (!window.confirm(`Delete branch "${name}"?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/branches/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      addToast('Branch deleted.', 'success');
+      fetchData();
+    } catch (err) {
+      addToast(err.message, 'error');
+    }
+  };
+
   const handleLogout = () => { localStorage.clear(); navigate('/admin/login'); };
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-background text-primary font-bold text-xl">Loading...</div>;
@@ -260,6 +285,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
     { id: 'inventory',  label: 'Inventory',       icon: Package },
     { id: 'recipes',    label: 'Recipes',         icon: ChefHat },
     { id: 'categories', label: 'Categories',      icon: Folder },
+    { id: 'branches',   label: 'Branches',        icon: MapPin },
     { id: 'content',    label: 'Website Content', icon: Globe },
     { id: 'settings',   label: 'Settings',        icon: Settings },
   ].filter(item => {
@@ -636,6 +662,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                       <option value="cashier">Cashier</option>
                       <option value="kitchen">Kitchen Staff</option>
                       <option value="inventory">Inventory Staff</option>
+                      <option value="rider">Rider</option>
                     </select>
                   </div>
                   <div className="md:col-span-2 pt-2">
@@ -802,6 +829,88 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
             </div>
           )}
 
+          {activeTab === 'branches' && (
+            <div className="space-y-4 md:space-y-6 max-w-5xl mx-auto">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-text">Store Branches</h2>
+                  <p className="text-sm text-text-muted">Manage locations, delivery zones, and map pins.</p>
+                </div>
+                <button
+                  onClick={() => { setEditingBranch(null); setBranchModalOpen(true); }}
+                  disabled={!isLocal}
+                  className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-primary-hover transition flex items-center gap-2 disabled:opacity-50 w-full sm:w-auto justify-center"
+                >
+                  <Plus size={18} /> Add Branch
+                </button>
+              </div>
+
+              {!isLocal && (
+                <div className="bg-orange-500/10 border border-orange-500/20 text-orange-600 p-3 rounded-xl text-sm">
+                  <b>Read-only on Cloud.</b> Switch to the local network to add or edit branches.
+                </div>
+              )}
+
+              {branchList.length === 0 ? (
+                <div className="bg-surface rounded-xl border border-border shadow-sm p-10 text-center">
+                  <MapPin size={48} className="mx-auto mb-4 text-text-muted opacity-40" />
+                  <p className="text-text-muted font-bold">No branches yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {branchList.map((b) => (
+                    <div key={b.id} className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                      <div className="p-4 border-b border-border bg-background/50 flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-text truncate">{b.name}</h3>
+                            {b.is_main && <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase">Main</span>}
+                            {!b.is_active && <span className="text-[10px] font-black bg-danger/10 text-danger px-2 py-0.5 rounded uppercase">Inactive</span>}
+                          </div>
+                          <p className="text-xs text-text-muted mt-1 truncate">{b.address || 'No address'}</p>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-text-muted">Delivery Radius</span>
+                          <span className="font-bold text-text">{b.delivery_radius_km} km</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-muted">Phone</span>
+                          <span className="font-medium text-text">{b.phone || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-muted">Hours</span>
+                          <span className="font-medium text-text">{b.hours || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-text-muted">Coordinates</span>
+                          <span className="font-mono text-xs text-text">{Number(b.lat).toFixed(4)}, {Number(b.lng).toFixed(4)}</span>
+                        </div>
+                      </div>
+                      <div className="p-3 border-t border-border bg-background/50 flex gap-2">
+                        <button
+                          onClick={() => { setEditingBranch(b); setBranchModalOpen(true); }}
+                          disabled={!isLocal}
+                          className="flex-1 bg-surface border border-border text-text-muted font-bold py-2 rounded-lg text-xs hover:bg-gray-100 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Pencil size={14} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBranch(b.id, b.name)}
+                          disabled={!isLocal}
+                          className="flex-1 bg-red-50 text-danger font-bold py-2 rounded-lg text-xs hover:bg-red-100 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'content' && settings && (
             <div className="space-y-4 md:space-y-6 max-w-5xl mx-auto">
               <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
@@ -885,6 +994,44 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                   <div className="grid grid-cols-2 gap-4">
                     <div><label className="text-sm font-bold text-text-muted mb-1 block">Latitude</label><input type="number" step="any" disabled={!isLocal} value={settings.contact_lat || 12.4989} onChange={e => setSettings({...settings, contact_lat: parseFloat(e.target.value)})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" /></div>
                     <div><label className="text-sm font-bold text-text-muted mb-1 block">Longitude</label><input type="number" step="any" disabled={!isLocal} value={settings.contact_lng || 124.6377} onChange={e => setSettings({...settings, contact_lng: parseFloat(e.target.value)})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" /></div>
+                  </div>
+                  <p className="text-xs text-text-muted italic">Note: If you've added branches in the Branches tab, the homepage map uses those instead.</p>
+                </div>
+              </div>
+
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6 flex items-center gap-3">
+                  <Lock size={24} className="text-primary" /> Login Page Branding
+                </h2>
+                <p className="text-xs text-text-muted mb-4">
+                  These fields apply to <b>all</b> login screens (Merchant Portal, POS, Kitchen, Rider).
+                  The logo above (in Browser & Branding) is reused here.
+                </p>
+                <div className="space-y-4 md:space-y-5">
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-1 block">Login Welcome Title</label>
+                    <input type="text" disabled={!isLocal} value={settings.login_welcome_title || ''} onChange={e => setSettings({...settings, login_welcome_title: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="Welcome back" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-1 block">Login Subtitle</label>
+                    <input type="text" disabled={!isLocal} value={settings.login_welcome_subtitle || ''} onChange={e => setSettings({...settings, login_welcome_subtitle: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="Sign in to continue" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold text-text-muted mb-2 block">Login Background Image</label>
+                    <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'login_hero_image_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                    {settings.login_hero_image_url && (
+                      <div className="mt-3 relative">
+                        <img src={settings.login_hero_image_url} alt="Login background" className="w-full h-40 object-cover rounded-xl border border-border" />
+                        <button
+                          onClick={() => setSettings({...settings, login_hero_image_url: ''})}
+                          className="absolute top-2 right-2 bg-danger text-white p-1.5 rounded-lg shadow"
+                          type="button"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-text-muted mt-2">If empty, the Homepage Hero image is used as a fallback.</p>
                   </div>
                 </div>
               </div>
@@ -1048,6 +1195,14 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
           </form>
         )}
       </Modal>
+
+      {branchModalOpen && (
+        <BranchModal
+          branch={editingBranch}
+          onSave={handleSaveBranch}
+          onClose={() => { setBranchModalOpen(false); setEditingBranch(null); }}
+        />
+      )}
     </div>
   );
 }

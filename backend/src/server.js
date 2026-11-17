@@ -16,6 +16,7 @@ import settingsRouter from './routes/settings.js';
 import authRouter from './routes/auth.js';
 import crmRouter from './routes/crm.js';
 import orderRouter from './routes/order.js';
+import branchesRouter from './routes/branches.js';
 
 import { startCloudSyncWorker } from './services/cloudSync.js';
 import { startImageSyncWorker } from './services/imageSync.js';
@@ -46,7 +47,7 @@ app.set('io', io);
 io.on('connection', (socket) => {
   socket.on('join:kitchen', () => socket.join('kitchen'));
   socket.on('join:cashier', () => socket.join('cashier'));
-  
+
   // Rider tracking room (Customer listens here)
   socket.on('join:order', (orderId) => {
     socket.join(`order:${orderId}`);
@@ -75,6 +76,7 @@ app.use('/api', settingsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api', crmRouter);
 app.use('/api', orderRouter);
+app.use('/api', branchesRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true, mode: process.env.CLOUD_DATABASE_URL ? 'dual' : 'single' }));
 

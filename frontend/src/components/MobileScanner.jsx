@@ -23,7 +23,10 @@ export default function MobileScanner() {
   const [cameraError, setCameraError] = useState(null);
   const [isDecoding, setIsDecoding] = useState(false);
 
-  const canUseLiveCamera = typeof window !== 'undefined' && window.isSecureContext && !!navigator.mediaDevices?.getUserMedia;
+  const canUseLiveCamera =
+    typeof window !== 'undefined' &&
+    window.isSecureContext &&
+    !!navigator.mediaDevices?.getUserMedia;
 
   const scannerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -36,17 +39,31 @@ export default function MobileScanner() {
     }
 
     if (!pairCode) return;
-    
-    socket.on('connect', () => { setConnected(true); socket.emit('scanner:pair', { pairCode }); });
-    socket.on('disconnect', () => setConnected(false));
-    socket.on('scanner:paired', () => setPaired(true));
-    socket.on('scanner:session-ended', () => { setPaired(false); setPairCode(''); });
+
+    const onConnect = () => {
+      setConnected(true);
+      socket.emit('scanner:pair', { pairCode });
+      // FIX: backend emits scanner:mobile-connected to OTHER sockets in the room,
+      // never back to the sender. So we mark ourselves paired right away.
+      setPaired(true);
+    };
+    const onDisconnect = () => setConnected(false);
+    const onSessionEnded = () => {
+      setPaired(false);
+      setPairCode('');
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('scanner:session-ended', onSessionEnded);
+
+    // If the socket is already connected when we mount, fire the emit immediately
+    if (socket.connected) onConnect();
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('scanner:paired');
-      socket.off('scanner:session-ended');
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('scanner:session-ended', onSessionEnded);
     };
   }, [pairCode, navigate, urlPairCode]);
 
@@ -54,12 +71,14 @@ export default function MobileScanner() {
     if (!paired || !canUseLiveCamera) return;
     const scanner = new Html5Qrcode('mobile-scanner-view');
     scannerRef.current = scanner;
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 15, qrbox: { width: 260, height: 260 } },
-      (decodedText) => handleScanSuccess(decodedText),
-      () => {}
-    ).catch((err) => console.error('[scanner] live camera failed', err));
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 15, qrbox: { width: 260, height: 260 } },
+        (decodedText) => handleScanSuccess(decodedText),
+        () => {}
+      )
+      .catch((err) => console.error('[scanner] live camera failed', err));
 
     return () => {
       if (scannerRef.current) {
@@ -89,7 +108,9 @@ export default function MobileScanner() {
 
     try {
       const imageData = await loadImageToImageData(file);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'attemptBoth',
+      });
       if (code?.data) {
         handleScanSuccess(code.data);
       } else {
@@ -103,40 +124,46 @@ export default function MobileScanner() {
     }
   };
 
-  const loadImageToImageData = (file) => new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const MAX_DIM = 1200;
-      let { width, height } = img;
-      if (width > MAX_DIM || height > MAX_DIM) {
-        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      resolve(canvas.getContext('2d').getImageData(0, 0, width, height));
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
+  const loadImageToImageData = (file) =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX_DIM = 1200;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.getContext('2d').getImageData(0, 0, width, height));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
 
   if (!paired) {
     return (
       <div className="min-h-screen bg-background flex flex-col p-6 font-['Source_Sans_Pro',sans-serif]">
-        <button onClick={() => navigate('/mobile')} className="self-start p-2 bg-surface border border-border rounded-lg text-text-muted mb-8 hover:bg-gray-100">
+        <button
+          onClick={() => navigate('/mobile')}
+          className="self-start p-2 bg-surface border border-border rounded-lg text-text-muted mb-8 hover:bg-gray-100"
+        >
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-           <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center text-text shadow-sm border border-border mb-4">
+          <div className="w-16 h-16 bg-surface rounded-2xl flex items-center justify-center text-text shadow-sm border border-border mb-4">
             <WifiOff size={32} />
           </div>
           <h1 className="text-2xl font-black text-text mb-2">Not Paired</h1>
-          <p className="text-text-muted mb-6">Please scan the pairing QR code on the POS terminal to connect.</p>
+          <p className="text-text-muted mb-6">
+            Please scan the pairing QR code on the POS terminal to connect.
+          </p>
         </div>
       </div>
     );
@@ -145,11 +172,18 @@ export default function MobileScanner() {
   return (
     <div className="min-h-screen bg-background text-text flex flex-col font-['Source_Sans_Pro',sans-serif]">
       <header className="bg-surface border-b border-border p-3 flex items-center justify-between shadow-sm z-10">
-        <button onClick={() => navigate('/mobile')} className="p-2 bg-background rounded-lg hover:bg-gray-100 text-text-muted transition">
+        <button
+          onClick={() => navigate('/mobile')}
+          className="p-2 bg-background rounded-lg hover:bg-gray-100 text-text-muted transition"
+        >
           <ArrowLeft size={20} />
         </button>
         <div className="flex items-center gap-2">
-          {connected ? <Wifi size={18} className="text-success" /> : <WifiOff size={18} className="text-danger" />}
+          {connected ? (
+            <Wifi size={18} className="text-success" />
+          ) : (
+            <WifiOff size={18} className="text-danger" />
+          )}
           <span className="font-bold text-sm">{connected ? 'Connected' : 'Disconnected'}</span>
         </div>
         <div className="w-9"></div>
@@ -169,20 +203,46 @@ export default function MobileScanner() {
           <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-background">
             <Camera size={64} className="text-primary mb-4" />
             <h2 className="text-2xl font-black mb-2 text-text">Take Photo of QR</h2>
-            <p className="text-text-muted text-sm mb-6 max-w-xs">Since you are on local WiFi (HTTP), tap below to open the camera and snap a photo of the customer's QR.</p>
-            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileCapture} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} disabled={isDecoding || coolingDown} className="w-full max-w-xs bg-primary text-white font-black py-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+            <p className="text-text-muted text-sm mb-6 max-w-xs">
+              Since you are on local WiFi (HTTP), tap below to open the camera and snap a photo
+              of the customer's QR.
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileCapture}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isDecoding || coolingDown}
+              className="w-full max-w-xs bg-primary text-white font-black py-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
+            >
               {isDecoding ? 'Reading...' : coolingDown ? 'Sent to POS!' : 'Open Camera'}
             </button>
-            {cameraError && <div className="mt-4 text-danger font-bold text-sm">{cameraError}</div>}
+            {cameraError && (
+              <div className="mt-4 text-danger font-bold text-sm">{cameraError}</div>
+            )}
           </div>
         )}
       </div>
 
       <footer className="bg-surface border-t border-border p-4 shadow-sm z-10">
         <div className="text-center">
-          <p className="font-bold text-sm mb-1">{coolingDown ? '✓ Order sent to POS!' : lastScan ? 'Ready for next scan' : 'Point at customer QR'}</p>
-          {lastScan && <p className="text-xs text-text-muted font-mono">Last: {lastScan.slice(0, 8).toUpperCase()}</p>}
+          <p className="font-bold text-sm mb-1">
+            {coolingDown
+              ? '✓ Order sent to POS!'
+              : lastScan
+              ? 'Ready for next scan'
+              : 'Point at customer QR'}
+          </p>
+          {lastScan && (
+            <p className="text-xs text-text-muted font-mono">
+              Last: {lastScan.slice(0, 8).toUpperCase()}
+            </p>
+          )}
         </div>
       </footer>
     </div>

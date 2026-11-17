@@ -1,0 +1,13 @@
+powershell
+cd D:\burger-bombs\backend
+node seedStaff.js
+You now have 6 staff accounts to demo with:
+
+Email	Password	Role	Default Route
+admin@burgerbombs.com	password123	Administrator	/admin
+manager@burgerbombs.com	password123	Manager	/admin
+supervisor@burgerbombs.com	password123	Supervisor	/admin
+cashier@burgerbombs.com	password123	Cashier	/pos
+kitchen@burgerbombs.com	password123	Head Chef	/kitchen
+inventory@burgerbombs.com	password123	Inventory Staff	/admin (auto-jumps to Inventory tab)
+7. Test Matrix — Run These in Order

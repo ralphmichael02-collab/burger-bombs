@@ -1,7 +1,7 @@
 // frontend/src/components/LandingPage.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { 
   Utensils, ShieldCheck, MapPin, ArrowRight, Store, Star, Zap, Clock, Truck, Heart, PlayCircle, Phone, Mail 
@@ -18,6 +18,20 @@ L.Icon.Default.mergeOptions({
 
 const ICON_MAP = { ShieldCheck, MapPin, Zap, Clock, Truck, Star, Heart, Utensils };
 
+function FitBoundsToBranches({ branches }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!branches || branches.length === 0) return;
+    if (branches.length === 1) {
+      map.setView([branches[0].lat, branches[0].lng], 14);
+      return;
+    }
+    const bounds = L.latLngBounds(branches.map((b) => [b.lat, b.lng]));
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+  }, [branches, map]);
+  return null;
+}
+
 const SocialIcon = ({ platform, size = 18 }) => {
   const icons = {
     facebook: (<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>),
@@ -33,11 +47,13 @@ const SOCIAL_LIST = ['facebook', 'instagram', 'tiktok', 'twitter'];
 export default function LandingPage() {
   const [settings, setSettings] = useState(null);
   const [menu, setMenu] = useState([]);
+  const [branches, setBranches] = useState([]);
   const isLocal = isLocalEnvironment();
 
   useEffect(() => {
     safeFetch(`${API_BASE}/api/settings`).then(r => r.json()).then(setSettings).catch(console.error);
     safeFetch(`${API_BASE}/api/menu`).then(r => r.json()).then(setMenu).catch(console.error);
+    safeFetch(`${API_BASE}/api/branches`).then(r => r.json()).then(d => setBranches(Array.isArray(d) ? d : [])).catch(console.error);
   }, []);
 
   if (!settings) return <div className="h-screen flex items-center justify-center bg-background text-primary font-bold">Loading...</div>;
@@ -179,7 +195,7 @@ export default function LandingPage() {
         <section className="py-24 px-6 max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h3 className="text-4xl font-black text-text mb-4">Find Us Here</h3>
-            <p className="text-text-muted text-lg">Come visit our store or order online</p>
+            <p className="text-text-muted text-lg">Visit any of our branches or order online</p>
           </div>
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="flex-1 space-y-6">
@@ -197,11 +213,39 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex-1 bg-surface rounded-3xl border border-border shadow-xl overflow-hidden h-[400px]">
-              <MapContainer center={[settings?.contact_lat || 12.4989, settings?.contact_lng || 124.6377]} zoom={14} style={{ height: '100%', width: '100%', zIndex: 0 }}>
+              <MapContainer
+                center={[
+                  branches[0]?.lat || settings?.contact_lat || 12.4989,
+                  branches[0]?.lng || settings?.contact_lng || 124.6377,
+                ]}
+                zoom={14}
+                style={{ height: '100%', width: '100%', zIndex: 0 }}
+              >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <Marker position={[settings?.contact_lat || 12.4989, settings?.contact_lng || 124.6377]}>
-                  <Popup>{settings?.restaurant_name}</Popup>
-                </Marker>
+                <FitBoundsToBranches branches={branches} />
+                {branches.length > 0 ? (
+                  branches.map((b) => (
+                    <Marker key={b.id} position={[b.lat, b.lng]}>
+                      <Popup>
+                        <div className="text-sm">
+                          <p className="font-bold text-text">{b.name}</p>
+                          {b.address && <p className="text-xs text-text-muted mt-1">{b.address}</p>}
+                          {b.hours && <p className="text-xs text-text-muted mt-1">🕒 {b.hours}</p>}
+                          {b.phone && <p className="text-xs text-text-muted mt-1">📞 {b.phone}</p>}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))
+                ) : (
+                  <Marker
+                    position={[
+                      settings?.contact_lat || 12.4989,
+                      settings?.contact_lng || 124.6377,
+                    ]}
+                  >
+                    <Popup>{settings?.restaurant_name}</Popup>
+                  </Marker>
+                )}
               </MapContainer>
             </div>
           </div>

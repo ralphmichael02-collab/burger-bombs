@@ -1,8 +1,9 @@
 // frontend/src/services/orderService.js
 import { db } from '../db';
+import { uuid } from '../utils/uuid';
 
 export async function createOrder(orderData) {
-  const mutationId = crypto.randomUUID();
+  const mutationId = uuid();
   const now = new Date().toISOString();
 
   return await db.transaction('rw', db.orders, db.syncOutbox, async () => {
@@ -17,7 +18,7 @@ export async function createOrder(orderData) {
     await db.syncOutbox.add({
       mutationId,
       type: 'CREATE_ORDER',
-      payload: { ...orderData, localId, createdAt: now },
+      payload: { ...orderData, localId, createdAt: now, syncId: mutationId },
       status: 'pending',
       retries: 0,
       createdAt: now,

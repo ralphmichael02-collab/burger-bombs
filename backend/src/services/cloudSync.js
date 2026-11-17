@@ -23,9 +23,17 @@ export function startCloudSyncWorker() {
       const order = syncQueue[i];
       try {
         await cloudPool.query(
-          `INSERT INTO orders (sync_id, status, total, items, created_at, order_type)
-           VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (sync_id) DO NOTHING`,
-          [order.mutationId, 'PENDING', order.total, JSON.stringify(order.items), order.createdAt, order.orderType]
+          `INSERT INTO orders (sync_id, status, total, items, created_at, order_type, branch_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (sync_id) DO NOTHING`,
+          [
+            order.mutationId,
+            'PENDING',
+            order.total,
+            JSON.stringify(order.items),
+            order.createdAt,
+            order.orderType,
+            order.branchId ?? null
+          ]
         );
         syncQueue.splice(i, 1);
         console.log(`[cloud-sync] ✅ Synced order ${order.mutationId.slice(0, 8)}`);

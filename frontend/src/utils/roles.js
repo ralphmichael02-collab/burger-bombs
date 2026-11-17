@@ -6,17 +6,17 @@ export const ROLE_LABELS = {
   cashier: 'Cashier',
   kitchen: 'Head Chef',
   inventory: 'Inventory Staff',
+  rider: 'Rider',
 };
 
-// Which route each role can access
 const PAGE_ACCESS = {
   '/pos':     ['admin', 'manager', 'supervisor', 'cashier'],
   '/kitchen': ['admin', 'manager', 'supervisor', 'kitchen'],
-  '/kiosk':   ['admin', 'manager', 'supervisor', 'cashier'], // (kiosk itself has no login)
+  '/kiosk':   ['admin', 'manager', 'supervisor', 'cashier'],
   '/admin':   ['admin', 'manager', 'supervisor', 'inventory'],
+  '/rider':   ['admin', 'manager', 'supervisor', 'rider'],
 };
 
-// Which admin tab each role can see
 const ADMIN_TAB_ACCESS = {
   overview:   ['admin', 'manager', 'supervisor'],
   reports:    ['admin', 'manager', 'supervisor'],
@@ -26,16 +26,17 @@ const ADMIN_TAB_ACCESS = {
   inventory:  ['admin', 'manager', 'supervisor', 'inventory'],
   recipes:    ['admin', 'manager', 'supervisor'],
   categories: ['admin', 'manager', 'supervisor'],
+  branches:   ['admin', 'manager'],
   content:    ['admin', 'manager'],
   settings:   ['admin'],
 };
 
-// Where does each role land after login?
 export function getDefaultRoute(role) {
   switch (role) {
     case 'cashier': return '/pos';
     case 'kitchen': return '/kitchen';
     case 'inventory': return '/admin';
+    case 'rider': return '/rider';
     default: return '/admin';
   }
 }
