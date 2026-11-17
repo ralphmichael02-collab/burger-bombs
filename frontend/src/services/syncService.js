@@ -12,10 +12,13 @@ export function startSyncWorker() {
   if (timer) return;
   timer = setInterval(tick, TICK_MS);
   window.addEventListener('online', tick);
+  console.log('[sync] worker started');
 }
 
 async function tick() {
-  if (running || !navigator.onLine) return;
+  if (running) return;
+  if (!navigator.onLine) return;
+
   running = true;
   try {
     const pending = await db.syncOutbox.where('status').equals('pending').toArray();
@@ -50,8 +53,15 @@ async function pushOne(item) {
 
     await db.transaction('rw', db.syncOutbox, db.orders, async () => {
       await db.syncOutbox.update(item.id, { status: 'sent', sentAt: new Date().toISOString() });
+      
+      // If it was a new order
       if (item.type === 'CREATE_ORDER' && item.payload.localId) {
         await db.orders.update(item.payload.localId, { _syncStatus: 'synced' });
+      }
+      
+      // If it was a rider updating delivery status
+      if (item.type === 'UPDATE_STATUS' && item.payload.orderId) {
+        await db.orders.update(item.payload.orderId, { _syncStatus: 'synced' });
       }
     });
     

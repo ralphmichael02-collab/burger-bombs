@@ -15,6 +15,20 @@ const DEFAULT_SETTINGS = {
   hero_subtitle: 'Order online and get it delivered hot and fresh.',
   hero_button_text: 'Start Your Order',
   hero_button_link: '/store',
+  
+  // NEW: Ads & Commercials
+  show_ad_banner: false,
+  ad_banner_image_url: '',
+  ad_banner_link: '',
+  show_video: false,
+  video_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+  
+  // NEW: Contact & Map
+  show_contact: true,
+  contact_address: 'Catarman, Northern Samar',
+  contact_lat: 12.4989,
+  contact_lng: 124.6377,
+
   currency_symbol: '₱',
   tax_rate: 0.12,
   theme_primary_color: '#EA580C',
@@ -51,7 +65,6 @@ router.get('/settings', async (_req, res) => {
     const { rows } = await pool.query('SELECT * FROM store_settings WHERE id = 1');
     res.json(rows[0] || DEFAULT_SETTINGS);
   } catch (err) {
-    console.warn('[settings] DB error:', err.message);
     res.json(DEFAULT_SETTINGS);
   }
 });
@@ -60,8 +73,6 @@ router.put('/settings', async (req, res) => {
   try {
     const columns = Object.keys(DEFAULT_SETTINGS);
     const values = columns.map(col => req.body[col] !== undefined ? req.body[col] : DEFAULT_SETTINGS[col]);
-    
-    // FIXED: Build INSERT ... ON CONFLICT DO UPDATE query
     const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
     const setClause = columns.map((col) => `${col} = EXCLUDED.${col}`).join(', ');
     
@@ -73,14 +84,10 @@ router.put('/settings', async (req, res) => {
     `;
 
     const { rows } = await pool.query(query, values);
-
-    if (cloudPool) {
-      await cloudPool.query(query, values);
-    }
+    if (cloudPool) await cloudPool.query(query, values);
 
     res.json({ ok: true, settings: rows[0] });
   } catch (err) {
-    console.error('[settings] update error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

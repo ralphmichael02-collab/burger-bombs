@@ -19,7 +19,7 @@ import orderRouter from './routes/order.js';
 
 import { startCloudSyncWorker } from './services/cloudSync.js';
 import { startImageSyncWorker } from './services/imageSync.js';
-import { startCloudPullSyncWorker } from './services/cloudPullSync.js'; // 👈 IMPORT THIS
+import { startCloudPullSyncWorker } from './services/cloudPullSync.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,14 +42,17 @@ Promise.all([pubClient.connect(), subClient.connect()])
 
 app.set('io', io);
 
+// ─── SOCKET.IO EVENT HANDLERS ──────────────────────────────────────────
 io.on('connection', (socket) => {
   socket.on('join:kitchen', () => socket.join('kitchen'));
   socket.on('join:cashier', () => socket.join('cashier'));
   
-  // Rider tracking rooms
+  // Rider tracking room (Customer listens here)
   socket.on('join:order', (orderId) => {
     socket.join(`order:${orderId}`);
   });
+
+  // Relay GPS from Rider to Customer
   socket.on('rider:location', (data) => {
     io.to(`order:${data.orderId}`).emit('rider:location', data);
   });
@@ -64,6 +67,7 @@ io.on('connection', (socket) => {
   socket.on('scanner:end-session', ({ pairCode }) => socket.to(`scan-session:${pairCode}`).emit('scanner:session-ended'));
 });
 
+// ─── EXPRESS ROUTES ────────────────────────────────────────────────────
 app.use('/api', syncRouter);
 app.use('/api', menuRouter);
 app.use('/api', adminRouter);
@@ -74,12 +78,12 @@ app.use('/api', orderRouter);
 
 app.get('/health', (_req, res) => res.json({ ok: true, mode: process.env.CLOUD_DATABASE_URL ? 'dual' : 'single' }));
 
-// Workers
+// ─── BACKGROUND WORKERS ────────────────────────────────────────────────
 startCloudSyncWorker();
 startImageSyncWorker();
-startCloudPullSyncWorker(io); // 👈 START THE WORKER
+startCloudPullSyncWorker(io);
 
 const PORT = process.env.PORT || 5174;
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Backend running on port ${PORT}`);
+  console.log(`Backend running on port ${PORT}`);
 });

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, CreditCard, Users, Utensils, Package, ChefHat, Folder, Settings, 
   LogOut, Menu, Bell, TrendingUp, DollarSign, ShoppingBag, AlertTriangle, 
   CheckCircle, Pencil, Trash2, Beef, FileText, Printer, Calendar,
-  Search, Plus, X, User, Lock, Activity, Globe, Image, Store, Palette
+  Search, Plus, X, User, Lock, Activity, Globe, Image, Store, Palette, Megaphone, MapPin
 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
@@ -53,6 +53,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
   const [pendingPayments, setPendingPayments] = useState([]);
   const [settings, setSettings] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [staffList, setStaffList] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [liveFeed, setLiveFeed] = useState([]);
   const [salesReport, setSalesReport] = useState([]);
@@ -85,6 +86,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
     fetch(`${API_BASE}/api/admin/pending-payments`).then(r => r.json()).then(d => setPendingPayments(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${API_BASE}/api/settings`).then(r => r.json()).then(d => setSettings(d)).catch(console.error);
     fetch(`${API_BASE}/api/admin/customers`).then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : [])).catch(console.error);
+    fetch(`${API_BASE}/api/admin/staff`).then(r => r.json()).then(d => setStaffList(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${API_BASE}/api/admin/reviews`).then(r => r.json()).then(d => setReviews(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${API_BASE}/api/auth/live-feed`).then(r => r.json()).then(d => setLiveFeed(Array.isArray(d) ? d : [])).catch(console.error);
     fetch(`${API_BASE}/api/admin/categories`).then(r => r.json()).then(d => { if (Array.isArray(d) && d.length > 0) setCategories(d); else setCategories(DEFAULT_CATEGORIES); }).catch(() => setCategories(DEFAULT_CATEGORIES));
@@ -253,13 +255,17 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
     { id: 'reports',    label: 'Reports',         icon: FileText },
     { id: 'payments',   label: 'Payments',        icon: CreditCard, badge: pendingPayments.length },
     { id: 'customers',  label: 'CRM',             icon: Users },
+    { id: 'staff',      label: 'Staff Accounts',  icon: User, adminOnly: true },
     { id: 'menu',       label: 'Menu',            icon: Utensils },
     { id: 'inventory',  label: 'Inventory',       icon: Package },
     { id: 'recipes',    label: 'Recipes',         icon: ChefHat },
     { id: 'categories', label: 'Categories',      icon: Folder },
     { id: 'content',    label: 'Website Content', icon: Globe },
     { id: 'settings',   label: 'Settings',        icon: Settings },
-  ].filter(item => canAccessTab(staffUserRole, item.id));
+  ].filter(item => {
+    if (item.adminOnly && staffUserRole !== 'admin') return false;
+    return canAccessTab(staffUserRole, item.id);
+  });
 
   return (
     <div className="min-h-screen flex bg-background text-text font-['Source_Sans_Pro',sans-serif] relative">
@@ -330,7 +336,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg text-text-muted hover:bg-background transition md:hidden">
               <Menu size={22} />
             </button>
-            <h1 className="text-lg font-bold text-text capitalize truncate">{activeTab.replace('content', 'Website Content')}</h1>
+            <h1 className="text-lg font-bold text-text capitalize truncate">{activeTab.replace('content', 'Website Content').replace('staff', 'Staff Accounts')}</h1>
           </div>
           
           <div className="flex items-center gap-4 relative">
@@ -557,9 +563,9 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                   <p className="text-sm text-text-muted">Track user activity, IP addresses, and lifetime spend.</p>
                 </div>
                 <div className="overflow-x-auto w-full">
-                  <table className="w-full text-left min-w-[700px]">
+                  <table className="w-full text-left min-w-[800px]">
                     <thead className="bg-background border-b border-border">
-                      <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Customer</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Contact</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Total Orders</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Lifetime Spend</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Last Order</th></tr>
+                      <tr><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Customer</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Contact</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Orders</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Lifetime Spend</th><th className="p-3 md:p-4 text-xs font-bold text-text-muted uppercase">Last Delivery Address</th></tr>
                     </thead>
                     <tbody>
                       {customers.length === 0 ? (
@@ -573,7 +579,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                           <td className="p-3 md:p-4 text-sm text-text-muted">{c.phone || 'N/A'}</td>
                           <td className="p-3 md:p-4 font-bold text-text">{c.total_orders}</td>
                           <td className="p-3 md:p-4 font-black text-success whitespace-nowrap">₱{c.total_spent.toLocaleString()}</td>
-                          <td className="p-3 md:p-4 text-xs text-text-muted whitespace-nowrap">{c.last_order ? new Date(c.last_order).toLocaleDateString() : 'Never'}</td>
+                          <td className="p-3 md:p-4 text-xs text-text-muted max-w-[200px] truncate" title={c.last_address}>{c.last_address || 'No delivery yet'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -599,6 +605,68 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'staff' && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              <div className="bg-surface p-6 rounded-2xl shadow-sm border border-border">
+                <h2 className="font-bold text-xl mb-4 text-text flex items-center gap-2"><Users size={20} className="text-primary"/> Register New Employee</h2>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const name = e.target.name.value;
+                  const email = e.target.email.value;
+                  const password = e.target.password.value;
+                  const role = e.target.role.value;
+                  const res = await fetch(`${API_BASE}/api/admin/staff`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, role })
+                  });
+                  if (res.ok) { e.target.reset(); addToast('Staff registered!', 'success'); fetchData(); } 
+                  else { const d = await res.json(); addToast(d.error, 'error'); }
+                }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><label className="text-xs font-bold text-text-muted uppercase">Name</label><input name="name" required className="w-full border border-border p-3 rounded-lg mt-1 bg-background text-text" /></div>
+                  <div><label className="text-xs font-bold text-text-muted uppercase">Email</label><input name="email" type="email" required className="w-full border border-border p-3 rounded-lg mt-1 bg-background text-text" /></div>
+                  <div><label className="text-xs font-bold text-text-muted uppercase">Password</label><input name="password" type="password" required className="w-full border border-border p-3 rounded-lg mt-1 bg-background text-text" /></div>
+                  <div><label className="text-xs font-bold text-text-muted uppercase">Role</label>
+                    <select name="role" className="w-full border border-border p-3 rounded-lg mt-1 bg-background text-text">
+                      <option value="manager">Manager</option>
+                      <option value="supervisor">Supervisor</option>
+                      <option value="cashier">Cashier</option>
+                      <option value="kitchen">Kitchen Staff</option>
+                      <option value="inventory">Inventory Staff</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 pt-2">
+                    <button type="submit" className="bg-primary text-white font-bold py-3 px-6 rounded-xl hover:bg-primary-hover transition shadow-md w-full md:w-auto">Create Account</button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-border bg-background/50"><h3 className="font-bold text-text">Manage Staff</h3></div>
+                <table className="w-full text-left">
+                  <thead className="bg-background border-b border-border">
+                    <tr><th className="p-4 text-xs font-bold text-text-muted uppercase">Name</th><th className="p-4 text-xs font-bold text-text-muted uppercase">Email</th><th className="p-4 text-xs font-bold text-text-muted uppercase">Role</th><th className="p-4 text-xs font-bold text-text-muted uppercase text-right">Action</th></tr>
+                  </thead>
+                  <tbody>
+                    {staffList.map(s => (
+                      <tr key={s.id} className="border-b border-border hover:bg-background">
+                        <td className="p-4 font-bold text-text">{s.name}</td>
+                        <td className="p-4 text-sm text-text-muted">{s.email}</td>
+                        <td className="p-4"><span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold uppercase">{s.role}</span></td>
+                        <td className="p-4 text-right">
+                          <button onClick={async () => {
+                            if (!window.confirm(`Delete ${s.name}?`)) return;
+                            await fetch(`${API_BASE}/api/admin/staff/${s.id}`, { method: 'DELETE' });
+                            addToast('Staff removed', 'success'); fetchData();
+                          }} className="text-danger font-bold text-xs bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100"><Trash2 size={14} className="inline mr-1" /> Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -765,7 +833,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                 <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6 flex items-center gap-3"><Image size={24} className="text-primary" /> Homepage Hero</h2>
                 <div className="space-y-4 md:space-y-5">
                   <div>
-                    <label className="text-sm font-bold text-text-muted mb-1 block">Hero Background Image</label>
+                    <label className="text-sm font-bold text-text-muted mb-1 block">Hero Background Image (or GIF)</label>
                     <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'hero_image_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
                     {settings.hero_image_url && <img src={settings.hero_image_url} alt="Hero" className="mt-3 w-full h-40 object-cover rounded-xl" />}
                   </div>
@@ -776,6 +844,47 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                     <div><label className="text-sm font-bold text-text-muted mb-1 block">Button Text</label><input type="text" disabled={!isLocal} value={settings.hero_button_text || ''} onChange={e => setSettings({...settings, hero_button_text: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" /></div>
                     <div><label className="text-sm font-bold text-text-muted mb-1 block">Button Link</label><input type="text" disabled={!isLocal} value={settings.hero_button_link || ''} onChange={e => setSettings({...settings, hero_button_link: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="/store" /></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6 flex items-center gap-3"><Megaphone size={24} className="text-primary" /> Ads & Commercials</h2>
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between bg-background p-3 rounded-xl border border-border">
+                    <div><p className="font-bold text-text">Show Promo Banner</p><p className="text-xs text-text-muted">Display a clickable image banner on the homepage.</p></div>
+                    <input type="checkbox" disabled={!isLocal} checked={settings.show_ad_banner} onChange={e => setSettings({...settings, show_ad_banner: e.target.checked})} className="w-5 h-5 accent-primary" />
+                  </div>
+                  {settings.show_ad_banner && (
+                    <div className="pl-4 space-y-3 border-l-2 border-primary/20">
+                      <div>
+                        <label className="text-sm font-bold text-text-muted mb-2 block">Banner Image (or GIF)</label>
+                        <input type="file" accept="image/*" disabled={!isLocal || isUploading} onChange={e => handleUploadImage(e, 'ad_banner_image_url')} className="w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                        {settings.ad_banner_image_url && <img src={settings.ad_banner_image_url} alt="Ad Banner" className="mt-3 w-full h-32 object-cover rounded-xl" />}
+                      </div>
+                      <div><label className="text-sm font-bold text-text-muted mb-1 block">Banner Link (URL)</label><input type="text" disabled={!isLocal} value={settings.ad_banner_link || ''} onChange={e => setSettings({...settings, ad_banner_link: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" placeholder="https://..." /></div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between bg-background p-3 rounded-xl border border-border mt-4">
+                    <div><p className="font-bold text-text">Show Commercial Video</p><p className="text-xs text-text-muted">Embed a YouTube video or MP4 on the homepage.</p></div>
+                    <input type="checkbox" disabled={!isLocal} checked={settings.show_video} onChange={e => setSettings({...settings, show_video: e.target.checked})} className="w-5 h-5 accent-primary" />
+                  </div>
+                  {settings.show_video && (
+                    <div className="pl-4 border-l-2 border-primary/20">
+                      <label className="text-sm font-bold text-text-muted mb-1 block">Video Embed URL</label>
+                      <input type="text" disabled={!isLocal} value={settings.video_url || ''} onChange={e => setSettings({...settings, video_url: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" placeholder="https://www.youtube.com/embed/..." />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
+                <h2 className="font-black text-xl md:text-2xl text-text mb-4 md:mb-6 flex items-center gap-3"><MapPin size={24} className="text-primary" /> Contact Us Section</h2>
+                <div className="space-y-4 md:space-y-5">
+                  <div><label className="text-sm font-bold text-text-muted mb-1 block">Address Text</label><input type="text" disabled={!isLocal} value={settings.contact_address || ''} onChange={e => setSettings({...settings, contact_address: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Latitude</label><input type="number" step="any" disabled={!isLocal} value={settings.contact_lat || 12.4989} onChange={e => setSettings({...settings, contact_lat: parseFloat(e.target.value)})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" /></div>
+                    <div><label className="text-sm font-bold text-text-muted mb-1 block">Longitude</label><input type="number" step="any" disabled={!isLocal} value={settings.contact_lng || 124.6377} onChange={e => setSettings({...settings, contact_lng: parseFloat(e.target.value)})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:ring-2 focus:ring-primary outline-none" /></div>
                   </div>
                 </div>
               </div>
@@ -835,15 +944,6 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
                     <div><label className="text-sm font-bold text-text-muted mb-1 block">TikTok URL</label><input type="url" disabled={!isLocal} value={settings.social_tiktok || ''} onChange={e => setSettings({...settings, social_tiktok: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="https://tiktok.com/@..." /></div>
                     <div><label className="text-sm font-bold text-text-muted mb-1 block">Twitter / X URL</label><input type="url" disabled={!isLocal} value={settings.social_twitter || ''} onChange={e => setSettings({...settings, social_twitter: e.target.value})} className="w-full border-border border p-3 rounded-xl bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none" placeholder="https://x.com/..." /></div>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-surface p-4 md:p-8 rounded-2xl border border-border shadow-sm">
-                <h2 className="font-black text-xl md:text-2xl text-text mb-2">Custom Domain / URL</h2>
-                <p className="text-sm text-text-muted mb-4 md:mb-6">This is your "vanity URL" slug.</p>
-                <div className="flex items-center">
-                  <input disabled={!isLocal} value={settings.brand_url || ''} onChange={e => setSettings({...settings, brand_url: e.target.value})} className="flex-1 border-border border p-3 rounded-l-xl bg-background text-text focus:bg-surface transition font-medium outline-none focus:ring-2 focus:ring-primary" placeholder="burger-bombs" />
-                  <span className="bg-background border border-l-0 border-border p-3 rounded-r-xl text-text-muted font-bold text-sm hidden sm:block">.vercel.app</span>
                 </div>
               </div>
 
@@ -934,18 +1034,7 @@ export default function AdminDashboard({ currentColors, setCurrentColors }) {
         ) : (
           <form onSubmit={handleSaveItem} className="space-y-3 md:space-y-4">
             <div><label className="text-xs font-bold text-text-muted uppercase">Item Name</label><input required value={selectedItem?.name || ''} onChange={e => setSelectedItem({...selectedItem, name: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>
-            
-            <div>
-              <label className="text-xs font-bold text-text-muted uppercase">Description</label>
-              <textarea 
-                rows="2"
-                value={selectedItem?.description || ''} 
-                onChange={e => setSelectedItem({...selectedItem, description: e.target.value})} 
-                placeholder="Classic beef patty with lettuce, tomato, and house sauce"
-                className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" 
-              />
-            </div>
-
+            <div><label className="text-xs font-bold text-text-muted uppercase">Description</label><textarea rows="2" value={selectedItem?.description || ''} onChange={e => setSelectedItem({...selectedItem, description: e.target.value})} placeholder="Classic beef patty with lettuce, tomato, and house sauce" className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>
             <div className="grid grid-cols-2 gap-3 md:gap-4">
               <div><label className="text-xs font-bold text-text-muted uppercase">Price (₱)</label><input required type="number" step="0.01" value={selectedItem?.price || ''} onChange={e => setSelectedItem({...selectedItem, price: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>
               <div><label className="text-xs font-bold text-text-muted uppercase">Cost (₱)</label><input required type="number" step="0.01" value={selectedItem?.cost || ''} onChange={e => setSelectedItem({...selectedItem, cost: e.target.value})} className="w-full border border-border p-2 md:p-3 rounded-lg mt-1 bg-background text-text focus:bg-surface focus:ring-2 focus:ring-primary outline-none transition text-sm md:text-base" /></div>

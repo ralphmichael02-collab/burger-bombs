@@ -4,6 +4,7 @@ import { pool, cloudPool } from '../db.js';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -73,7 +74,6 @@ router.get('/admin/menu', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// FIXED: Added description
 router.post('/admin/menu', async (req, res) => {
   const { name, price, category, image_url, cost, description } = req.body;
   try {
@@ -91,7 +91,6 @@ router.post('/admin/menu', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// FIXED: Added description
 router.put('/admin/menu/:id', async (req, res) => {
   const { id } = req.params;
   const { name, price, category, image_url, cost, description } = req.body;
@@ -217,14 +216,19 @@ router.get('/admin/pending-payments', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── ENHANCED CRM (Added last_address) ───────────────────────
 router.get('/admin/customers', async (_req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT c.id, c.name, c.email, c.phone, c.created_at, 
-             COUNT(o.id)::int as total_orders, 
-             COALESCE(SUM(o.total), 0)::float as total_spent, 
-             MAX(o.created_at) as last_order
-      FROM customers c LEFT JOIN orders o ON c.id = o.customer_id
+      SELECT 
+        c.id, c.name, c.email, c.phone, c.created_at, 
+        COUNT(o.id)::int as total_orders, 
+        COALESCE(SUM(o.total), 0)::float as total_spent, 
+        MAX(o.created_at) as last_order,
+        (SELECT delivery_address FROM orders WHERE customer_id = c.id AND delivery_address IS NOT NULL ORDER BY created_at DESC LIMIT 1) as last_address
+      FROM customers c 
+      LEFT JOIN orders o ON c.id = o.customer_id
+      WHERE c.role = 'customer'
       GROUP BY c.id ORDER BY c.created_at DESC
     `);
     res.json(rows);
@@ -268,6 +272,47 @@ router.get('/admin/reports/inventory', async (_req, res) => {
       FROM ingredients i ORDER BY i.name ASC
     `);
     res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── NEW: STAFF ACCOUNTS MANAGEMENT ──────────────────────────
+router.get('/admin/staff', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, email, role, created_at FROM customers WHERE role != 'customer' ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/admin/staff', async (req, res) => {
+  const { name, email, password, role } = req.body;
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      `INSERT INTO customers (name, email, password_hash, role, is_verified) 
+       VALUES ($1, $2, $3, $4, TRUE) RETURNING id, name, email, role`,
+      [name, email, hash, role]
+    );
+    if (cloudPool) {
+      await cloudPool.query(
+        `INSERT INTO customers (id, name, email, password_hash, role, is_verified) 
+         VALUES ($1, $2, $3, $4, $5, TRUE)`,
+        [rows[0].id, name, email, hash, role]
+      );
+    }
+    res.json({ ok: true, staff: rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/admin/staff/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM customers WHERE id = $1 AND role != 'customer'`, [req.params.id]);
+    if (cloudPool) await cloudPool.query(`DELETE FROM customers WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
