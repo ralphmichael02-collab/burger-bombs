@@ -9,7 +9,7 @@ import { io } from 'socket.io-client';
 import { db } from '../db';
 import { createOrder } from '../services/orderService';
 import { startSyncWorker } from '../services/syncService';
-import { API_BASE, SOCKET_URL } from '../config/api';
+import { API_BASE, SOCKET_URL, safeFetch } from '../config/api';
 import MenuList from './MenuList';
 import Cart from './Cart';
 import QRScanner from './QRScanner';
@@ -31,6 +31,7 @@ export default function POS() {
   const [submitting, setSubmitting] = useState(false);
   const [lastOrderId, setLastOrderId] = useState(null);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [settings, setSettings] = useState(null);
 
   const [showScanner, setShowScanner] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -53,6 +54,7 @@ export default function POS() {
     socket.emit('join:cashier');
     socket.emit('scanner:create-session', { pairCode });
 
+    safeFetch(`${API_BASE}/api/settings`).then(r => r.json()).then(setSettings).catch(console.error);
     fetch(`${API_BASE}/api/orders/pending-kiosk`)
       .then(r => r.json())
       .then(d => setPendingOrders(Array.isArray(d) ? d : []))
@@ -157,9 +159,15 @@ export default function POS() {
     <div className="h-[calc(100dvh-64px)] bg-background flex flex-col font-['Source_Sans_Pro',sans-serif]">
       <header className="bg-surface border-b border-border p-4 flex justify-between items-center shrink-0 z-20 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-md"><LayoutDashboard size={20} /></div>
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shrink-0 shadow-md overflow-hidden">
+            {settings?.logo_url ? (
+              <img src={settings.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <LayoutDashboard size={20} />
+            )}
+          </div>
           <div>
-            <h1 className="text-xl font-black text-text">POS Terminal</h1>
+            <h1 className="text-xl font-black text-text">{settings?.restaurant_name || 'Burger Bombs'} POS</h1>
             <p className="text-xs text-text-muted font-bold hidden sm:block">Station 1</p>
           </div>
         </div>

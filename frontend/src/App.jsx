@@ -11,9 +11,10 @@ import MobileScanner from './components/MobileScanner';
 import MobilePortal from './components/MobilePortal';
 import RiderPortal from './components/RiderPortal';
 import TrackOrder from './components/TrackOrder';
-import Home from './components/Home';
+import LandingPage from './components/LandingPage';
 import { refreshMenuFromBackend } from './db';
 import { isLocalEnvironment } from './utils/isLocal';
+import { API_BASE, safeFetch } from './config/api';
 
 const PRESET_THEMES = [
   { name: 'Enterprise Orange', colors: { primary: '#EA580C', primaryHover: '#C2410C', background: '#FDFBF7', surface: '#FFFFFF', text: '#1A1C23', textMuted: '#6B7280', border: '#E5E7EB', success: '#45C65A', danger: '#EA001E' } },
@@ -38,7 +39,8 @@ export default function App() {
   useEffect(() => {
     refreshMenuFromBackend();
     
-    fetch('/api/settings')
+    // 👇 GLOBAL BRANDING FETCH
+    safeFetch(`${API_BASE}/api/settings`)
       .then(res => res.json())
       .then(data => {
         if (data.site_title) document.title = data.site_title;
@@ -79,8 +81,6 @@ export default function App() {
     });
   }, [currentColors]);
 
-  // 🛑 Block ONLY local-only routes if we are on Vercel (Cloud)
-  // Admin is now allowed on Cloud (but edit buttons will be disabled)
   const isLocalOnlyRoute = ['/pos', '/kitchen', '/kiosk'].some(p => location.pathname.startsWith(p));
   if (!isLocal && isLocalOnlyRoute) {
     return <Navigate to="/" replace />; 
@@ -105,7 +105,6 @@ export default function App() {
             Online Store
           </Link>
           
-          {/* Admin Dashboard is now available on Cloud as well */}
           <Link to="/admin" className={`capitalize font-bold ml-auto ${location.pathname.startsWith('/admin') ? 'text-primary' : 'text-text-muted hover:text-text'}`}>
             Staff Login
           </Link>
@@ -113,14 +112,13 @@ export default function App() {
       )}
 
       <Routes>
-        <Route path="/" element={isLocal ? <POS /> : <Home />} />
+        <Route path="/" element={isLocal ? <POS /> : <LandingPage />} />
         <Route path="/store" element={<CustomerStore />} />
         <Route path="/scanner" element={<MobileScanner />} />
         <Route path="/mobile" element={<MobilePortal />} />
         <Route path="/rider" element={<RiderPortal />} />
         <Route path="/track/:orderId" element={<TrackOrder />} />
         
-        {/* Admin routes are now accessible on both Local and Cloud */}
         <Route path="/admin" element={<AdminDashboard currentColors={currentColors} setCurrentColors={setCurrentColors} />} />
         <Route path="/admin/login" element={<AdminLogin />} />
 
@@ -132,7 +130,7 @@ export default function App() {
           </>
         )}
 
-        <Route path="*" element={isLocal ? <POS /> : <Home />} />
+        <Route path="*" element={isLocal ? <POS /> : <LandingPage />} />
       </Routes>
     </div>
   );

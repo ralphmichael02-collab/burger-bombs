@@ -4,12 +4,11 @@ import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { 
-  Utensils, ShieldCheck, MapPin, ArrowRight, Store, Star, Zap, Clock, Truck, Heart, PlayCircle, Megaphone, Phone, Mail 
+  Utensils, ShieldCheck, MapPin, ArrowRight, Store, Star, Zap, Clock, Truck, Heart, PlayCircle, Phone, Mail 
 } from 'lucide-react';
 import { isLocalEnvironment } from '../utils/isLocal';
 import { API_BASE, safeFetch } from '../config/api';
 
-// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -37,7 +36,6 @@ export default function LandingPage() {
   const isLocal = isLocalEnvironment();
 
   useEffect(() => {
-    // 👇 Using safeFetch and API_BASE
     safeFetch(`${API_BASE}/api/settings`).then(r => r.json()).then(setSettings).catch(console.error);
     safeFetch(`${API_BASE}/api/menu`).then(r => r.json()).then(setMenu).catch(console.error);
   }, []);
@@ -101,7 +99,6 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* 👇 NEW: AD BANNER SECTION */}
       {settings.show_ad_banner && settings.ad_banner_image_url && (
         <section className="py-12 px-6 bg-background border-b border-border">
           <div className="max-w-4xl mx-auto">
@@ -131,7 +128,6 @@ export default function LandingPage() {
         </section>
       )}
 
-      {/* 👇 NEW: COMMERCIAL VIDEO SECTION */}
       {settings.show_video && settings.video_url && (
         <section className="py-20 px-6 bg-surface border-y border-border">
           <div className="max-w-4xl mx-auto text-center">
@@ -179,7 +175,6 @@ export default function LandingPage() {
         </section>
       )}
 
-      {/* 👇 NEW: CONTACT US & MAP SECTION */}
       {settings.show_contact && (
         <section className="py-24 px-6 max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -190,24 +185,15 @@ export default function LandingPage() {
             <div className="flex-1 space-y-6">
               <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm flex items-start gap-4">
                 <div className="p-3 bg-primary/10 rounded-xl text-primary shrink-0"><MapPin size={24} /></div>
-                <div>
-                  <h3 className="font-bold text-text mb-1">Our Location</h3>
-                  <p className="text-text-muted">{settings?.contact_address}</p>
-                </div>
+                <div><h3 className="font-bold text-text mb-1">Our Location</h3><p className="text-text-muted">{settings?.contact_address}</p></div>
               </div>
               <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm flex items-start gap-4">
                 <div className="p-3 bg-primary/10 rounded-xl text-primary shrink-0"><Phone size={24} /></div>
-                <div>
-                  <h3 className="font-bold text-text mb-1">Call Us</h3>
-                  <p className="text-text-muted">{settings?.contact_phone}</p>
-                </div>
+                <div><h3 className="font-bold text-text mb-1">Call Us</h3><p className="text-text-muted">{settings?.contact_phone}</p></div>
               </div>
               <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm flex items-start gap-4">
                 <div className="p-3 bg-primary/10 rounded-xl text-primary shrink-0"><Mail size={24} /></div>
-                <div>
-                  <h3 className="font-bold text-text mb-1">Email Us</h3>
-                  <p className="text-text-muted">{settings?.contact_email}</p>
-                </div>
+                <div><h3 className="font-bold text-text mb-1">Email Us</h3><p className="text-text-muted">{settings?.contact_email}</p></div>
               </div>
             </div>
             <div className="flex-1 bg-surface rounded-3xl border border-border shadow-xl overflow-hidden h-[400px]">
